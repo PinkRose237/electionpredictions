@@ -8,6 +8,7 @@ from typing import Optional
 from .config import ELECTION_DATE, SITE_DATA_DIR, STATES, days_to_election
 from .db import now_iso, rows
 from .model.forecast import _sides
+from .schedule import build_schedule
 from .util import ordinal
 
 VERSION = "0.1.0"
@@ -168,6 +169,7 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
         )
         (out_dir / "races" / f"{rid}.json").write_text(json.dumps(det, ensure_ascii=False))
     (out_dir / "races.json").write_text(json.dumps(summaries, ensure_ascii=False))
+    (out_dir / "schedule.json").write_text(json.dumps(build_schedule(summaries, now_iso()), ensure_ascii=False))
 
     # ---- summary
     latest_gb = [g for g in gb_rows if g["as_of"] == gb_rows[0]["as_of"]] if gb_rows else []

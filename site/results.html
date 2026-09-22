@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Election Results — Midterm Model 2026</title>
+  <meta name="description" content="Countdowns to poll closing for every 2026 House, Senate and governor race, with when a call can be expected.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='16' height='32' rx='4' fill='%232166ac'/%3E%3Crect x='16' width='16' height='32' rx='4' fill='%23b2182b'/%3E%3Crect x='10' width='12' height='32' fill='%232166ac'/%3E%3Crect x='16' width='6' height='32' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="visually-hidden" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html" data-nav="dashboard"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Midterm Model 2026</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" data-nav="dashboard">Dashboard</a>
+        <a href="results.html" data-nav="results">Election Results</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
+      </nav>
+      <div class="topbar-meta" data-updated></div>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <div id="status" class="status" role="status">Loading the schedule…</div>
+    <div id="results" hidden>
+      <div class="page-head">
+        <h1>Election Results</h1>
+        <p>Results will fill in here on election night. Until then: a live countdown to when polls close for every race, grouped by state and closing time, with an estimate of when the Associated Press is likely to call each one.</p>
+      </div>
+      <section id="hero" class="results-hero" aria-label="Key countdowns"></section>
+      <section id="timeline" class="card timeline-card" aria-label="Election night timeline"></section>
+      <div id="controls" class="results-controls" role="group" aria-label="Filters"></div>
+      <div id="blocks"></div>
+      <section id="method" class="card method-card" aria-labelledby="h-method"></section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <h4>Data sources</h4>
+        <ul>
+          <li>Poll-closing times: The Green Papers, 2026 general election</li>
+          <li>Call-time history: AP race calls, 2018–2024 general elections</li>
+          <li>Race ratings: this site’s model (see the dashboard)</li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li><a href="methodology.html" data-nav="methodology">How the model works</a></li>
+          <li data-generated></li>
+          <li><span data-site-name>Midterm Model 2026</span> · not affiliated with any campaign or party</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./results.js"></script>
+</body>
+</html>

@@ -102,3 +102,24 @@ a hypothetical matchup when real ones exist). `poll_list[].moe`, `und_pct`, `sam
 ```json
 {"generated_at": "...", "version": "0.1.0", "runs": [{"stage": "polls", "finished_at": "...", "ok": true, "note": "{...}"}]}
 ```
+
+## `schedule.json` — Election Results page
+```json
+{
+  "generated_at": "...", "election_date": "2026-11-03",
+  "first_close_utc": "2026-11-03T23:00:00+00:00", "last_close_utc": "2026-11-04T06:00:00+00:00",
+  "groups": [{
+    "state": "FL", "state_name": "Florida", "close_utc": "2026-11-04T01:00:00+00:00", "close_et": "8 pm ET",
+    "local": "8 pm ET (last polls in the state)", "note": "The Central-time panhandle ...",
+    "n_competitive": 1, "settled_typical": "2026-11-04T13:00:00+00:00", "settled_late": "...",
+    "races": [{"race_id": "FL-GOV", "short": "FL-Gov", "name": "Florida Governor", "chamber": "governor",
+               "label": "Lean R", "p_dem": 0.3, "dem": "David Jolly", "rep": "Byron Donalds", "uncontested": false,
+               "call": {"earliest": "...", "typical": "...", "late": "...", "summary": "Late election night or next morning",
+                        "tier": 2, "why": "Mail ballots are counted before polls close; ..."}}]
+  }],
+  "method": ["..."], "sources": [{"title": "...", "url": "..."}]
+}
+```
+Groups are sorted by closing time then state; a state appears more than once when it spans time zones
+(House districts in the earlier zone form their own group). `call.tier` is 0 (Safe) … 3 (Tossup) or
+`"uncontested"`.

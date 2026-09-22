@@ -42,6 +42,7 @@ so re-runs are fast and polite to the upstream sites.
 | Fundraising | FEC bulk "all candidates" summary file | No API key needed; `FEC_API_KEY` enables the API fallback |
 | Prediction markets | Polymarket, PredictIt, Kalshi | Shown for comparison only — **not** a model input |
 | News | Google News RSS, per race | Headlines for context; not a model input |
+| Poll-closing times & call-time history | The Green Papers (2026 closing times); AP race-call timing 2018–2024 | `src/electionpredictions/schedule.py`, exported to `site/data/schedule.json` |
 
 ## How the model works (short version)
 
@@ -107,9 +108,10 @@ src/electionpredictions/
     pollavg.py         weighted polling average
     fundamentals.py    lean + environment + incumbency + money; rating consensus
     forecast.py        combination, Monte Carlo simulation, chamber math
+  schedule.py          poll-closing times per race + expected AP call windows (Election Results page)
   export.py            site/data JSON (schema in docs/DATA_CONTRACT.md)
   cli.py               command-line interface
-site/                  the website (index.html, race.html, methodology.html, *.js, styles.css, data/)
+site/                  the website (index.html, results.html, race.html, methodology.html, *.js, styles.css, data/)
 tests/                 pytest suite
 ```
 

@@ -223,24 +223,63 @@ export const fmt = {
 // ---------------------------------------------------------------------------
 
 const darkMQ = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+const THEME_KEY = 'theme';
+/** 'auto' | 'light' | 'dark' — the user's explicit choice, if any (stored on <html data-theme>). */
+export function themeMode() {
+  const t = document.documentElement.dataset.theme;
+  return t === 'light' || t === 'dark' ? t : 'auto';
+}
 export function isDark() {
+  const mode = themeMode();
+  if (mode !== 'auto') return mode === 'dark';
   return !!(darkMQ && darkMQ.matches);
 }
 const themeListeners = new Set();
-/** Register a callback for OS light/dark changes; returns an unsubscribe function. */
+/** Register a callback for light/dark changes (OS or toggle); returns an unsubscribe function. */
 export function onThemeChange(fn) {
   themeListeners.add(fn);
   return () => themeListeners.delete(fn);
 }
-if (darkMQ && darkMQ.addEventListener) {
-  darkMQ.addEventListener('change', () => {
-    colorCache.light.clear();
-    colorCache.dark.clear();
-    repaintAll();
-    themeListeners.forEach((fn) => {
-      try { fn(); } catch (e) { console.error(e); }
-    });
+function notifyThemeChange() {
+  colorCache.light.clear();
+  colorCache.dark.clear();
+  repaintAll();
+  themeListeners.forEach((fn) => {
+    try { fn(); } catch (e) { console.error(e); }
   });
+}
+if (darkMQ && darkMQ.addEventListener) {
+  darkMQ.addEventListener('change', () => { if (themeMode() === 'auto') notifyThemeChange(); });
+}
+/** Apply and remember a theme choice; 'auto' follows the operating system. */
+export function setTheme(mode) {
+  if (mode === 'auto') delete document.documentElement.dataset.theme;
+  else document.documentElement.dataset.theme = mode;
+  try {
+    if (mode === 'auto') localStorage.removeItem(THEME_KEY);
+    else localStorage.setItem(THEME_KEY, mode);
+  } catch (e) { /* storage unavailable: the choice still applies to this page */ }
+  document.querySelectorAll('.theme-toggle').forEach(updateThemeToggle);
+  notifyThemeChange();
+}
+const THEME_LABEL = { auto: 'Auto', light: 'Light', dark: 'Dark' };
+const THEME_ICON = { auto: '◐', light: '☀', dark: '☾' };
+function updateThemeToggle(btn) {
+  const mode = themeMode();
+  btn.replaceChildren(h('span', { class: 'theme-icon', 'aria-hidden': 'true' }, THEME_ICON[mode]), h('span', {}, THEME_LABEL[mode]));
+  btn.setAttribute('aria-label', `Theme: ${THEME_LABEL[mode]}. Activate to change.`);
+  btn.title = `Theme: ${THEME_LABEL[mode]} — click to cycle Auto → Light → Dark`;
+}
+/** Add the Auto/Light/Dark toggle to the top bar. */
+export function mountThemeToggle(container) {
+  if (!container || container.querySelector('.theme-toggle')) return;
+  const btn = h('button', { class: 'theme-toggle', type: 'button' });
+  updateThemeToggle(btn);
+  btn.addEventListener('click', () => {
+    const order = ['auto', 'light', 'dark'];
+    setTheme(order[(order.indexOf(themeMode()) + 1) % order.length]);
+  });
+  container.append(btn);
 }
 
 // --- sRGB ⇄ OKLab (Björn Ottosson's matrices) for perceptually even ramps ---
@@ -659,6 +698,7 @@ export function initChrome({ current } = {}) {
     a.setAttribute('href', withData(a.getAttribute('href')));
     if (current && a.dataset.nav === current) a.setAttribute('aria-current', 'page');
   });
+  mountThemeToggle(document.querySelector('.topbar-inner'));
 }
 
 /** "Updated 3 hours ago · 42 days to Nov 3, 2026" in the top bar. */
