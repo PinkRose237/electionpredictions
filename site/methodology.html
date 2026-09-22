@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Methodology — Midterm Model 2026</title>
+  <meta name="description" content="How the 2026 midterm forecast model works: inputs, weighting, simulation and limitations.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='16' height='32' rx='4' fill='%232166ac'/%3E%3Crect x='16' width='16' height='32' rx='4' fill='%23b2182b'/%3E%3Crect x='10' width='12' height='32' fill='%232166ac'/%3E%3Crect x='16' width='6' height='32' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="visually-hidden" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html" data-nav="dashboard"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Midterm Model 2026</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" data-nav="dashboard">Dashboard</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
+      </nav>
+      <div class="topbar-meta" data-updated></div>
+    </div>
+  </header>
+
+  <main id="main" class="container prose">
+    <h1>How the model works</h1>
+    <p class="lede">A daily forecast of every 2026 U.S. House, Senate and gubernatorial race, built from public polls, race fundamentals and expert ratings, and turned into seat and control probabilities by simulation.</p>
+
+    <nav class="toc" aria-label="On this page">
+      <a href="#scope">Scope</a>
+      <a href="#inputs">Inputs</a>
+      <a href="#combination">Combining them</a>
+      <a href="#simulation">Uncertainty and simulation</a>
+      <a href="#markets">Markets and news</a>
+      <a href="#limitations">Limitations</a>
+      <a href="#updates">Updates</a>
+    </nav>
+
+    <h2 id="scope">Scope</h2>
+    <p>The model covers every race decided on <strong>November 3, 2026</strong>:</p>
+    <ul>
+      <li>all <strong>435</strong> U.S. House seats;</li>
+      <li><strong>35</strong> U.S. Senate seats — the 33 regular Class 2 seats plus the special elections in Ohio and Florida;</li>
+      <li><strong>36</strong> governorships.</li>
+    </ul>
+    <p>For each race the model produces a projected Democratic-minus-Republican margin, an uncertainty around it, and a probability that the Democratic-side candidate wins. Where a major party has no nominee, an independent may stand in for that side (for example the Nebraska Senate race). Uncontested and same-party general elections are fixed at their known outcome.</p>
+
+    <h2 id="inputs">Inputs</h2>
+
+    <h3>1. Race polls</h3>
+    <p>Polls are scraped from each race’s Wikipedia article, which aggregates published polls. Each poll is weighted by:</p>
+    <ul>
+      <li><strong>Recency</strong> — an exponential decay with a half-life of roughly <strong>14 to 45 days</strong>, shorter as the election approaches;</li>
+      <li><strong>Sample size</strong>;</li>
+      <li><strong>Population</strong> — likely voters are trusted more than registered voters, which are trusted more than all adults (LV &gt; RV &gt; adults);</li>
+      <li><strong>Sponsorship</strong> — polls sponsored by a partisan group or campaign are down-weighted and shifted <strong>1.5 points</strong> toward the other party;</li>
+      <li><strong>Pollster cap</strong> — each pollster’s total weight is capped so that one firm cannot dominate the average.</li>
+    </ul>
+    <p>Hypothetical matchups (polls of candidates who did not both end up as nominees) are ignored when real matchup polls exist. Each race page lists every poll with the weight the model gave it.</p>
+
+    <h3>2. Fundamentals</h3>
+    <p>A poll-free estimate of the margin, built from four terms:</p>
+    <table class="data">
+      <thead><tr><th scope="col">Term</th><th scope="col">Definition</th></tr></thead>
+      <tbody>
+        <tr><td>Partisan lean</td><td>The Cook Partisan Voting Index (PVI) of the state or district.</td></tr>
+        <tr><td>National environment</td><td>The generic-ballot average, weighted <strong>1.0</strong> for House races, <strong>0.9</strong> for Senate races and <strong>0.5</strong> for governors.</td></tr>
+        <tr><td>Incumbency</td><td><strong>+2</strong> points for a House incumbent, <strong>+3</strong> for a Senate incumbent and <strong>+4</strong> for a governor, in the incumbent’s direction.</td></tr>
+        <tr><td>Fundraising</td><td><strong>1.5 × log<sub>10</sub></strong> of the ratio of Democratic to Republican receipts, capped at <strong>±3</strong> points.</td></tr>
+      </tbody>
+    </table>
+
+    <h3>3. Expert ratings</h3>
+    <p>Ratings are collected from Cook Political Report, Inside Elections, Sabato’s Crystal Ball, Decision Desk HQ, Silver Bulletin, Split Ticket, The Economist, FiftyPlusOne, Fox News and RealClearPolitics. Each rating is converted to an implied margin and the raters are averaged:</p>
+    <table class="data">
+      <thead><tr><th scope="col">Rating</th><th scope="col">Implied margin</th></tr></thead>
+      <tbody>
+        <tr><td>Tilt</td><td>2.5 points</td></tr>
+        <tr><td>Lean</td><td>5 points</td></tr>
+        <tr><td>Likely</td><td>9 points</td></tr>
+        <tr><td>Safe / Solid</td><td>16 points</td></tr>
+      </tbody>
+    </table>
+    <p>House seats that no rater lists are treated as safe for the party that holds them.</p>
+
+    <h2 id="combination">Combining them</h2>
+    <p>Fundamentals and expert ratings are blended into a <strong>prior</strong>: 40% fundamentals and 60% ratings when ratings exist, and fundamentals alone otherwise.</p>
+    <p>The polling average is then combined with the prior by <strong>inverse-variance weighting</strong> — each estimate counts in proportion to how precise it is. The polling average’s variance shrinks as the effective number of polls grows and grows as the polls become stale, so a race with many fresh polls is driven mostly by its polls, while a race with one old poll leans on the prior. Every race page shows the two estimates, their weights and the resulting margin.</p>
+
+    <h2 id="simulation">Uncertainty and simulation</h2>
+    <p>Probabilities come from <strong>20,000 Monte Carlo simulations</strong> of election night. Each simulation draws:</p>
+    <ul>
+      <li>a <strong>national swing</strong> shared by every race, with a standard deviation of about <strong>2.5 points</strong> six weeks out, shrinking toward <strong>1.5 points</strong> on election day;</li>
+      <li>a <strong>regional swing</strong> shared by races in the same Census region;</li>
+      <li>a <strong>state swing</strong> shared by races in the same state;</li>
+      <li>a fat-tailed (<strong>Student-t</strong>) race-specific error.</li>
+    </ul>
+    <p>Because the swings are shared, outcomes are <strong>correlated</strong>: a good night for one party tends to be a good night everywhere, which is what makes the chamber-control odds wider than the individual race odds would suggest. Seat totals and control probabilities are read directly off these simulations.</p>
+    <p>Senate control requires <strong>51 Democratic seats</strong>, because the Vice President breaks ties for the Republicans. Independents who do not caucus with a party (for example in Nebraska) count as neither, which is why the Senate card can show a small probability that neither party reaches control on its own.</p>
+
+    <h2 id="markets">Markets and news</h2>
+    <p>Prediction-market prices from <strong>Polymarket, PredictIt and Kalshi</strong>, and headlines from Google News, are shown on the dashboard and race pages for comparison and context. <strong>They are not model inputs.</strong></p>
+
+    <h2 id="limitations">Limitations</h2>
+    <ul>
+      <li>Wikipedia poll tables can lag behind new releases or contain transcription errors.</li>
+      <li>There is no pollster house-effect adjustment yet.</li>
+      <li>District-level polls are sparse, so most House races rest on fundamentals and ratings.</li>
+      <li>Mid-decade redistricting (Texas, California, Florida, Missouri, North Carolina, Ohio, Utah, Alabama and others) makes some PVIs and “last result” figures less comparable to the new lines.</li>
+      <li>Fundraising uses FEC summary data through the latest coverage date, which can be months old.</li>
+    </ul>
+
+    <h2 id="updates">Updates</h2>
+    <p>The pipeline re-runs daily: it refreshes polls, ratings, fundraising, markets and news, re-fits every race and re-runs the simulation. The time of the latest run is shown at the top of every page, and the trend charts accumulate one point per run.</p>
+    <p><a href="index.html" data-nav="dashboard">← Back to the dashboard</a></p>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <h4>Data sources</h4>
+        <ul>
+          <li>Polls, candidates and expert ratings: aggregated from each race’s Wikipedia article</li>
+          <li>Fundraising: FEC bulk data (campaign finance summaries)</li>
+          <li>Prediction markets: Polymarket, PredictIt, Kalshi (shown for comparison, not a model input)</li>
+          <li>News: Google News</li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li><a href="methodology.html" data-nav="methodology">How the model works</a></li>
+          <li data-generated></li>
+          <li><span data-site-name>Midterm Model 2026</span> · not affiliated with any campaign or party</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module">
+    import { initChrome, loadJSON, renderUpdated, renderFooterMeta } from './common.js';
+    initChrome({ current: 'methodology' });
+    loadJSON('summary.json').then((s) => { renderUpdated(s); renderFooterMeta(s); }).catch(() => {});
+  </script>
+</body>
+</html>

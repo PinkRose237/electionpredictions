@@ -1,0 +1,17 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+
+# pipeline state
+data/cache/
+data/elections.db*
+data/run.log
+site/_fixture/
+.pytest_cache/

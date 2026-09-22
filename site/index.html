@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Midterm Model 2026 — Dashboard</title>
+  <meta name="description" content="Daily-updated forecast of the 2026 U.S. House, Senate and gubernatorial elections.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='16' height='32' rx='4' fill='%232166ac'/%3E%3Crect x='16' width='16' height='32' rx='4' fill='%23b2182b'/%3E%3Crect x='10' width='12' height='32' fill='%232166ac'/%3E%3Crect x='16' width='6' height='32' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="visually-hidden" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html" data-nav="dashboard"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Midterm Model 2026</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" data-nav="dashboard">Dashboard</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
+      </nav>
+      <div class="topbar-meta" data-updated></div>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <div id="status" class="status" role="status">Loading the forecast…</div>
+
+    <div id="dashboard" hidden>
+      <div class="page-head">
+        <h1>2026 midterm forecast</h1>
+        <p>Who controls the House, the Senate and the governors’ mansions after November 3, 2026 — from polls, fundamentals, expert ratings and 20,000 simulations, updated daily.</p>
+      </div>
+
+      <section class="section" aria-label="Chamber control">
+        <div id="chambers" class="chamber-grid"></div>
+      </section>
+
+      <section class="section two-col" aria-label="National environment">
+        <div class="card" id="generic"></div>
+        <div class="card" id="trend"></div>
+      </section>
+
+      <section class="section" aria-labelledby="h-races">
+        <div class="section-head">
+          <h2 id="h-races">Every race</h2>
+          <p>Click a state or seat for the full race page. † marks an incumbent.</p>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Chamber" id="tablist"></div>
+        <div id="panels"></div>
+      </section>
+
+      <section class="section" aria-labelledby="h-closest">
+        <div class="section-head">
+          <h2 id="h-closest">Closest races</h2>
+          <p>The twelve races nearest a coin flip.</p>
+        </div>
+        <div id="closest" class="closest-grid"></div>
+      </section>
+
+      <section class="section" aria-labelledby="h-scatter">
+        <div class="card">
+          <h2 id="h-scatter">Model vs. markets</h2>
+          <p class="card-sub">Each dot is a race with a prediction-market price. Above the diagonal, the model is more bullish on Democrats than the markets are. Markets are shown for comparison and are not a model input.</p>
+          <div id="scatter" class="scatter-wrap"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <h4>Data sources</h4>
+        <ul>
+          <li>Polls, candidates and expert ratings: aggregated from each race’s Wikipedia article</li>
+          <li>Fundraising: FEC bulk data (campaign finance summaries)</li>
+          <li>Prediction markets: Polymarket, PredictIt, Kalshi (shown for comparison, not a model input)</li>
+          <li>News: Google News</li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li><a href="methodology.html" data-nav="methodology">How the model works</a></li>
+          <li data-generated></li>
+          <li><span data-site-name>Midterm Model 2026</span> · not affiliated with any campaign or party</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>

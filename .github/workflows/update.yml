@@ -1,0 +1,54 @@
+name: Update forecast
+
+on:
+  schedule:
+    - cron: "17 11 * * *"   # daily, 11:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: update-forecast
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Restore database and caches
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: data-${{ github.run_id }}
+          restore-keys: |
+            data-
+      - run: uv sync
+      - name: Run pipeline
+        env:
+          FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
+        run: uv run electionpredictions run
+      - name: Commit published data
+        run: |
+          git config user.name "forecast-bot"
+          git config user.email "forecast-bot@users.noreply.github.com"
+          git add site/data
+          git commit -m "Update forecast $(date -u +%F)" || echo "nothing to commit"
+          git push
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: update
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
