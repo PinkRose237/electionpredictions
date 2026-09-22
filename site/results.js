@@ -46,13 +46,14 @@ function countdownText(ms) {
 
 const state = { chamber: 'all', competitive: false, search: '', sort: 'time' };
 let schedule = null;
+let results = null; // data/results.json (entered on the admin page), or null before election night
 
 async function main() {
   initChrome({ current: 'results' });
   const status = document.getElementById('status');
   const root = document.getElementById('results');
   try {
-    schedule = await loadJSON('schedule.json');
+    [schedule, results] = await Promise.all([loadJSON('schedule.json'), loadJSON('results.json').catch(() => null)]);
   } catch (err) {
     console.error(err);
     showError(status, err, 'The schedule is written by the pipeline’s export step (data/schedule.json).');
@@ -219,12 +220,14 @@ function stateCard(g) {
   const shown = competitive.length ? competitive : rest.slice(0, 3);
   const hidden = competitive.length ? rest : rest.slice(3);
   const settled = new Date(g.settled_typical);
+  const called = g.races.filter((r) => { const e = results && results.races && results.races[r.race_id]; return e && (e.status === 'called' || e.status === 'final'); }).length;
   const card = h('article', { class: 'card state-card' },
-    h('div', { class: 'state-head' }, h('h3', {}, g.state_name), h('span', { class: 'closes' }, `${g.races.length} race${g.races.length === 1 ? '' : 's'}`)),
+    h('div', { class: 'state-head' }, h('h3', {}, g.state_name), h('span', { class: 'closes' }, `${g.races.length} race${g.races.length === 1 ? '' : 's'}${called ? ` · ${called} called` : ''}`)),
     h('div', { class: 'closes' }, `Polls close ${g.local}${SAME_ZONE ? '' : ` — ${timeIn(close, LOCAL)} ${zoneAbbr(LOCAL, close)} for you`}`),
     h('div', { class: 'countdown', 'data-close': close.toISOString(), 'data-closed-text': 'Polls closed' }, ''),
     h('div', { class: 'countdown-label' }, 'until polls close'),
     g.note ? h('div', { class: 'note' }, g.note) : null,
+    g.sources && g.sources.length ? h('div', { class: 'note' }, 'Official results: ', ...g.sources.flatMap((sr, i) => [i ? ' · ' : '', h('a', { href: sr.url, target: '_blank', rel: 'noopener', title: sr.kind || '' }, sr.label)])) : null,
     h('div', { class: 'race-lines' }, ...shown.map(raceLine)),
     hidden.length ? h('details', { class: 'more' }, h('summary', {}, `Show ${hidden.length} more race${hidden.length === 1 ? '' : 's'} (${competitive.length ? 'not competitive' : 'all'})`),
       h('div', { class: 'race-lines' }, ...hidden.map(raceLine))) : null,
@@ -234,12 +237,27 @@ function stateCard(g) {
   return card;
 }
 
+/** One line of entered results ("D 51.2% · R 47.1% · 62% in · Called for Ossoff") when the admin has published any. */
+export function resultLine(r, e) {
+  if (!e) return null;
+  const d = e.votes && e.votes.dem || 0, rp = e.votes && e.votes.rep || 0, o = e.votes && e.votes.other || 0, tot = d + rp + o;
+  const parts = [];
+  if (tot > 0) parts.push(`D ${(100 * d / tot).toFixed(1)}% · R ${(100 * rp / tot).toFixed(1)}%${o ? ` · other ${(100 * o / tot).toFixed(1)}%` : ''}`);
+  if (isNum(e.reporting)) parts.push(`${e.reporting}% in`);
+  const label = { pending: null, counting: 'Counting', called: 'Called', runoff: 'Runoff', recount: 'Recount', final: 'Final' }[e.status];
+  const winner = e.winner === 'dem' ? r.dem : e.winner === 'rep' ? r.rep : e.winner === 'other' ? 'another candidate' : null;
+  if (!parts.length && !label) return null;
+  return h('div', { class: 'result-line' }, parts.join(' · '), parts.length && label ? ' · ' : '', label ? h('b', {}, winner && (e.status === 'called' || e.status === 'final') ? `${label} for ${winner}` : label) : null);
+}
+
 function raceLine(r) {
   const typical = new Date(r.call.typical);
   const who = r.uncontested ? 'Uncontested' : [r.dem, r.rep].filter(Boolean).join(' vs ') || DASH;
+  const e = results && results.races ? results.races[r.race_id] : null;
   return h('div', { class: 'race-line' },
     ratingPill(r.label),
     h('div', {}, h('a', { class: 'rname', href: raceHref(r.race_id) }, r.short), h('span', { class: 'who' }, ` · ${who}`)),
+    resultLine(r, e),
     h('div', { class: 'call', title: r.call.why || '' }, 'Expected call: ', h('b', {}, r.call.summary),
       r.call.tier === 'uncontested' || r.call.tier === 0 ? '' : ` · ~${bothZones(typical, { date: true })}`),
   );

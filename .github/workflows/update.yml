@@ -38,6 +38,7 @@ jobs:
           git config user.email "forecast-bot@users.noreply.github.com"
           git add site/data
           git commit -m "Update forecast $(date -u +%F)" || echo "nothing to commit"
+          git pull --rebase origin main
           git push
       - uses: actions/upload-pages-artifact@v3
         with:

@@ -1,0 +1,8 @@
+{
+  "salt": "004f79893ff54ea22f8b9473044ae22c",
+  "hash": "582ffb4fb76eccc65bdf8d7ecb4c2fb828398e3bff7e9b3c0938804966884ed2",
+  "iterations": 200000,
+  "repo": "PinkRose237/electionpredictions",
+  "branch": "main",
+  "path": "site/data/results.json"
+}

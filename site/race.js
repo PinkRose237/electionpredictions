@@ -36,11 +36,12 @@ async function main() {
     showError(status, new Error('No race selected.'), 'Choose a race from the dashboard.');
     return;
   }
-  let race, all;
+  let race, all, published;
   try {
-    [race, all] = await Promise.all([
+    [race, all, published] = await Promise.all([
       loadJSON(`races/${encodeURIComponent(id)}.json`),
       loadJSON('races.json').catch(() => null),
+      loadJSON('results.json').catch(() => null),
     ]);
   } catch (err) {
     console.error(err);
@@ -56,7 +57,7 @@ async function main() {
     header(race),
     headline(race),
     h('div', { class: 'race-grid' },
-      h('div', { class: 'col' }, briefSection(race), candidatesSection(race), pollsSection(race), modelSection(race), newsSection(race)),
+      h('div', { class: 'col' }, resultsSection(race, published), briefSection(race), candidatesSection(race), pollsSection(race), modelSection(race), newsSection(race)),
       h('div', { class: 'col' }, ratingsSection(race), marketsSection(race), historySection(race))),
     pager(race, all),
   );
@@ -353,6 +354,29 @@ function marketsSection(race) {
         h('td', {}, mk.url ? h('a', { href: mk.url, target: '_blank', rel: 'noopener', 'aria-label': `Open ${fmt.platform(mk.platform)} market` }, 'Open ↗') : DASH)))))));
   const fetched = list.map((mk) => mk.fetched_at).filter(Boolean).sort().pop();
   if (fetched) sec.append(h('p', { class: 'muted small', style: { marginTop: '8px' } }, `Prices fetched ${relativeTime(fetched)}.`));
+  return sec;
+}
+
+// ---------------------------------------------------------------------------
+// Election results (entered on the admin page, published as data/results.json)
+// ---------------------------------------------------------------------------
+
+function resultsSection(race, published) {
+  const e = published && published.races ? published.races[race.race_id] : null;
+  if (!e) return null;
+  const sec = h('section', { class: 'card results', 'aria-labelledby': 'h-results' }, h('h2', { id: 'h-results' }, 'Election results'));
+  const d = e.votes && e.votes.dem || 0, r = e.votes && e.votes.rep || 0, o = e.votes && e.votes.other || 0, tot = d + r + o;
+  const label = { pending: 'Not started', counting: 'Counting', called: 'Called', runoff: 'Headed to a runoff', recount: 'Recount', final: 'Final' }[e.status] || e.status;
+  const winner = e.winner === 'dem' ? race.dem : e.winner === 'rep' ? race.rep : null;
+  sec.append(h('p', { class: 'card-sub' }, h('b', {}, winner && (e.status === 'called' || e.status === 'final') ? `${label} for ${winner.name}` : label),
+    isNum(e.reporting) ? ` · ${e.reporting}% reporting` : '', e.updated_at ? ` · updated ${relativeTime(e.updated_at)}` : ''));
+  if (tot > 0) {
+    const rows = [[race.dem, d], [race.rep, r]].filter(([c]) => c).map(([c, v]) => h('tr', {}, h('td', {}, c.name, ` (${c.party})`), h('td', { class: 'num' }, v.toLocaleString()), h('td', { class: 'num' }, `${(100 * v / tot).toFixed(1)}%`)));
+    if (o) rows.push(h('tr', {}, h('td', {}, 'Other'), h('td', { class: 'num' }, o.toLocaleString()), h('td', { class: 'num' }, `${(100 * o / tot).toFixed(1)}%`)));
+    sec.append(h('div', { class: 'table-wrap' }, h('table', { class: 'data' }, h('thead', {}, h('tr', {}, h('th', {}, 'Candidate'), h('th', { class: 'num' }, 'Votes'), h('th', { class: 'num' }, 'Share'))), h('tbody', {}, ...rows))));
+  }
+  if (e.note) sec.append(h('p', { class: 'muted small' }, e.note));
+  sec.append(h('p', { class: 'muted small' }, 'Unofficial results entered by the site editor; official results come from the state.'));
   return sec;
 }
 

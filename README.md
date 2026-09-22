@@ -54,6 +54,21 @@ race-specific error, which is what makes seat totals and control probabilities h
 correlated polling misses. The full write-up is in `site/methodology.html`; the implementation is
 `src/electionpredictions/model/`.
 
+## Entering election results (admin page)
+
+`site/admin.html` is a password-gated results-entry page for every race, grouped by state with each
+state's official results link and a live poll-closing countdown. Entries autosave in the browser;
+**Publish** commits `site/data/results.json` to the repo with your own GitHub token (a fine-grained
+personal access token with *Contents: read and write* on this repo, stored only in your browser), and
+`.github/workflows/deploy-site.yml` redeploys the site. The results page and race pages then show the
+entered numbers.
+
+- Set or change the password: `uv run electionpredictions set-admin-password` (writes a PBKDF2 hash
+  to `site/admin-config.json`; use a long passphrase, the hash is public).
+- The gate is client-side, as on any static site: it keeps casual visitors out of the UI, but the
+  thing that actually protects the live site is the GitHub token, which never leaves your browser.
+- Export/Import JSON and "Load published" let you move drafts between devices.
+
 ## Keeping it updated
 
 The forecast is meant to be re-run daily. Three options:
@@ -111,7 +126,7 @@ src/electionpredictions/
   schedule.py          poll-closing times per race + expected AP call windows (Election Results page)
   export.py            site/data JSON (schema in docs/DATA_CONTRACT.md)
   cli.py               command-line interface
-site/                  the website (index.html, results.html, race.html, methodology.html, *.js, styles.css, data/)
+site/                  the website (index.html, results.html, admin.html, race.html, methodology.html, *.js, styles.css, data/)
 tests/                 pytest suite
 ```
 

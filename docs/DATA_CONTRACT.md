@@ -123,3 +123,17 @@ a hypothetical matchup when real ones exist). `poll_list[].moe`, `und_pct`, `sam
 Groups are sorted by closing time then state; a state appears more than once when it spans time zones
 (House districts in the earlier zone form their own group). `call.tier` is 0 (Safe) … 3 (Tossup) or
 `"uncontested"`.
+
+## `results.json` — entered election results (written by the admin page, optional)
+```json
+{
+  "updated_at": "2026-11-03T23:45:00.000Z",
+  "races": {
+    "GA-SEN": {"status": "counting", "reporting": 62, "votes": {"dem": 1234567, "rep": 1200000, "other": 20000},
+               "winner": null, "note": "", "updated_at": "2026-11-03T23:44:10.000Z"}
+  }
+}
+```
+`status` is one of `pending, counting, called, runoff, recount, final`; `winner` is `dem`, `rep`, `other` or null
+(sides as in `races.json`, so an independent standing in for a party counts on that side). Vote fields may be null.
+Absent file = no results yet; pages must render without it.

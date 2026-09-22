@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Admin — Midterm Model 2026</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='16' height='32' rx='4' fill='%232166ac'/%3E%3Crect x='16' width='16' height='32' rx='4' fill='%23b2182b'/%3E%3Crect x='10' width='12' height='32' fill='%232166ac'/%3E%3Crect x='16' width='6' height='32' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="visually-hidden" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html" data-nav="dashboard"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Midterm Model 2026</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" data-nav="dashboard">Dashboard</a>
+        <a href="results.html" data-nav="results">Election Results</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
+        <a href="admin.html" data-nav="admin">Admin</a>
+      </nav>
+      <div class="topbar-meta" data-updated></div>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <div id="status" class="status" role="status">Loading…</div>
+
+    <section id="login" class="admin-login card" hidden aria-labelledby="h-login">
+      <h1 id="h-login">Admin sign-in</h1>
+      <p class="muted">Enter the admin password to manage election results. Publishing to the live site also needs your GitHub token, which stays in this browser.</p>
+      <form id="login-form" autocomplete="off">
+        <label for="pw">Password</label>
+        <input id="pw" type="password" autocomplete="current-password" required>
+        <label class="check"><input id="remember" type="checkbox"> Stay signed in on this device</label>
+        <div class="login-actions">
+          <button type="submit" class="btn primary">Sign in</button>
+          <span id="login-error" class="error-text" role="alert"></span>
+        </div>
+      </form>
+    </section>
+
+    <div id="admin" hidden>
+      <div class="page-head admin-head">
+        <div>
+          <h1>Results entry</h1>
+          <p>Enter results for every race as they come in. Everything autosaves in this browser; <b>Publish</b> commits <code>results.json</code> to the repo and redeploys the site within about a minute.</p>
+        </div>
+        <button type="button" class="btn" id="signout">Sign out</button>
+      </div>
+      <div id="toolbar" class="admin-toolbar card"></div>
+      <div id="filters" class="admin-filters"></div>
+      <div id="sections"></div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <h4>Official results</h4>
+        <ul>
+          <li>Each state header links to that state's official election-night results site.</li>
+          <li>Six states (IL, ME, MA, MS, NH, WI) and New Jersey have no central live feed; use county sites or the AP.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li><a href="results.html" data-nav="results">Public results page</a></li>
+          <li data-generated></li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./admin.js"></script>
+</body>
+</html>

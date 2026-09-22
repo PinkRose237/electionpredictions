@@ -76,6 +76,64 @@ CLOSE_NOTES: dict[str, str] = {
     "ME": "Ranked-choice tabulation is run only if no candidate wins a majority of first choices.",
 }
 
+# Where each state posts election-night results (verified Sept 2026). 'kind' summarises the feed.
+RESULTS_SOURCES: dict[str, list[dict]] = {
+    "AL": [{"label": "Alabama Votes election night", "url": "https://www.sos.alabama.gov/alabama-votes/voter/enr-current-list", "kind": "state site"}],
+    "AK": [{"label": "Alaska Division of Elections results", "url": "https://www.elections.alaska.gov/results/", "kind": "state site; RCV tabulation ~15 days later"}],
+    "AZ": [{"label": "results.arizona.vote", "url": "https://results.arizona.vote/", "kind": "state site; media XML by arrangement"}],
+    "AR": [{"label": "Arkansas ENR (Clarity)", "url": "https://results.enr.clarityelections.com/AR/", "kind": "Clarity JSON/CSV"}],
+    "CA": [{"label": "California SoS election results", "url": "https://electionresults.sos.ca.gov/", "kind": "state site; XLS/CSV/XML downloads"}],
+    "CO": [{"label": "Colorado ENR (Clarity)", "url": "https://results.enr.clarityelections.com/CO/", "kind": "Clarity JSON/CSV"}],
+    "CT": [{"label": "electionresults.ct.gov", "url": "https://electionresults.ct.gov/", "kind": "state site"}],
+    "DE": [{"label": "Delaware election results", "url": "https://elections.delaware.gov/results/", "kind": "state site"}],
+    "FL": [{"label": "Florida Division of Elections results", "url": "https://results.elections.myflorida.com/", "kind": "state site; tab-delimited download"}],
+    "GA": [{"label": "Georgia ENR (Clarity)", "url": "https://results.enr.clarityelections.com/GA/", "kind": "Clarity JSON/CSV"}],
+    "HI": [{"label": "Hawaii Office of Elections results", "url": "https://elections.hawaii.gov/election-results/", "kind": "PDF/text printouts at set times"}],
+    "ID": [{"label": "results.voteidaho.gov", "url": "https://results.voteidaho.gov/results/public/id", "kind": "Enhanced Voting; media export"}],
+    "IL": [{"label": "Illinois SBE results (post-election)", "url": "https://www.elections.il.gov/ElectionOperations/ElectionResults.aspx", "kind": "no live state feed"},
+           {"label": "Cook County Clerk results", "url": "https://www.cookcountyclerkil.gov/elections/results", "kind": "county"},
+           {"label": "Chicago Board of Elections results", "url": "https://chicagoelections.gov/elections/results", "kind": "city"}],
+    "IN": [{"label": "Indiana ENR", "url": "https://enr.indianavoters.in.gov/", "kind": "state site"}],
+    "IA": [{"label": "Iowa ENR (Clarity)", "url": "https://electionresults.iowa.gov/IA/", "kind": "Clarity JSON/CSV"}],
+    "KS": [{"label": "Kansas election night results", "url": "https://ent.sos.ks.gov/kssos_ent.html", "kind": "state site"}],
+    "KY": [{"label": "Kentucky ENR (Clarity)", "url": "https://results.enr.clarityelections.com/KY/", "kind": "Clarity JSON/CSV"}],
+    "LA": [{"label": "Louisiana live results", "url": "https://voterportal.sos.la.gov/graphical", "kind": "state site; media XML feed; CSV after 11 pm"}],
+    "ME": [{"label": "Maine SoS elections (tabulation later)", "url": "https://www.maine.gov/sos/elections-voting", "kind": "no live state feed"},
+           {"label": "Bangor Daily News live results", "url": "https://www.bangordailynews.com/maine-election-results/", "kind": "media"}],
+    "MD": [{"label": "Maryland SBE elections", "url": "https://elections.maryland.gov/elections/", "kind": "state site; CSV files"}],
+    "MA": [{"label": "Massachusetts electionstats (certified later)", "url": "https://electionstats.state.ma.us/", "kind": "no election-night state feed"}],
+    "MI": [{"label": "Michigan SoS election results", "url": "https://www.michigan.gov/sos/elections/election-results-and-data", "kind": "state; counties post first"}],
+    "MN": [{"label": "Minnesota SoS results", "url": "https://electionresults.sos.mn.gov/", "kind": "state site; media text files"}],
+    "MS": [{"label": "Mississippi SoS results (post-election)", "url": "https://www.sos.ms.gov/elections-voting/election-results", "kind": "no live state feed; counties"}],
+    "MO": [{"label": "Missouri election night results", "url": "https://enr.sos.mo.gov/", "kind": "state site"}],
+    "MT": [{"label": "Montana election results", "url": "https://electionresults.mt.gov/", "kind": "state site; ResultsExport.aspx"}],
+    "NE": [{"label": "Nebraska election night results", "url": "https://electionresults.nebraska.gov/", "kind": "state site"}],
+    "NV": [{"label": "Silver State Election", "url": "https://silverstateelection.nv.gov/", "kind": "state site; XML county files"}],
+    "NH": [{"label": "New Hampshire SoS elections", "url": "https://www.sos.nh.gov/elections", "kind": "no live state feed; towns"}],
+    "NJ": [{"label": "NJ election night results (county links)", "url": "https://www.nj.gov/state/elections/election-night-results.shtml", "kind": "county sites, mostly Clarity"}],
+    "NM": [{"label": "New Mexico election results", "url": "https://electionresults.sos.nm.gov/", "kind": "state site"}],
+    "NY": [{"label": "NYS Board of Elections ENR", "url": "https://nyenr.elections.ny.gov/", "kind": "state site (county uploads)"},
+           {"label": "NYC Board of Elections ENR", "url": "https://enr.boenyc.gov/", "kind": "city; CSV"}],
+    "NC": [{"label": "NC State Board of Elections ENR", "url": "https://er.ncsbe.gov/", "kind": "state site; TSV downloads at dl.ncsbe.gov/ENRS"}],
+    "ND": [{"label": "North Dakota SoS election results", "url": "https://www.sos.nd.gov/elections/election-results", "kind": "state site"}],
+    "OH": [{"label": "Ohio SoS live results", "url": "https://liveresults.ohiosos.gov/", "kind": "state site"}],
+    "OK": [{"label": "Oklahoma election results", "url": "https://results.okelections.gov/OKER/", "kind": "state site; export tab"}],
+    "OR": [{"label": "Oregon election results", "url": "https://results.oregonvotes.gov/", "kind": "state site"}],
+    "PA": [{"label": "Pennsylvania election returns", "url": "https://www.electionreturns.pa.gov/", "kind": "state site; JSON API + CSV reports"}],
+    "RI": [{"label": "Rhode Island Board of Elections", "url": "https://elections.ri.gov/", "kind": "state site"}],
+    "SC": [{"label": "SC election night results (Scytl)", "url": "https://www.enr-scvotes.org/", "kind": "Clarity-style JSON/CSV"}],
+    "SD": [{"label": "South Dakota election results", "url": "https://electionresults.sd.gov/", "kind": "state site"}],
+    "TN": [{"label": "Tennessee election night dashboard", "url": "https://www.elections.tn.gov/", "kind": "state site"}],
+    "TX": [{"label": "Texas election night results", "url": "https://results.texas-election.com/", "kind": "state site; JSON behind app"}],
+    "UT": [{"label": "Utah election results", "url": "https://electionresults.utah.gov/", "kind": "Enhanced Voting; media export"}],
+    "VT": [{"label": "Vermont election night results", "url": "https://vtelectionresults.sec.state.vt.us/", "kind": "state site"}],
+    "VA": [{"label": "Virginia ENR", "url": "https://enr.elections.virginia.gov/results/public/virginia", "kind": "Enhanced Voting; JSON file"}],
+    "WA": [{"label": "Washington election results", "url": "https://results.vote.wa.gov/", "kind": "state site; CSV/XML/JSON export"}],
+    "WV": [{"label": "West Virginia ENR (Clarity)", "url": "https://results.enr.clarityelections.com/WV/", "kind": "Clarity JSON/CSV"}],
+    "WI": [{"label": "Wisconsin county election websites", "url": "https://elections.wi.gov/wisconsin-county-election-websites", "kind": "no state feed; 72 county sites"}],
+    "WY": [{"label": "Wyoming SoS elections", "url": "https://sos.wyo.gov/Elections/", "kind": "county clerks + SoS files"}],
+}
+
 # Counting profile: hours after close until roughly 90% of the vote is reported, and days the AP
 # typically needed to call a genuinely close race in 2018-2024.
 COUNT_PROFILE: dict[str, dict] = {
@@ -182,7 +240,7 @@ def build_schedule(race_summaries: list[dict], generated_at: str) -> dict:
         key = (close.isoformat(), r["state"])
         g = groups.setdefault(key, dict(
             state=r["state"], state_name=STATES[r["state"]], close_utc=close.astimezone(timezone.utc).isoformat(),
-            close_et=_fmt_et(close), local=local_desc, note=note, races=[],
+            close_et=_fmt_et(close), local=local_desc, note=note, races=[], sources=RESULTS_SOURCES.get(r["state"], []),
         ))
         g["races"].append(dict(
             race_id=r["race_id"], short=r["short"], name=r["name"], chamber=r["chamber"], label=r["label"], p_dem=r["p_dem"],
@@ -204,6 +262,7 @@ def build_schedule(race_summaries: list[dict], generated_at: str) -> dict:
     return dict(
         generated_at=generated_at, election_date=ELECTION_DATE.isoformat(), first_close_utc=first, last_close_utc=last,
         groups=out,
+        results_sources=RESULTS_SOURCES,
         method=[
             "Poll-closing times come from The Green Papers' 2026 closing-time table; a race is listed at the moment the LAST polls in its jurisdiction close, because the AP does not call a race before then.",
             "Expected call times are estimates, not AP guidance: uncompetitive races (model Safe) are usually called at poll close; Likely races within the state's typical count time; Lean and Tossup races take as long as the state historically needed for close calls (Arizona ~6 days, Nevada ~4, Pennsylvania ~2, Michigan/Wisconsin the next day, California up to a month, Alaska after its ranked-choice tabulation about 15 days out).",

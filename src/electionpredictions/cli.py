@@ -103,7 +103,21 @@ def main(argv=None):
     s = sub.add_parser("serve", help="serve the site locally")
     s.add_argument("--port", type=int, default=8000)
     sub.add_parser("status", help="show what is in the database")
+    ap = sub.add_parser("set-admin-password", help="set the password for the site's admin page")
+    ap.add_argument("--password", help="omit to be prompted")
+    ap.add_argument("--repo", help="GitHub owner/name the admin page publishes to (default: origin remote)")
     args = p.parse_args(argv)
+    if args.cmd == "set-admin-password":
+        import getpass
+
+        from .admin import CONFIG_PATH, write_config
+
+        pw = args.password or getpass.getpass("New admin password: ")
+        if len(pw) < 8:
+            raise SystemExit("Use at least 8 characters (a long passphrase is best: the hash is public).")
+        cfg = write_config(pw, repo=args.repo)
+        print(f"Wrote {CONFIG_PATH} (publishes to {cfg['repo'] or '<set --repo>'} on {cfg['branch']}: {cfg['path']})")
+        return
     con = connect()
     if args.cmd == "ingest":
         ingest(con, only=args.only.split(",") if args.only else None, skip=tuple(filter(None, args.skip.split(","))))
