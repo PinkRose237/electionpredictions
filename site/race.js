@@ -57,7 +57,7 @@ async function main() {
     header(race),
     headline(race),
     h('div', { class: 'race-grid' },
-      h('div', { class: 'col' }, resultsSection(race, published), briefSection(race), candidatesSection(race), pollsSection(race), modelSection(race), newsSection(race)),
+      h('div', { class: 'col' }, resultsSection(race, published), overviewSection(race), candidatesSection(race), pollsSection(race), modelSection(race), newsSection(race)),
       h('div', { class: 'col' }, ratingsSection(race), marketsSection(race), historySection(race))),
     pager(race, all),
   );
@@ -381,18 +381,17 @@ function resultsSection(race, published) {
 }
 
 // ---------------------------------------------------------------------------
-// Race brief (optional, written by the pipeline's AI analysis stage)
+// Race overview
 // ---------------------------------------------------------------------------
 
-/** Two short paragraphs summarising the race, present only when the optional analysis stage has run. */
-function briefSection(race) {
-  const b = race.brief;
-  if (!b || typeof b.text !== 'string' || !b.text.trim()) return null;
-  const sec = h('section', { class: 'card brief', 'aria-labelledby': 'h-brief' }, h('h2', { id: 'h-brief' }, 'Race brief'));
-  for (const para of b.text.split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean)) sec.append(h('p', {}, para));
-  const when = b.generated_at ? relativeTime(b.generated_at) : null;
-  sec.append(h('p', { class: 'muted small' },
-    `AI-written summary of the data and headlines above${b.model ? ` (${b.model})` : ''}${when ? `, generated ${when}` : ''}. It is context, not a model input.`));
+/** Two short paragraphs on where the race stands, when the pipeline has produced them. */
+function overviewSection(race) {
+  const text = typeof race.overview === 'string' ? race.overview.trim() : '';
+  if (!text) return null;
+  const sec = h('section', { class: 'card brief', 'aria-labelledby': 'h-overview' }, h('h2', { id: 'h-overview' }, 'Race overview'));
+  for (const para of text.split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean)) sec.append(h('p', {}, para));
+  const m = race.model || {};
+  if (m.watch) sec.append(h('p', { class: 'muted small' }, 'What to watch: ', m.watch));
   return sec;
 }
 
@@ -416,8 +415,15 @@ function modelSection(race) {
     { label: 'Prior', sub: isNum(m.rating_margin) ? '40% fundamentals + 60% ratings' : 'fundamentals only', v: m.prior_margin, sd: m.prior_sd, total: true },
     { divider: true },
     { label: 'Polling average', sub: isNum(m.poll_margin) ? `weight ${fmt.pct(pollW)}` : 'no usable polls', v: m.poll_margin, sd: m.poll_sd },
-    { label: 'Model margin', sub: pollW != null ? `${fmt.pct(pollW)} polls + ${fmt.pct(1 - pollW)} prior` : 'prior only', v: isNum(race.margin) ? race.margin : null, sd: isNum(race.sd) ? race.sd : m.sigma_total, total: true },
   ];
+  if (isNum(m.baseline_margin) && isNum(m.analyst_adjustment)) {
+    rows.push({ label: 'Baseline margin', sub: pollW != null ? `${fmt.pct(pollW)} polls + ${fmt.pct(1 - pollW)} prior` : 'prior only', v: m.baseline_margin, total: true });
+    rows.push({ divider: true });
+    rows.push({ label: 'Race review', sub: m.confidence ? `${m.confidence} confidence` : 'evidence review', v: m.analyst_adjustment });
+    rows.push({ label: 'Forecast margin', v: isNum(race.margin) ? race.margin : null, sd: isNum(race.sd) ? race.sd : m.sigma_total, total: true });
+  } else {
+    rows.push({ label: 'Model margin', sub: pollW != null ? `${fmt.pct(pollW)} polls + ${fmt.pct(1 - pollW)} prior` : 'prior only', v: isNum(race.margin) ? race.margin : null, sd: isNum(race.sd) ? race.sd : m.sigma_total, total: true });
+  }
   const vals = rows.map((r) => r.v).filter(isNum).map(Math.abs);
   const scale = Math.max(5, Math.ceil((Math.max(0, ...vals) + 0.5) / 5) * 5);
   const grid = h('div', { class: 'waterfall', role: 'table', 'aria-label': 'Model margin breakdown' });
@@ -440,6 +446,11 @@ function modelSection(race) {
     h('span', {}, 'Race-specific σ ', h('b', {}, fmt.dec(m.sigma_race, 1))),
     h('span', {}, 'Total σ (with national, regional and state swings) ', h('b', {}, fmt.dec(m.sigma_total, 1))),
     h('span', {}, 'Win probability ', h('b', {}, fmt.pct(race.p_dem)), ' D')));
+  const factors = Array.isArray(m.key_factors) ? m.key_factors.filter(Boolean) : [];
+  if (factors.length) {
+    sec.append(h('h3', { class: 'sub-h' }, 'Key factors'), h('ul', { class: 'model-notes factors' }, factors.map((f) => h('li', {}, String(f)))));
+    if (m.rationale) sec.append(h('p', { class: 'muted small' }, m.rationale));
+  }
   const notes = Array.isArray(m.notes) ? m.notes.filter(Boolean) : [];
   if (notes.length) sec.append(h('ul', { class: 'model-notes' }, notes.map((n) => h('li', {}, String(n)))));
   return sec;

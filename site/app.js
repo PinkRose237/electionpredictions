@@ -47,6 +47,7 @@ async function main() {
     renderUpdated(S.summary);
     renderFooterMeta(S.summary);
     renderChambers(S.summary);
+    renderOverview(S.summary);
     renderGeneric(S.summary);
     renderTrend(S.summary);
     initTabs();
@@ -61,6 +62,22 @@ async function main() {
 // ---------------------------------------------------------------------------
 // Chamber cards
 // ---------------------------------------------------------------------------
+
+/** Two paragraphs on where things stand plus key factors, when the pipeline produced them. */
+function renderOverview(summary) {
+  const root = document.getElementById('overview');
+  const o = summary && summary.overview;
+  if (!root || !o || !o.summary) return;
+  root.hidden = false;
+  root.replaceChildren(h('h2', {}, 'Where things stand'));
+  for (const para of String(o.summary).split(/\n\s*\n/).map((t) => t.trim()).filter(Boolean)) root.append(h('p', {}, para));
+  const chambers = o.chambers || {};
+  const lines = ['house', 'senate', 'governor'].filter((k) => chambers[k]);
+  if (lines.length) root.append(h('dl', { class: 'overview-chambers' }, ...lines.flatMap((k) => [h('dt', {}, CHAMBER_LABEL[k]), h('dd', {}, chambers[k])])));
+  if (Array.isArray(o.key_factors) && o.key_factors.length) {
+    root.append(h('h3', { class: 'sub-h' }, 'Key factors'), h('ul', { class: 'model-notes factors' }, ...o.key_factors.map((f) => h('li', {}, String(f)))));
+  }
+}
 
 function renderChambers(summary) {
   const root = document.getElementById('chambers');

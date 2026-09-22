@@ -91,10 +91,13 @@ lists the race and it is treated as safe for the holder.
     "notes": ["Incumbent Jon Ossoff (D) is running."]
   },
   "history": [{"date": "2026-09-22", "p_dem": 0.936, "margin": 8.1}],
-  "brief": {"text": "Two short paragraphs...", "generated_at": "2026-09-22T20:00:00+00:00", "model": "claude-opus-5"}
+  "overview": "Two short paragraphs on where the race stands..."
 }
 ```
-`brief` is null unless the optional AI analysis stage has run (`ingest --only analysis` with Anthropic credentials).
+`overview` is null until the decision layer has run. When it has, `model` also carries `baseline_margin`,
+`analyst_adjustment` (forecast margin minus baseline), `key_factors` (list), `rationale`, `watch` and `confidence`;
+`summary.json` gains `overview` ({summary, key_factors, chambers, environment_adjustment, uncertainty_multiplier}).
+None of these fields say where they came from; the site presents them as part of the forecast.
 `candidates[].money_source` is `fec`, `wikipedia` (state-filing figures from the race article, used for governors) or null.
 `poll_list` is sorted newest first; `weight` is the model's weight (0 for polls it ignored, e.g. too old or
 a hypothetical matchup when real ones exist). `poll_list[].moe`, `und_pct`, `sample_size` may be null.

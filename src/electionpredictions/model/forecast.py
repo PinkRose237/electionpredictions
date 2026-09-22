@@ -21,6 +21,7 @@ SIGMA_REGION = 1.0
 SIGMA_STATE = 1.5
 SIGMA_DEMO = 1.0   # per standardised demographic axis (college share, white non-Hispanic share)
 T_DF = 5
+AI_MAX_SHIFT = 10.0   # a race decision may move the margin at most this far from the quantitative baseline
 
 
 def national_sigma(dte: int) -> float:
@@ -140,8 +141,12 @@ def demographic_z(results: list[dict], demo: dict) -> Optional[np.ndarray]:
     return np.nan_to_num(z, nan=0.0)
 
 
-def simulate(results: list[dict], dte: int, n_sims: int = 20000, seed: Optional[int] = None, demo: Optional[dict] = None) -> np.ndarray:
-    """Return a (n_sims, n_races) boolean matrix of D-side wins."""
+def simulate(results: list[dict], dte: int, n_sims: int = 20000, seed: Optional[int] = None, demo: Optional[dict] = None,
+             nat_shift: float = 0.0, nat_sigma_mult: float = 1.0) -> np.ndarray:
+    """Return a (n_sims, n_races) boolean matrix of D-side wins.
+
+    nat_shift / nat_sigma_mult come from the national review: a shared shift of the environment (points) and a
+    scale on the shared national error term."""
     rng = np.random.default_rng(seed)
     n = len(results)
     mu = np.array([r["mu"] for r in results])
@@ -153,7 +158,7 @@ def simulate(results: list[dict], dte: int, n_sims: int = 20000, seed: Optional[
     r_idx = np.array([regions.index(REGION_OF[r["state"]]) for r in results])
     fixed = np.array([r["uncontested"] for r in results])
 
-    d_nat = rng.normal(0, national_sigma(dte), size=(n_sims, 1))
+    d_nat = nat_shift + rng.normal(0, national_sigma(dte) * nat_sigma_mult, size=(n_sims, 1))
     d_reg = rng.normal(0, SIGMA_REGION, size=(n_sims, len(regions)))[:, r_idx]
     d_state = rng.normal(0, SIGMA_STATE, size=(n_sims, len(states)))[:, s_idx]
     t = rng.standard_t(T_DF, size=(n_sims, n)) / math.sqrt(T_DF / (T_DF - 2))
@@ -166,7 +171,28 @@ def simulate(results: list[dict], dte: int, n_sims: int = 20000, seed: Optional[
     return margins > 0
 
 
-def run(con, today: Optional[date] = None, n_sims: int = 20000, seed: Optional[int] = None, verbose: bool = True) -> dict:
+def apply_decisions(results: list[dict], decisions: dict[str, dict]) -> int:
+    """Replace each race's centre and spread with the analyst decision, within guardrails. Returns count applied."""
+    n = 0
+    for r in results:
+        d = decisions.get(r["race_id"])
+        if not d or r.get("uncontested") or not isinstance(d.get("margin"), (int, float)):
+            continue
+        base = r["mu"]
+        mu = min(base + AI_MAX_SHIFT, max(base - AI_MAX_SHIFT, float(d["margin"])))
+        sd = min(12.0, max(2.5, float(d.get("sd") or r["sigma_race"])))
+        r["quant_mu"], r["quant_sigma"] = base, r["sigma_race"]
+        r["mu"], r["sigma_race"] = mu, sd
+        r["ai"] = dict(margin=float(d["margin"]), applied_margin=mu, capped=abs(mu - float(d["margin"])) > 1e-9, sd=sd,
+                       p_dem=d.get("p_dem"), label=d.get("label"), confidence=d.get("confidence"),
+                       key_factors=d.get("key_factors") or [], rationale=d.get("rationale"), watch=d.get("watch"), overview=d.get("overview"))
+        if r["ai"]["capped"]:
+            r["notes"].append(f"Analyst margin of {d['margin']:+.1f} was limited to {mu:+.1f} (max {AI_MAX_SHIFT:g} points from the baseline).")
+        n += 1
+    return n
+
+
+def run(con, today: Optional[date] = None, n_sims: int = 20000, seed: Optional[int] = None, verbose: bool = True, use_ai: bool = True) -> dict:
     started = now_iso()
     today = today or date.today()
     dte = days_to_election(today)
@@ -194,12 +220,20 @@ def run(con, today: Optional[date] = None, n_sims: int = 20000, seed: Optional[i
         r.update(chamber=race["chamber"], state=race["state"], district=race["district"], holder_party=race["holder_party"])
         results.append(r)
 
-    wins = simulate(results, dte, n_sims=n_sims, seed=seed, demo=demo)
+    ai_applied, national = 0, None
+    if use_ai:
+        from ..sources.ai import decisions as load_decisions
+
+        per_race, national = load_decisions(con)
+        ai_applied = apply_decisions(results, per_race)
+    nat_shift = float((national or {}).get("environment_adjustment") or 0.0)
+    nat_mult = float((national or {}).get("uncertainty_multiplier") or 1.0)
+    wins = simulate(results, dte, n_sims=n_sims, seed=seed, demo=demo, nat_shift=nat_shift, nat_sigma_mult=nat_mult)
     sig_nat = national_sigma(dte)
     for i, r in enumerate(results):
         r["p_dem"] = float(wins[:, i].mean())
-        r["sigma_total"] = math.sqrt(r["sigma_race"] ** 2 + (r["env_w"] * sig_nat) ** 2 + SIGMA_REGION ** 2 + SIGMA_STATE ** 2) if not r["uncontested"] else 0.01
-        r["p_dem_analytic"] = float(norm.cdf(r["mu"] / r["sigma_total"])) if not r["uncontested"] else r["p_dem"]
+        r["sigma_total"] = math.sqrt(r["sigma_race"] ** 2 + (r["env_w"] * sig_nat * nat_mult) ** 2 + SIGMA_REGION ** 2 + SIGMA_STATE ** 2) if not r["uncontested"] else 0.01
+        r["p_dem_analytic"] = float(norm.cdf((r["mu"] + r["env_w"] * nat_shift) / r["sigma_total"])) if not r["uncontested"] else r["p_dem"]
         r["label"] = prob_label(r["p_dem"])
         hp = r["holder_party"]
         r["flip_prob"] = (1 - r["p_dem"]) if hp == "D" else r["p_dem"] if hp == "R" else None
@@ -233,10 +267,13 @@ def run(con, today: Optional[date] = None, n_sims: int = 20000, seed: Optional[i
                      "other": sum(1 for h in holders if h not in ("D", "R"))},
         )
     out = dict(run_date=today.isoformat(), days_to_election=dte, generic=gb, national_sigma=sig_nat,
-               races={r["race_id"]: r for r in results}, chambers=chambers, n_sims=n_sims, demographics=bool(demo))
+               races={r["race_id"]: r for r in results}, chambers=chambers, n_sims=n_sims, demographics=bool(demo),
+               ai_applied=ai_applied, national=national)
     _persist(con, out)
     log_run(con, "model", started, True, json.dumps({k: round(v["p_dem"], 3) for k, v in chambers.items()}))
     if verbose:
+        if use_ai:
+            print(f"  decisions applied to {ai_applied} races; national shift {nat_shift:+.1f}, uncertainty x{nat_mult:.2f}")
         for k, v in chambers.items():
             print(f"  {k:9s} P(D control)={v['p_dem']:.3f}  D seats mean={v['dem_seats']['mean']:.1f} [{v['dem_seats']['p10']}-{v['dem_seats']['p90']}]  exp flips D={v['expected_flips']['D']:.1f} R={v['expected_flips']['R']:.1f}")
     return out
@@ -264,6 +301,7 @@ def _persist(con, out: dict) -> None:
             poll={k: v for k, v in (r.get("poll") or {}).items() if k != "weights"} if r.get("poll") else None,
             weights=(r.get("poll") or {}).get("weights"), notes=r.get("notes"), uncontested=r.get("uncontested"),
             p_dem_analytic=r.get("p_dem_analytic"), label=r.get("label"), flip_prob=r.get("flip_prob"),
+            quant_mu=r.get("quant_mu"), quant_sigma=r.get("quant_sigma"), ai=r.get("ai"),
         )
         frows.append(dict(run_date=run_date, race_id=rid, p_dem=r["p_dem"], margin=r["mu"], sd=r["sigma_total"],
                           poll_margin=(r.get("poll") or {}).get("margin"), n_polls=(r.get("poll") or {}).get("n_polls"),
@@ -272,7 +310,7 @@ def _persist(con, out: dict) -> None:
     upsert(con, "forecasts", frows, keys=["run_date", "race_id"])
     crows = [dict(run_date=run_date, chamber=k, p_dem=v["p_dem"], dem_seats_mean=v["dem_seats"]["mean"],
                   dem_seats_p10=v["dem_seats"]["p10"], dem_seats_p90=v["dem_seats"]["p90"],
-                  detail=json.dumps({kk: vv for kk, vv in v.items()}, default=float))
+                  detail=json.dumps(dict(v, national=out.get("national"), ai_applied=out.get("ai_applied")), default=float))
              for k, v in out["chambers"].items()]
     upsert(con, "chamber_forecasts", crows, keys=["run_date", "chamber"])
     con.commit()

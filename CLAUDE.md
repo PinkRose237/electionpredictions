@@ -8,6 +8,6 @@
 - `site/data/` is generated — never hand-edit it; change `src/electionpredictions/export.py` (schema in `docs/DATA_CONTRACT.md`).
 - Margins are always Democratic minus Republican in points; probabilities are 0–1.
 - Markets and news are context only; the model (`src/electionpredictions/model/`) must not use them.
-- AI race briefs use OpenCode Zen (OpenAI-compatible, `OPENCODE_API_KEY`), model `muse-spark-1.3-contributor-free` by default; not the Anthropic SDK.
+- The decision layer (`sources/ai.py`) uses OpenCode Zen (OpenAI-compatible, `OPENCODE_API_KEY`), model `muse-spark-1.3-contributor-free`; pipeline order is ingest -> model --baseline-only -> ai -> model -> export. The site must never mention AI.
 - The FEC API `DEMO_KEY` is limited to ~10 requests/hour; fundraising comes from the bulk `weball26.zip` file.
 - Wikipedia is fetched one whole page at a time; tables are located by heading path (`sources/wikipedia.py`).

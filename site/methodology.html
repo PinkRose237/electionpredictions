@@ -92,7 +92,9 @@
     <p>Fundamentals and expert ratings are blended into a <strong>prior</strong>: 40% fundamentals and 60% ratings when ratings exist, and fundamentals alone otherwise.</p>
     <p>The polling average is then combined with the prior by <strong>inverse-variance weighting</strong> — each estimate counts in proportion to how precise it is. The polling average’s variance shrinks as the effective number of polls grows and grows as the polls become stale, so a race with many fresh polls is driven mostly by its polls, while a race with one old poll leans on the prior. Every race page shows the two estimates, their weights and the resulting margin.</p>
 
-    <h2 id="simulation">Uncertainty and simulation</h2>
+          <p>Each race is then reviewed against its full evidence file (polls, ratings, money and outside spending, markets, recent coverage) and its final margin and uncertainty are set in that review, within a bounded distance of the baseline. A national review likewise sets a shared environment adjustment and the scale of the national error term before the simulation runs.</p>
+
+<h2 id="simulation">Uncertainty and simulation</h2>
     <p>Probabilities come from <strong>20,000 Monte Carlo simulations</strong> of election night. Each simulation draws:</p>
     <ul>
       <li>a <strong>national swing</strong> shared by every race, with a standard deviation of about <strong>2.5 points</strong> six weeks out, shrinking toward <strong>1.5 points</strong> on election day;</li>

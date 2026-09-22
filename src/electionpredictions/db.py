@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS candidates (
     major INTEGER NOT NULL DEFAULT 0,  -- 1 for the D-side / R-side principal candidate
     fec_id TEXT,
     receipts REAL, disbursements REAL, cash_on_hand REAL, coverage_end TEXT,
+    money_source TEXT,
     PRIMARY KEY (race_id, name)
 );
 CREATE TABLE IF NOT EXISTS ratings (

@@ -11,13 +11,13 @@ import time
 from .config import SITE_DIR, days_to_election
 from .db import connect, log_run, now_iso, rows
 
-STAGES = ["races", "ratings", "generic", "polls", "fec", "wiki_fundraising", "followthemoney", "census", "markets", "news", "analysis"]
+STAGES = ["races", "ratings", "generic", "polls", "fec", "wiki_fundraising", "followthemoney", "census", "markets", "news", "ai"]
 
 
 def ingest(con, only=None, skip=()):
     import os
 
-    from .sources import analysis, census, fec, followthemoney, generic_ballot, markets, news, polls, races, ratings, wiki_fundraising
+    from .sources import ai, census, fec, followthemoney, generic_ballot, markets, news, polls, races, ratings, wiki_fundraising
 
     fns = {
         "races": lambda: races.load_all(con),
@@ -30,14 +30,14 @@ def ingest(con, only=None, skip=()):
         "census": lambda: census.load(con, verbose=True),
         "markets": lambda: markets.load(con, verbose=False),
         "news": lambda: news.load(con, verbose=False),
-        "analysis": lambda: analysis.load(con, verbose=True),
+        "ai": lambda: ai.load(con, verbose=True, max_calls=int(os.environ.get("AI_MAX_CALLS", "700"))),
     }
     has_creds = bool(os.environ.get("OPENCODE_API_KEY") or os.environ.get("OPENCODE_ZEN_API_KEY"))
     for stage in STAGES:
         if (only and stage not in only) or stage in skip:
             continue
-        if stage == "analysis" and not only and not has_creds:
-            print("[analysis] skipped (no OPENCODE_API_KEY; run `ingest --only analysis` to try anyway)")
+        if stage == "ai" and not only and not has_creds:
+            print("[ai] skipped (no OPENCODE_API_KEY): the quantitative baseline stands")
             continue
         t0, started = time.time(), now_iso()
         print(f"[{stage}] ...", flush=True)
@@ -49,11 +49,11 @@ def ingest(con, only=None, skip=()):
             log_run(con, stage, started, False, repr(e))
 
 
-def model(con, sims=20000, seed=None):
+def model(con, sims=20000, seed=None, use_ai=True):
     from .model import forecast
 
-    print(f"[model] {sims} simulations, {days_to_election()} days to the election")
-    return forecast.run(con, n_sims=sims, seed=seed)
+    print(f"[model] {sims} simulations, {days_to_election()} days to the election" + ("" if use_ai else " (baseline only)"))
+    return forecast.run(con, n_sims=sims, seed=seed, use_ai=use_ai)
 
 
 def export(con):
@@ -99,6 +99,7 @@ def main(argv=None):
     m = sub.add_parser("model", help="run the forecast model")
     m.add_argument("--sims", type=int, default=20000)
     m.add_argument("--seed", type=int)
+    m.add_argument("--baseline-only", action="store_true", help="ignore the analyst decisions")
     sub.add_parser("export", help="write site/data JSON")
     r = sub.add_parser("run", help="ingest + model + export")
     r.add_argument("--skip", default="")
@@ -125,12 +126,16 @@ def main(argv=None):
     if args.cmd == "ingest":
         ingest(con, only=args.only.split(",") if args.only else None, skip=tuple(filter(None, args.skip.split(","))))
     elif args.cmd == "model":
-        model(con, sims=args.sims, seed=args.seed)
+        model(con, sims=args.sims, seed=args.seed, use_ai=not args.baseline_only)
     elif args.cmd == "export":
         export(con)
     elif args.cmd == "run":
-        ingest(con, skip=tuple(filter(None, args.skip.split(","))))
-        model(con, sims=args.sims)
+        skip = tuple(filter(None, args.skip.split(",")))
+        ingest(con, skip=skip + ("ai",))
+        model(con, sims=args.sims, use_ai=False)   # quantitative baseline the decisions are made against
+        if "ai" not in skip:
+            ingest(con, only=["ai"])
+        model(con, sims=args.sims)                 # final: decisions applied, coherent simulation
         export(con)
     elif args.cmd == "serve":
         serve(args.port)

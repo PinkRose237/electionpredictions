@@ -94,9 +94,9 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
     except Exception:  # noqa: BLE001
         outside = {}
     try:
-        briefs = {b["race_id"]: b for b in rows(con, "SELECT * FROM briefs")}
-    except Exception:  # noqa: BLE001 - table only exists once the optional analysis stage has run
-        briefs = {}
+        national = json.loads(rows(con, "SELECT detail FROM chamber_forecasts WHERE run_date=? LIMIT 1", (latest,))[0]["detail"]).get("national")
+    except Exception:  # noqa: BLE001
+        national = None
     gb_rows = rows(con, "SELECT * FROM generic_ballot ORDER BY as_of DESC")
 
     summaries, label_counts = [], {c: {lab: 0 for lab in LABELS} for c in CHAMBER_LABEL}
@@ -168,9 +168,15 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
                                   incumbency=_r(fund.get("incumbency")), money=_r(fund.get("money"))) if fund else None,
                 rating_margin=_r(rating["margin"]) if rating else None,
                 sigma_race=_r(detail.get("sigma_race")), sigma_total=_r(detail.get("sigma_total")),
+                baseline_margin=_r(detail.get("quant_mu")) if detail.get("ai") else None,
+                analyst_adjustment=_r(f["margin"] - detail["quant_mu"]) if detail.get("ai") and detail.get("quant_mu") is not None else None,
+                key_factors=(detail.get("ai") or {}).get("key_factors") or [],
+                rationale=(detail.get("ai") or {}).get("rationale") or None,
+                watch=(detail.get("ai") or {}).get("watch") or None,
+                confidence=(detail.get("ai") or {}).get("confidence") or None,
                 notes=detail.get("notes") or [],
             ),
-            brief=(dict(text=briefs[rid]["brief"], generated_at=briefs[rid]["generated_at"], model=briefs[rid]["model"]) if rid in briefs else None),
+            overview=((detail.get("ai") or {}).get("overview") or None),
             history=_merge_history([dict(date=h["run_date"], p_dem=round(h["p_dem"], 4), margin=_r(h["margin"])) for h in hist_by.get(rid, [])],
                                    out_dir / "races" / f"{rid}.json"),
         )
@@ -215,7 +221,10 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
     )
     history = _merge_history(history, out_dir / "summary.json")
     summary = dict(generated_at=now_iso(), election_date=ELECTION_DATE.isoformat(), days_to_election=days_to_election(),
-                   run_date=latest, generic_ballot=generic, chambers=chambers, history=history, closest=closest, sources=counts)
+                   run_date=latest, generic_ballot=generic, chambers=chambers, history=history, closest=closest, sources=counts,
+                   overview=(dict(summary=national.get("summary"), key_factors=national.get("key_factors") or [], chambers=national.get("chambers") or {},
+                                  environment_adjustment=national.get("environment_adjustment"), uncertainty_multiplier=national.get("uncertainty_multiplier"))
+                             if national and national.get("summary") else None))
     (out_dir / "summary.json").write_text(json.dumps(summary, ensure_ascii=False))
     runs = rows(con, "SELECT stage, started_at, finished_at, ok, note FROM runs ORDER BY run_id DESC LIMIT 30")
     (out_dir / "meta.json").write_text(json.dumps(dict(generated_at=summary["generated_at"], version=VERSION,
