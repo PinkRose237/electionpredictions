@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from typing import Optional
 
 import pandas as pd
@@ -36,23 +37,67 @@ def _incumbent_running(status: str, incumbent: str) -> Optional[int]:
     return None
 
 
+NICKNAMES = {
+    "bob": "robert", "bobby": "robert", "rob": "robert", "robbie": "robert", "bill": "william", "billy": "william", "will": "william",
+    "jim": "james", "jimmy": "james", "jamie": "james", "mike": "michael", "mikey": "michael", "dan": "daniel", "danny": "daniel",
+    "joe": "joseph", "joey": "joseph", "tom": "thomas", "tommy": "thomas", "chris": "christopher", "dave": "david", "rick": "richard",
+    "rich": "richard", "dick": "richard", "andy": "andrew", "drew": "andrew", "ed": "edward", "eddie": "edward", "ted": "edward",
+    "matt": "matthew", "steve": "steven", "stephen": "steven", "ben": "benjamin", "sam": "samuel", "nick": "nicholas", "jon": "jonathan",
+    "josh": "joshua", "pat": "patrick", "pete": "peter", "liz": "elizabeth", "beth": "elizabeth", "betsy": "elizabeth", "kathy": "katherine",
+    "kate": "katherine", "katie": "katherine", "debbie": "deborah", "deb": "deborah", "jen": "jennifer", "jenny": "jennifer",
+    "tony": "anthony", "greg": "gregory", "jeff": "jeffrey", "ron": "ronald", "ronnie": "ronald", "don": "donald", "ken": "kenneth",
+    "kenny": "kenneth", "larry": "lawrence", "jerry": "gerald", "gerry": "gerald", "tim": "timothy", "fred": "frederick",
+    "frank": "francis", "jack": "john", "alex": "alexander", "abe": "abraham", "vince": "vincent", "lou": "louis", "ray": "raymond",
+    "russ": "russell", "walt": "walter", "zach": "zachary", "nate": "nathan", "phil": "philip", "doug": "douglas", "stan": "stanley",
+    "marty": "martin", "cathy": "catherine", "sue": "susan", "peggy": "margaret", "meg": "margaret", "maggie": "margaret",
+    "patty": "patricia", "trish": "patricia", "barb": "barbara", "becky": "rebecca", "vicky": "victoria", "vicki": "victoria",
+    "cindy": "cynthia", "kim": "kimberly", "chuck": "charles", "charlie": "charles", "hank": "henry", "gabe": "gabriel",
+    "manny": "manuel", "alejandro": "alex",
+}
+
+
 def _norm_name(n: str) -> str:
-    n = clean(n).lower()
+    n = unicodedata.normalize("NFKD", clean(n)).encode("ascii", "ignore").decode().lower()
     n = re.sub(r"\(.*?\)", "", n)
-    n = re.sub(r"[^a-z ]", "", n)
-    toks = [t for t in n.split() if len(t) > 1 and t not in {"jr", "sr", "ii", "iii", "iv"}]
-    return " ".join(toks)
+    n = n.replace("-", " ").replace("'", "").replace("\u2019", "")
+    n = re.sub(r"[^a-z ]", " ", n)
+    toks = [t for t in n.split() if t not in {"jr", "sr", "ii", "iii", "iv", "v"}]
+    # join runs of initials: "j d ford" -> "jd ford"
+    out: list[str] = []
+    for t in toks:
+        if len(t) == 1 and out and len(out[-1]) <= 2 and out[-1].isalpha() and not out[-1] in NICKNAMES:
+            out[-1] += t
+        else:
+            out.append(t)
+    return " ".join(out)
+
+
+def _first_key(tok: str) -> str:
+    return NICKNAMES.get(tok, tok)
 
 
 def same_person(a: str, b: str) -> bool:
+    """Tolerant name comparison: nicknames, middle names/initials, accents and spacing differences.
+
+    'Bobby Charles' == 'Robert B. Charles'; 'Helena Buonanno Foulkes' == 'Helena Foulkes'; 'J. D. Ford' == 'J.D. Ford';
+    but 'Dan J. Sullivan' != 'Dan S. Sullivan' (conflicting middle initials)."""
     na, nb = _norm_name(a), _norm_name(b)
     if not na or not nb:
         return False
     if na == nb:
         return True
     ta, tb = na.split(), nb.split()
-    # same last name and same first token (handles middle initials, nicknames not handled)
-    return bool(ta and tb and ta[-1] == tb[-1] and ta[0] == tb[0])
+    if len(ta) < 2 or len(tb) < 2:
+        return False
+    if ta[-1] != tb[-1]:
+        return False  # different surnames
+    fa, fb = _first_key(ta[0]), _first_key(tb[0])
+    if fa != fb and not (len(ta[0]) == 1 and tb[0].startswith(ta[0])) and not (len(tb[0]) == 1 and ta[0].startswith(tb[0])):
+        return False
+    ma, mb = [t for t in ta[1:-1] if len(t) == 1], [t for t in tb[1:-1] if len(t) == 1]
+    if ma and mb and ma[0] != mb[0]:
+        return False  # both give a middle initial and they differ
+    return True
 
 
 def principal_candidates(cands: list[tuple[str, str]], incumbent: str | None) -> tuple[Optional[tuple[str, str]], Optional[tuple[str, str]]]:

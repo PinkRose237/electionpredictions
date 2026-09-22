@@ -9,7 +9,7 @@ from typing import Optional
 import numpy as np
 from scipy.stats import norm
 
-from ..config import GOVERNORS_NOT_UP, REGION_OF, SENATE_NOT_UP, days_to_election
+from ..config import GOVERNORS_NOT_UP, REDISTRICTED_2026, REGION_OF, SENATE_NOT_UP, days_to_election
 from ..db import log_run, now_iso, rows, upsert
 from ..util import prob_label
 from .fundamentals import PARAMS, RATING_SD, RATING_WEIGHT, fundamentals, rating_summary
@@ -19,6 +19,7 @@ from .pollavg import average
 NON_CAUCUSING_INDEPENDENTS = {"NE-SEN"}
 SIGMA_REGION = 1.0
 SIGMA_STATE = 1.5
+SIGMA_DEMO = 1.0   # per standardised demographic axis (college share, white non-Hispanic share)
 T_DF = 5
 
 
@@ -116,7 +117,30 @@ def race_forecast(race: dict, cands: list[dict], ratings: list[dict], polls: lis
     return res
 
 
-def simulate(results: list[dict], dte: int, n_sims: int = 20000, seed: Optional[int] = None) -> np.ndarray:
+def demographic_z(results: list[dict], demo: dict) -> Optional[np.ndarray]:
+    """(n_races, k) standardised demographic scores, or None when no Census data is loaded.
+
+    House races use their district's values except in states that redrew maps for 2026 (ACS predates those
+    lines), which fall back to the statewide values; Senate and governor races use statewide values."""
+    if not demo:
+        return None
+    axes = ("pct_college", "pct_white_nh")
+    raw = []
+    for r in results:
+        key = (r["state"], None)
+        if r["chamber"] == "house" and r["state"] not in REDISTRICTED_2026 and (r["state"], r.get("district")) in demo:
+            key = (r["state"], r.get("district"))
+        rec = demo.get(key) or demo.get((r["state"], None)) or {}
+        raw.append([rec.get(a) if rec.get(a) is not None else np.nan for a in axes])
+    z = np.array(raw, dtype=float)
+    mean = np.nanmean(z, axis=0)
+    sd = np.nanstd(z, axis=0)
+    sd[sd == 0] = 1.0
+    z = (z - mean) / sd
+    return np.nan_to_num(z, nan=0.0)
+
+
+def simulate(results: list[dict], dte: int, n_sims: int = 20000, seed: Optional[int] = None, demo: Optional[dict] = None) -> np.ndarray:
     """Return a (n_sims, n_races) boolean matrix of D-side wins."""
     rng = np.random.default_rng(seed)
     n = len(results)
@@ -134,6 +158,10 @@ def simulate(results: list[dict], dte: int, n_sims: int = 20000, seed: Optional[
     d_state = rng.normal(0, SIGMA_STATE, size=(n_sims, len(states)))[:, s_idx]
     t = rng.standard_t(T_DF, size=(n_sims, n)) / math.sqrt(T_DF / (T_DF - 2))
     margins = mu + env_w * d_nat + d_reg + d_state + sig * t
+    z = demographic_z(results, demo or {})
+    if z is not None:
+        d_demo = rng.normal(0, SIGMA_DEMO, size=(n_sims, z.shape[1]))
+        margins = margins + d_demo @ z.T   # a miss along an axis moves demographically similar races together
     margins[:, fixed] = mu[fixed]
     return margins > 0
 
@@ -145,6 +173,17 @@ def run(con, today: Optional[date] = None, n_sims: int = 20000, seed: Optional[i
     gb = generic_ballot(con)
     races = rows(con, "SELECT * FROM races ORDER BY chamber, state, district, special")
     cands_by = _group(rows(con, "SELECT * FROM candidates"), "race_id")
+    try:  # outside spending and demographics exist only when the keyed stages have run
+        for o in rows(con, "SELECT * FROM outside_spending"):
+            for c in cands_by.get(o["race_id"], []):
+                if c["name"] == o["name"]:
+                    c["ie_support"], c["ie_oppose"] = o["support"], o["oppose"]
+    except Exception:  # noqa: BLE001
+        pass
+    try:
+        demo = {(d["state"], d["district"]): d for d in rows(con, "SELECT * FROM demographics")}
+    except Exception:  # noqa: BLE001
+        demo = {}
     ratings_by = _group(rows(con, "SELECT * FROM ratings"), "race_id")
     polls_by = _group(rows(con, "SELECT * FROM polls"), "race_id")
 
@@ -152,10 +191,10 @@ def run(con, today: Optional[date] = None, n_sims: int = 20000, seed: Optional[i
     for race in races:
         r = race_forecast(race, cands_by.get(race["race_id"], []), ratings_by.get(race["race_id"], []),
                           polls_by.get(race["race_id"], []), gb["margin"], today)
-        r.update(chamber=race["chamber"], state=race["state"], holder_party=race["holder_party"])
+        r.update(chamber=race["chamber"], state=race["state"], district=race["district"], holder_party=race["holder_party"])
         results.append(r)
 
-    wins = simulate(results, dte, n_sims=n_sims, seed=seed)
+    wins = simulate(results, dte, n_sims=n_sims, seed=seed, demo=demo)
     sig_nat = national_sigma(dte)
     for i, r in enumerate(results):
         r["p_dem"] = float(wins[:, i].mean())
@@ -194,7 +233,7 @@ def run(con, today: Optional[date] = None, n_sims: int = 20000, seed: Optional[i
                      "other": sum(1 for h in holders if h not in ("D", "R"))},
         )
     out = dict(run_date=today.isoformat(), days_to_election=dte, generic=gb, national_sigma=sig_nat,
-               races={r["race_id"]: r for r in results}, chambers=chambers, n_sims=n_sims)
+               races={r["race_id"]: r for r in results}, chambers=chambers, n_sims=n_sims, demographics=bool(demo))
     _persist(con, out)
     log_run(con, "model", started, True, json.dumps({k: round(v["p_dem"], 3) for k, v in chambers.items()}))
     if verbose:

@@ -31,6 +31,9 @@ jobs:
       - name: Run pipeline
         env:
           FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
+          FOLLOWTHEMONEY_API_KEY: ${{ secrets.FOLLOWTHEMONEY_API_KEY }}
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         run: uv run electionpredictions run
       - name: Commit published data
         run: |

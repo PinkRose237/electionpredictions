@@ -31,6 +31,9 @@ def fundamentals(race: dict, dem: Optional[dict], rep: Optional[dict], generic_m
     money = 0.0
     d_r = (dem or {}).get("receipts") or 0.0
     r_r = (rep or {}).get("receipts") or 0.0
+    # outside spending (independent expenditures) counts for the side it helps: support for me + attacks on my opponent
+    d_r += ((dem or {}).get("ie_support") or 0.0) + ((rep or {}).get("ie_oppose") or 0.0)
+    r_r += ((rep or {}).get("ie_support") or 0.0) + ((dem or {}).get("ie_oppose") or 0.0)
     if dem and rep and (d_r + r_r) > 200_000:
         money = P["money_w"] * max(-3.0, min(3.0, 1.5 * math.log10(max(d_r, 25_000) / max(r_r, 25_000))))
     margin = P["lean_w"] * lean + env + inc + money

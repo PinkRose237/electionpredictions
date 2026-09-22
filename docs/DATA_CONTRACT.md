@@ -73,7 +73,8 @@ lists the race and it is treated as safe for the holder.
 ```json
 {
   "candidates": [{"name": "Jon Ossoff", "party": "D", "incumbent": true, "major": true,
-                  "receipts": 77279766.5, "disbursements": 59730545.5, "cash": 42587451.0, "coverage_end": "2026-06-30"}],
+                  "receipts": 77279766.5, "disbursements": 59730545.5, "cash": 42587451.0, "coverage_end": "2026-06-30",
+                  "money_source": "fec"}],
   "ratings": [{"rater": "Cook Political Report", "rating": "Lean D", "as_of": "2026-09-15"}],
   "poll_list": [{"pollster": "Quantus Insights", "sponsor_lean": "R", "start_date": "2026-09-14", "end_date": "2026-09-16",
                  "sample_size": 645, "population": "LV", "moe": 4.3, "dem_pct": 48.0, "rep_pct": 44.0, "und_pct": 7.0,
@@ -94,6 +95,7 @@ lists the race and it is treated as safe for the holder.
 }
 ```
 `brief` is null unless the optional AI analysis stage has run (`ingest --only analysis` with Anthropic credentials).
+`candidates[].money_source` is `fec`, `wikipedia` (state-filing figures from the race article, used for governors) or null.
 `poll_list` is sorted newest first; `weight` is the model's weight (0 for polls it ignored, e.g. too old or
 a hypothetical matchup when real ones exist). `poll_list[].moe`, `und_pct`, `sample_size` may be null.
 `market_list[].p_other` is the independent/third-party price when the platform lists one.

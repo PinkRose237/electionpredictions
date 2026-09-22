@@ -14,7 +14,7 @@ from dateutil import parser as dtparser
 
 from ..config import STATES
 from ..db import log_run, now_iso, rows, upsert
-from ..util import clean, parse_date_range, parse_pct, parse_sample, party_code
+from ..util import clean, last_name, parse_date_range, parse_pct, parse_sample, party_code
 from .races import _col, same_person
 from .wikipedia import WikiTable, extract_tables, page_html, resolve_title
 
@@ -53,6 +53,10 @@ def _cand_col(col: str, cands: list[dict]) -> Optional[tuple[str, str]]:
     for k in cands:
         if same_person(c, k["name"]):
             return k["name"], k["party"]
+    if len(c.split()) == 1:
+        hits = [k for k in cands if last_name(k["name"]).lower() == c.lower()]
+        if len(hits) == 1:
+            return hits[0]["name"], hits[0]["party"]
     if len(c.split()) >= 2 and not any(ch.isdigit() for ch in c):
         return c, "?"
     return None
@@ -197,22 +201,29 @@ def parse_polling_table(t: WikiTable, race: dict, cands: list[dict], dem: Option
     return polls, aggs
 
 
+PRIMARY_WORDS = ("primary", "convention", "caucus", "nominat", "runoff", "first round")
+
+
 def polling_tables(tables: list[WikiTable], district: Optional[int] = None) -> list[WikiTable]:
+    """General-election polling tables: under a 'General election' heading, or a 'Polling' heading with no
+    primary/convention/runoff context (some articles nest general polling under the wrong parent)."""
     out = []
     for t in tables:
         path_l = [p.lower() for p in t.path]
         if not any("polling" in p or p == "polls" for p in path_l):
             continue
-        if not any("general election" in p for p in path_l):
-            continue
         if district is not None:
             if not any(re.fullmatch(rf"district {district}", p) or re.fullmatch(rf"{district}(st|nd|rd|th) district", p) for p in path_l):
                 continue
-        # make sure this isn't a primary section
-        gi = next(i for i, p in enumerate(path_l) if "general election" in p)
-        if any("primary" in p for p in path_l[gi:]):
-            continue
-        out.append(t)
+        if any("general election" in p for p in path_l):
+            gi = next(i for i, p in enumerate(path_l) if "general election" in p)
+            if any(w in p for p in path_l[gi:] for w in PRIMARY_WORDS):
+                continue
+            out.append(t)
+        elif not any(w in p for p in path_l for w in PRIMARY_WORDS) and not any("hypothetical" in p for p in path_l[:-1]):
+            cols = " | ".join(t.columns).lower()
+            if "poll source" in cols or "pollster" in cols or "aggregat" in cols:
+                out.append(t)
     return out
 
 

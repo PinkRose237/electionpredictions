@@ -97,3 +97,13 @@ def test_simulate_correlation_via_national_swing():
     wins = simulate(results, dte=42, n_sims=20000, seed=2)
     corr = np.corrcoef(wins[:, 0], wins[:, 1])[0, 1]
     assert corr > 0.1
+
+
+def test_pollster_tiers():
+    from electionpredictions.model.pollavg import pollster_weight
+    assert pollster_weight("New York Times/Siena College") > 1.0
+    assert pollster_weight("Rasmussen Reports") < 1.0
+    assert pollster_weight("Some Unknown Firm") == 1.0
+    hi = average([poll("2026-09-20", 50, 45, pollster="Marist")], TODAY)
+    lo = average([poll("2026-09-20", 50, 45, pollster="Trafalgar Group")], TODAY)
+    assert hi["n_eff"] > lo["n_eff"]

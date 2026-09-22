@@ -1,18 +1,23 @@
 """Optional: short, neutral AI-written race briefs from the collected data and headlines.
 
-Runs only when Anthropic API credentials are available (ANTHROPIC_API_KEY, or an `ant auth login`
-profile). Briefs are regenerated only when a race's inputs change, so a daily run costs little.
+Uses OpenCode Zen (OpenAI-compatible HTTP API) with Meta's Muse Spark 1.3 Contributor model by default.
+Needs OPENCODE_API_KEY (https://opencode.ai/auth). Briefs are regenerated only when a race's inputs change.
+Note: the '-contributor' model tier lets the provider use prompts/completions for training; the inputs here
+are public election data, but switch AI_MODEL to 'muse-spark-1.3' if you prefer the paid non-contributor tier.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
+import requests
+
+from ..config import AI_BASE_URL, AI_MODEL, OPENCODE_API_KEY, USER_AGENT
 from ..db import log_run, now_iso, rows, upsert
 
-MODEL = "claude-opus-5"
 SYSTEM = """You write short, neutral race briefs for a nonpartisan U.S. election forecast website.
 You will be given structured data about one 2026 race (candidates, partisan lean, expert ratings, polls,
 fundraising, prediction-market odds, the model's forecast) and recent news headlines.
@@ -33,6 +38,10 @@ CREATE TABLE IF NOT EXISTS briefs (
     generated_at TEXT
 );
 """
+
+
+class AuthError(RuntimeError):
+    pass
 
 
 def _race_payload(con, race_id: str) -> Optional[dict]:
@@ -63,24 +72,58 @@ def _hash(payload: dict) -> str:
     return hashlib.sha1(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:16]
 
 
-def _generate(client, payload: dict) -> str:
-    import anthropic
+def _post(path: str, body: dict, timeout: int = 120) -> requests.Response:
+    return requests.post(f"{AI_BASE_URL.rstrip('/')}/{path.lstrip('/')}", json=body, timeout=timeout,
+                         headers={"Authorization": f"Bearer {OPENCODE_API_KEY}", "Content-Type": "application/json", "User-Agent": USER_AGENT})
 
-    response = client.beta.messages.create(
-        model=MODEL,
-        max_tokens=1024,
-        betas=["server-side-fallback-2026-07-01"],
-        fallbacks="default",
-        output_config={"effort": "low"},
-        system=[{"type": "text", "text": SYSTEM, "cache_control": {"type": "ephemeral"}}],
-        messages=[{"role": "user", "content": "Race data (JSON):\n" + json.dumps(payload, default=str)}],
-    )
-    if response.stop_reason == "refusal":
-        raise RuntimeError(f"refused: {getattr(response.stop_details, 'category', None)}")
-    text = "".join(b.text for b in response.content if b.type == "text").strip()
-    if response.stop_reason == "max_tokens" or not text:
-        raise RuntimeError(f"incomplete response (stop_reason={response.stop_reason})")
-    return text
+
+def _extract_text(data: dict) -> str:
+    """Text from either a chat-completions or a responses-API payload."""
+    if isinstance(data.get("choices"), list) and data["choices"]:
+        msg = data["choices"][0].get("message") or {}
+        content = msg.get("content")
+        if isinstance(content, list):
+            content = "".join(part.get("text", "") for part in content if isinstance(part, dict))
+        return (content or "").strip()
+    if data.get("output_text"):
+        return str(data["output_text"]).strip()
+    text = []
+    for item in data.get("output", []) or []:
+        for part in item.get("content", []) or []:
+            if part.get("type") in ("output_text", "text") and part.get("text"):
+                text.append(part["text"])
+    return "".join(text).strip()
+
+
+def generate_brief(payload: dict, retries: int = 3) -> str:
+    """One brief via OpenCode Zen. Tries /chat/completions, then /responses if the model only speaks that."""
+    user = "Race data (JSON):\n" + json.dumps(payload, default=str)
+    attempts = [
+        ("chat/completions", {"model": AI_MODEL, "temperature": 0.3, "max_tokens": 700,
+                              "messages": [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}]}),
+        ("responses", {"model": AI_MODEL, "instructions": SYSTEM, "max_output_tokens": 700,
+                       "input": [{"role": "user", "content": user}]}),
+    ]
+    last = None
+    for path, body in attempts:
+        for attempt in range(retries):
+            r = _post(path, body)
+            if r.status_code in (401, 403):
+                raise AuthError(f"OpenCode rejected the API key (HTTP {r.status_code})")
+            if r.status_code in (404, 405) or (r.status_code == 400 and "endpoint" in r.text.lower()):
+                last = f"{path}: HTTP {r.status_code}"
+                break  # try the other endpoint shape
+            if r.status_code == 429 or r.status_code >= 500:
+                last = f"{path}: HTTP {r.status_code}"
+                time.sleep(3 * (attempt + 1))
+                continue
+            if not r.ok:
+                raise RuntimeError(f"{path}: HTTP {r.status_code}: {r.text[:200]}")
+            text = _extract_text(r.json())
+            if not text:
+                raise RuntimeError(f"{path}: empty response")
+            return text
+    raise RuntimeError(f"OpenCode request failed ({last})")
 
 
 def select_race_ids(con) -> list[str]:
@@ -92,12 +135,13 @@ def select_race_ids(con) -> list[str]:
         ORDER BY r.chamber, r.state, r.district""")]
 
 
-def load(con, verbose=True, race_ids: Optional[list[str]] = None, workers: int = 6, limit: Optional[int] = None) -> dict:
-    import anthropic
-
+def load(con, verbose=True, race_ids: Optional[list[str]] = None, workers: int = 4, limit: Optional[int] = None) -> dict:
     started = now_iso()
     con.executescript(SCHEMA_SQL)
-    client = anthropic.Anthropic(max_retries=3)
+    if not OPENCODE_API_KEY:
+        if verbose:
+            print("  analysis: skipped (no OPENCODE_API_KEY)")
+        return {"skipped": True}
     race_ids = race_ids or select_race_ids(con)
     if limit:
         race_ids = race_ids[:limit]
@@ -110,23 +154,23 @@ def load(con, verbose=True, race_ids: Optional[list[str]] = None, workers: int =
         h = _hash(payload)
         if existing.get(rid) != h:
             todo.append((rid, payload, h))
-    stats = {"candidates": len(race_ids), "regenerated": 0, "unchanged": len(race_ids) - len(todo), "errors": 0}
+    stats = {"model": AI_MODEL, "candidates": len(race_ids), "regenerated": 0, "unchanged": len(race_ids) - len(todo), "errors": 0}
     if not todo:
         log_run(con, "analysis", started, True, json.dumps(stats))
         return stats
-    # one probe call first so a missing credential fails fast instead of 200 times
+    # one probe call first so a bad key fails fast instead of 200 times
     try:
         rid, payload, h = todo[0]
-        text = _generate(client, payload)
-        upsert(con, "briefs", [dict(race_id=rid, brief=text, input_hash=h, model=MODEL, generated_at=now_iso())], keys=["race_id"])
+        text = generate_brief(payload)
+        upsert(con, "briefs", [dict(race_id=rid, brief=text, input_hash=h, model=AI_MODEL, generated_at=now_iso())], keys=["race_id"])
         con.commit()
         stats["regenerated"] += 1
-    except anthropic.AuthenticationError:
-        print("  analysis: no valid Anthropic credentials (set ANTHROPIC_API_KEY or run `ant auth login`); skipping.")
-        log_run(con, "analysis", started, False, "no credentials")
+    except AuthError as e:
+        print(f"  analysis: {e}; skipping.")
+        log_run(con, "analysis", started, False, str(e))
         return stats
     with ThreadPoolExecutor(max_workers=workers) as ex:
-        futs = {ex.submit(_generate, client, payload): (rid, h) for rid, payload, h in todo[1:]}
+        futs = {ex.submit(generate_brief, payload): (rid, h) for rid, payload, h in todo[1:]}
         for fut in as_completed(futs):
             rid, h = futs[fut]
             try:
@@ -136,7 +180,7 @@ def load(con, verbose=True, race_ids: Optional[list[str]] = None, workers: int =
                 if verbose:
                     print(f"  analysis: {rid} failed: {e!r}")
                 continue
-            upsert(con, "briefs", [dict(race_id=rid, brief=text, input_hash=h, model=MODEL, generated_at=now_iso())], keys=["race_id"])
+            upsert(con, "briefs", [dict(race_id=rid, brief=text, input_hash=h, model=AI_MODEL, generated_at=now_iso())], keys=["race_id"])
             con.commit()
             stats["regenerated"] += 1
     if verbose:

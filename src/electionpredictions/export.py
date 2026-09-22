@@ -90,6 +90,10 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
     news_by = _group(rows(con, "SELECT * FROM news ORDER BY published DESC"), "race_id")
     hist_by = _group(rows(con, "SELECT run_date, race_id, p_dem, margin FROM forecasts ORDER BY run_date"), "race_id")
     try:
+        outside = {(o["race_id"], o["name"]): o for o in rows(con, "SELECT * FROM outside_spending")}
+    except Exception:  # noqa: BLE001
+        outside = {}
+    try:
         briefs = {b["race_id"]: b for b in rows(con, "SELECT * FROM briefs")}
     except Exception:  # noqa: BLE001 - table only exists once the optional analysis stage has run
         briefs = {}
@@ -145,7 +149,10 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
         det = dict(
             s,
             candidates=[dict(name=c["name"], party=c["party"], incumbent=bool(c["is_incumbent"]), major=bool(c["major"]),
-                             receipts=c["receipts"], disbursements=c["disbursements"], cash=c["cash_on_hand"], coverage_end=c["coverage_end"])
+                             receipts=c["receipts"], disbursements=c["disbursements"], cash=c["cash_on_hand"], coverage_end=c["coverage_end"],
+                             money_source=c.get("money_source") or ("fec" if c["receipts"] is not None else None),
+                             outside_support=(outside.get((rid, c["name"])) or {}).get("support"),
+                             outside_oppose=(outside.get((rid, c["name"])) or {}).get("oppose"))
                         for c in cands],
             ratings=[dict(rater=r["rater"], rating=r["rating"], as_of=r["as_of"]) for r in ratings_by.get(rid, [])],
             poll_list=poll_list,

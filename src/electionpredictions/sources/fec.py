@@ -131,6 +131,39 @@ def _match(cand: dict, fec_rows: list[dict]) -> Optional[dict]:
     return hits[0]
 
 
+HAS_KEY = FEC_API_KEY not in ("", "DEMO_KEY")
+
+OUTSIDE_SQL = """
+CREATE TABLE IF NOT EXISTS outside_spending (
+    race_id TEXT NOT NULL, name TEXT NOT NULL, candidate_id TEXT,
+    support REAL, oppose REAL, fetched_at TEXT,
+    PRIMARY KEY (race_id, name)
+);
+"""
+
+
+def fetch_outside_spending(candidate_ids: list[str]) -> dict[str, dict]:
+    """Independent expenditures for/against each candidate this cycle: {candidate_id: {support, oppose}}."""
+    out: dict[str, dict] = {}
+    for i in range(0, len(candidate_ids), 10):
+        batch = candidate_ids[i:i + 10]
+        page = 1
+        while True:
+            params = [("api_key", FEC_API_KEY), ("cycle", CYCLE), ("election_full", "false"), ("per_page", 100), ("page", page)]
+            params += [("candidate_id", c) for c in batch]
+            d = get(f"{BASE}/schedules/schedule_e/totals/by_candidate/", dict(params) | {"candidate_id": batch}, kind="fec", ttl=TTL_FEC, retries=1)
+            if not d:
+                break
+            for r in d.get("results", []):
+                rec = out.setdefault(r["candidate_id"], {"support": 0.0, "oppose": 0.0})
+                key = "support" if (r.get("support_oppose_indicator") or "").upper().startswith("S") else "oppose"
+                rec[key] += float(r.get("total") or 0)
+            if page >= d.get("pagination", {}).get("pages", 1):
+                break
+            page += 1
+    return out
+
+
 def load(con, verbose=True, use_api_fallback=False) -> dict:
     started = now_iso()
     stats = {"source": "bulk", "fec_rows": 0, "matched": 0, "unmatched_major": 0}
@@ -142,6 +175,20 @@ def load(con, verbose=True, use_api_fallback=False) -> dict:
         if use_api_fallback:
             stats["source"] = "api"
             allrows = fetch_totals_api("S") + [r for st in STATES for r in fetch_totals_api("H", st)]
+    if HAS_KEY:
+        # With a real key the API is cheap: overlay fresher totals on the weekly bulk file.
+        try:
+            api_rows = fetch_totals_api("S") + [r for st in STATES for r in fetch_totals_api("H", st)]
+            by_id = {r["candidate_id"]: r for r in allrows}
+            for r in api_rows:
+                cur = by_id.get(r["candidate_id"])
+                if cur is None or (r.get("coverage_end_date") or "") >= (cur.get("coverage_end_date") or ""):
+                    by_id[r["candidate_id"]] = dict(cur or {}, **{k: r.get(k) for k in ("name", "party", "office", "state", "district", "incumbent_challenge",
+                                                                                     "receipts", "disbursements", "cash_on_hand_end_period", "coverage_end_date") if r.get(k) is not None})
+            allrows = list(by_id.values())
+            stats["source"] = "bulk+api"
+        except Exception as e:  # noqa: BLE001
+            print(f"  ! FEC API refresh failed: {e}")
     stats["fec_rows"] = len(allrows)
     by_key: dict[tuple, list[dict]] = {}
     for f in allrows:
@@ -168,6 +215,8 @@ def load(con, verbose=True, use_api_fallback=False) -> dict:
     con.commit()
     stats["majors_repicked"] = refresh_majors(con)
     stats["unmatched_major"] = len(unmatched)
+    if HAS_KEY:
+        stats["outside_spending"] = load_outside_spending(con)
     if verbose:
         print(f"  FEC ({stats['source']}): {stats['fec_rows']} rows; matched {stats['matched']} candidates; {len(unmatched)} major candidates unmatched, e.g. {unmatched[:20]}")
     log_run(con, "fec", started, True, json.dumps(stats))
@@ -196,3 +245,21 @@ def refresh_majors(con) -> int:
             changed += 1
     con.commit()
     return changed
+
+
+def load_outside_spending(con) -> int:
+    """Independent expenditures (super PACs etc.) for/against every FEC-matched principal candidate."""
+    con.executescript(OUTSIDE_SQL)
+    cands = rows(con, "SELECT race_id, name, fec_id FROM candidates WHERE major=1 AND fec_id IS NOT NULL")
+    totals = fetch_outside_spending(sorted({c["fec_id"] for c in cands}))
+    n = 0
+    for c in cands:
+        t = totals.get(c["fec_id"])
+        if not t:
+            continue
+        con.execute("INSERT INTO outside_spending (race_id, name, candidate_id, support, oppose, fetched_at) VALUES (?,?,?,?,?,?) "
+                    "ON CONFLICT(race_id, name) DO UPDATE SET support=excluded.support, oppose=excluded.oppose, fetched_at=excluded.fetched_at",
+                    (c["race_id"], c["name"], c["fec_id"], t["support"], t["oppose"], now_iso()))
+        n += 1
+    con.commit()
+    return n

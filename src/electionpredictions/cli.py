@@ -11,13 +11,13 @@ import time
 from .config import SITE_DIR, days_to_election
 from .db import connect, log_run, now_iso, rows
 
-STAGES = ["races", "ratings", "generic", "polls", "fec", "markets", "news", "analysis"]
+STAGES = ["races", "ratings", "generic", "polls", "fec", "wiki_fundraising", "followthemoney", "census", "markets", "news", "analysis"]
 
 
 def ingest(con, only=None, skip=()):
     import os
 
-    from .sources import analysis, fec, generic_ballot, markets, news, polls, races, ratings
+    from .sources import analysis, census, fec, followthemoney, generic_ballot, markets, news, polls, races, ratings, wiki_fundraising
 
     fns = {
         "races": lambda: races.load_all(con),
@@ -25,16 +25,19 @@ def ingest(con, only=None, skip=()):
         "generic": lambda: generic_ballot.load(con),
         "polls": lambda: polls.load(con, verbose=False),
         "fec": lambda: fec.load(con, verbose=False),
+        "wiki_fundraising": lambda: wiki_fundraising.load(con, verbose=False),
+        "followthemoney": lambda: followthemoney.load(con, verbose=True),
+        "census": lambda: census.load(con, verbose=True),
         "markets": lambda: markets.load(con, verbose=False),
         "news": lambda: news.load(con, verbose=False),
         "analysis": lambda: analysis.load(con, verbose=True),
     }
-    has_creds = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN") or os.environ.get("ANTHROPIC_PROFILE"))
+    has_creds = bool(os.environ.get("OPENCODE_API_KEY") or os.environ.get("OPENCODE_ZEN_API_KEY"))
     for stage in STAGES:
         if (only and stage not in only) or stage in skip:
             continue
         if stage == "analysis" and not only and not has_creds:
-            print("[analysis] skipped (no ANTHROPIC_API_KEY; run `ingest --only analysis` to try anyway)")
+            print("[analysis] skipped (no OPENCODE_API_KEY; run `ingest --only analysis` to try anyway)")
             continue
         t0, started = time.time(), now_iso()
         print(f"[{stage}] ...", flush=True)

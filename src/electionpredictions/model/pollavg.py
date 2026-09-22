@@ -8,6 +8,29 @@ from typing import Optional
 from ..config import days_to_election
 
 POP_WEIGHT = {"LV": 1.0, "RV": 0.9, "A": 0.8, "V": 0.85}
+
+# Pollster quality tiers (weight multipliers), informed by the last published 538 pollster ratings (2024) and
+# recent-cycle accuracy. Unknown pollsters get 1.0; the sponsor penalty below still applies on top of this.
+POLLSTER_TIER = {
+    1.15: ["new york times", "siena", "marist", "quinnipiac", "fox news", "cnn", "ssrs", "abc news", "washington post", "marquette",
+           "selzer", "monmouth", "suffolk", "surveyusa", "mason-dixon", "muhlenberg", "emerson", "yougov", "ipsos", "atlasintel",
+           "wall street journal", "nbc news", "cbs news", "ap-norc", "pew", "gallup", "beacon research", "shaw & co", "hart research",
+           "public opinion strategies", "data for progress", "civiqs", "elway", "franklin & marshall", "st. anselm", "umass", "morning consult",
+           "the hill", "harrisx", "echelon insights", "impact research", "gbao", "global strategy group", "fabrizio", "wpa", "cygnal",
+           "public policy polling", "ppp", "research co", "univ", "university", "college"],
+    0.75: ["rasmussen", "trafalgar", "insideradvantage", "quantus", "big data poll", "patriot polling", "co/efficient", "coefficient",
+           "rmg research", "wick", "tipp", "victory insights", "on message", "onmessage", "spry strategies", "remington", "bullfinch",
+           "1892", "kaplan strategies", "targoz", "quantus insights", "noble predictive", "j.l. partners", "redfield", "wilton",
+           "american pulse", "overton insights", "napolitan"],
+}
+
+
+def pollster_weight(name: str) -> float:
+    n = (name or "").lower()
+    for w, keys in POLLSTER_TIER.items():
+        if any(k in n for k in keys):
+            return w
+    return 1.0
 SPONSOR_SHIFT = 1.5      # points moved toward the other party for partisan-sponsored polls
 SPONSOR_WEIGHT = 0.6
 BASE_POLL_SD = 4.0       # irreducible race-poll error (excluding the national component)
@@ -36,7 +59,7 @@ def average(polls: list[dict], today: date) -> Optional[dict]:
         size = math.sqrt(min(n, 2500) / 600.0)
         sponsor = SPONSOR_WEIGHT if p["sponsor_lean"] in ("D", "R") else 1.0
         pop = POP_WEIGHT.get(p["population"] or "RV", 0.9)
-        w = recency * size * sponsor * pop * (0.5 if p["hypothetical"] else 1.0)
+        w = recency * size * sponsor * pop * pollster_weight(p["pollster"]) * (0.5 if p["hypothetical"] else 1.0)
         m = p["dem_pct"] - p["rep_pct"]
         if p["sponsor_lean"] == "D":
             m -= SPONSOR_SHIFT

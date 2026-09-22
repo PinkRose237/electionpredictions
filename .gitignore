@@ -15,3 +15,4 @@ data/elections.db*
 data/run.log
 site/_fixture/
 .pytest_cache/
+.env
