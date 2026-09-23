@@ -189,14 +189,21 @@ def complete(system: str, user: str, retries: int = 3) -> str:
                               "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}),
         ("responses", {"model": AI_MODEL, "instructions": system, "max_output_tokens": 1200, "input": [{"role": "user", "content": user}]}),
     ]
+    if AI_MODEL.startswith("muse-spark"):
+        attempts.reverse()  # Muse Spark is served through the Responses API on OpenCode Zen; chat/completions 500s
     last = None
+    denied = []
     for path, body in attempts:
         for attempt in range(retries):
             r = _post(path, body)
-            if r.status_code in (401, 403):
-                raise AuthError(f"OpenCode rejected the API key (HTTP {r.status_code})")
+            if r.status_code == 401:
+                raise AuthError(f"OpenCode rejected the API key (HTTP 401): {r.text[:200]}")
+            if r.status_code == 403:
+                # can be a per-endpoint or per-model permission rather than a bad key: try the other shape first
+                denied.append(f"{path}: HTTP 403: {r.text[:200]}")
+                break
             if r.status_code in (404, 405) or (r.status_code == 400 and "endpoint" in r.text.lower()):
-                last = f"{path}: HTTP {r.status_code}"
+                last = f"{path}: HTTP {r.status_code}: {r.text[:120]}"
                 break
             if r.status_code == 429 or r.status_code >= 500:
                 last = f"{path}: HTTP {r.status_code}"
@@ -208,7 +215,42 @@ def complete(system: str, user: str, retries: int = 3) -> str:
             if not text:
                 raise RuntimeError(f"{path}: empty response")
             return text
-    raise RuntimeError(f"OpenCode request failed ({last})")
+    if denied and len(denied) == len(attempts):
+        raise AuthError("OpenCode refused both endpoints (check the key and that the model is enabled for it): " + " | ".join(denied))
+    raise RuntimeError(f"OpenCode request failed ({last or denied})")
+
+
+def probe() -> dict:
+    """One tiny request per endpoint shape; returns statuses and response snippets for diagnosis."""
+    out = {"base_url": AI_BASE_URL, "model": AI_MODEL, "key_present": bool(OPENCODE_API_KEY), "key_prefix": OPENCODE_API_KEY[:6] + "…" if OPENCODE_API_KEY else None}
+    tests = [
+        ("chat/completions", {"model": AI_MODEL, "max_tokens": 20, "messages": [{"role": "user", "content": "Reply with the single word OK."}]}),
+        ("responses", {"model": AI_MODEL, "max_output_tokens": 20, "input": [{"role": "user", "content": "Reply with the single word OK."}]}),
+        ("models", None),
+    ]
+    for path, body in tests:
+        try:
+            if body is None:
+                r = requests.get(f"{AI_BASE_URL.rstrip('/')}/{path}", timeout=60, headers={"Authorization": f"Bearer {OPENCODE_API_KEY}", "User-Agent": USER_AGENT})
+            else:
+                r = _post(path, body, timeout=60)
+            snippet = r.text[:300].replace("\n", " ")
+            entry = {"status": r.status_code, "body": snippet}
+            if r.ok and body is not None:
+                try:
+                    entry["text"] = _extract_text(r.json())[:80]
+                except Exception as e:  # noqa: BLE001
+                    entry["parse_error"] = repr(e)
+            if r.ok and body is None:
+                try:
+                    ids = [m.get("id") for m in (r.json().get("data") or [])]
+                    entry["models"] = [i for i in ids if i and "muse" in i.lower()][:10] or ids[:10]
+                except Exception as e:  # noqa: BLE001
+                    entry["parse_error"] = repr(e)
+            out[path] = entry
+        except Exception as e:  # noqa: BLE001
+            out[path] = {"error": repr(e)}
+    return out
 
 
 # ---------------------------------------------------------------------------- validation

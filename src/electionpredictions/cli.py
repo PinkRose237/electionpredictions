@@ -107,10 +107,16 @@ def main(argv=None):
     s = sub.add_parser("serve", help="serve the site locally")
     s.add_argument("--port", type=int, default=8000)
     sub.add_parser("status", help="show what is in the database")
+    sub.add_parser("ai-probe", help="make one tiny request to the AI provider and print what it answers (diagnostics)")
     ap = sub.add_parser("set-admin-password", help="set the password for the site's admin page")
     ap.add_argument("--password", help="omit to be prompted")
     ap.add_argument("--repo", help="GitHub owner/name the admin page publishes to (default: origin remote)")
     args = p.parse_args(argv)
+    if args.cmd == "ai-probe":
+        from .sources.ai import probe
+
+        print(json.dumps(probe(), indent=2))
+        return
     if args.cmd == "set-admin-password":
         import getpass
 
