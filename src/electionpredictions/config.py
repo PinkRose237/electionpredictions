@@ -37,11 +37,11 @@ USER_AGENT = os.environ.get(
 FEC_API_KEY = os.environ.get("FEC_API_KEY", "DEMO_KEY")
 FOLLOWTHEMONEY_API_KEY = os.environ.get("FOLLOWTHEMONEY_API_KEY", "")
 CENSUS_API_KEY = os.environ.get("CENSUS_API_KEY", "")
-# Decision layer via OpenCode Zen (OpenAI-compatible). Default model: Z.AI GLM 5.3 Flash (cheap; ~$0.15/M in,
-# $0.50/M out). OpenCode's '-free' tiers only work inside the OpenCode client, not over the API.
+# Decision layer via OpenCode (OpenAI-compatible). Default: the OpenCode Go subscription gateway with Z.AI GLM 5.3
+# Flash. Pay-as-you-go Zen is https://opencode.ai/zen/v1 (needs credit); the '-free' tiers only work inside the client.
 OPENCODE_API_KEY = os.environ.get("OPENCODE_API_KEY") or os.environ.get("OPENCODE_ZEN_API_KEY", "")
 AI_MODEL = os.environ.get("AI_MODEL") or "glm-5.3-flash"
-AI_BASE_URL = os.environ.get("AI_BASE_URL") or "https://opencode.ai/zen/v1"
+AI_BASE_URL = os.environ.get("AI_BASE_URL") or "https://opencode.ai/zen/go/v1"
 
 # States that redrew congressional maps for 2026 (mid-decade); ACS district data predates those lines.
 REDISTRICTED_2026 = {"TX", "CA", "FL", "MO", "NC", "OH", "UT", "AL", "LA"}

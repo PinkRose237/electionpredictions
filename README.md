@@ -49,7 +49,7 @@ so re-runs are fast and polite to the upstream sites.
 
 1. **Evidence**: every source above is ingested into SQLite.
 2. **Baseline**: the quantitative model (below) turns the evidence into a margin and uncertainty per race.
-3. **Decisions**: an LLM (GLM 5.3 Flash via OpenCode Zen, `OPENCODE_API_KEY`) reviews each
+3. **Decisions**: an LLM (GLM 5.3 Flash via OpenCode Go, `OPENCODE_API_KEY`) reviews each
    race's full dossier (candidates, money and outside spending, ratings, polls, markets, headlines, the baseline)
    and returns a strict-JSON decision: final margin, uncertainty, label, key factors, rationale, what to watch,
    and a two-paragraph overview. A national review sets a shared environment adjustment and the scale of the
@@ -124,7 +124,7 @@ repository secrets with the same names for the GitHub Actions workflow. Each one
 | `FEC_API_KEY` | https://api.data.gov/signup (instant, 1,000 req/hour) | Fresh candidate totals layered over the weekly bulk file, plus **outside spending** (independent expenditures for/against every federal principal candidate) which feeds the money term |
 | `FOLLOWTHEMONEY_API_KEY` | free account at https://www.followthemoney.org | **Governor fundraising** from state campaign-finance filings for the candidates Wikipedia doesn't cover |
 | `CENSUS_API_KEY` | https://api.census.gov/data/key_signup.html (instant) | **District and state demographics** (college share, white non-Hispanic share); the simulation then moves demographically similar races together when it draws errors |
-| `OPENCODE_API_KEY` | https://opencode.ai/auth (OpenCode Zen, billing required) | The decision layer: per-race forecast decisions, overviews and the national review by Z.AI's GLM 5.3 Flash (about $0.15/M input and $0.50/M output tokens; a full 506-race pass is well under $1). Any OpenCode Zen chat model works via `AI_MODEL`; the `-free` tiers only work inside the OpenCode client. Without a key the quantitative baseline stands. |
+| `OPENCODE_API_KEY` | https://opencode.ai/auth (OpenCode Zen, billing required) | The decision layer: per-race forecast decisions, overviews and the national review by Z.AI's GLM 5.3 Flash through the OpenCode Go subscription gateway (`https://opencode.ai/zen/go/v1`, the default `AI_BASE_URL`); a full 506-race pass uses well under a dollar of the plan's usage allowance. Pay-as-you-go Zen (`https://opencode.ai/zen/v1`) works too with account credit; the `-free` tiers only work inside the OpenCode client. Any gateway model works via `AI_MODEL`. Without a key the quantitative baseline stands. |
 
 Without keys the pipeline runs exactly as before. States that redrew maps for 2026 use statewide demographics because ACS district data predates the new lines.
 
