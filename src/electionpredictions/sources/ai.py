@@ -198,6 +198,8 @@ def complete(system: str, user: str, retries: int = 3) -> str:
             r = _post(path, body)
             if r.status_code == 401:
                 raise AuthError(f"OpenCode rejected the API key (HTTP 401): {r.text[:200]}")
+            if r.status_code == 402:
+                raise AuthError(f"OpenCode account has no credit (HTTP 402): {r.text[:200]} — add funds at opencode.ai")
             if r.status_code == 403:
                 # can be a per-endpoint or per-model permission rather than a bad key: try the other shape first
                 denied.append(f"{path}: HTTP 403: {r.text[:200]}")

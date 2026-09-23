@@ -72,4 +72,8 @@ def test_bad_key_and_missing_key(tmp_path, monkeypatch):
     monkeypatch.setattr(ai, "OPENCODE_API_KEY", "bad")
     monkeypatch.setattr(ai, "_post", lambda path, body, timeout=180: _Resp(401, text="nope"))
     assert ai.load(con, verbose=False)["decided"] == 0
+    calls = []
+    monkeypatch.setattr(ai, "_post", lambda path, body, timeout=180: (calls.append(path), _Resp(402, text="Insufficient account funds"))[1])
+    stats = ai.load(con, verbose=False)   # no credit: fail fast after the probe call, no per-race churn
+    assert stats["decided"] == 0 and stats["errors"] == 0 and len(calls) == 1
     assert rows(con, "SELECT count(*) n FROM ai_decisions")[0]["n"] == 0
