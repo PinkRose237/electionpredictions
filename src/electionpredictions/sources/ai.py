@@ -195,9 +195,10 @@ def parse_json(text: str) -> dict:
 
 def complete(system: str, user: str, retries: int = 3) -> str:
     attempts = [
-        ("chat/completions", {"model": AI_MODEL, "temperature": 0.2, "max_tokens": 1200,
+        # reasoning models spend part of the cap thinking before the JSON, so leave generous room
+        ("chat/completions", {"model": AI_MODEL, "temperature": 0.2, "max_tokens": 4000,
                               "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}]}),
-        ("responses", {"model": AI_MODEL, "instructions": system, "max_output_tokens": 1200, "input": [{"role": "user", "content": user}]}),
+        ("responses", {"model": AI_MODEL, "instructions": system, "max_output_tokens": 4000, "input": [{"role": "user", "content": user}]}),
     ]
     if AI_MODEL.startswith("muse-spark"):
         attempts.reverse()  # Muse Spark is served through the Responses API on OpenCode Zen; chat/completions 500s
