@@ -62,7 +62,7 @@ def test_decisions_cached_by_evidence_hash(tmp_path, monkeypatch):
     assert per_race["GA-SEN"]["margin"] == 7.5 and per_race["GA-SEN"]["baseline_margin"] == 8.0
     assert nat["environment_adjustment"] == -0.5 and nat["uncertainty_multiplier"] == 1.1
     stats = ai.load(con, verbose=False)  # nothing changed -> no new calls
-    assert stats["decided"] == 0 and len(calls) == 2
+    assert stats["decided"] == 0 and stats["to_decide"] == 0 and len(calls) == 2
 
 
 def test_bad_key_and_missing_key(tmp_path, monkeypatch):

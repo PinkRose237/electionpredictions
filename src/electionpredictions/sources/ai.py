@@ -55,7 +55,10 @@ Return ONLY a JSON object with exactly these keys:
 }
 Calibration: Safe means at least 97% for the favorite, Likely 85-97%, Lean 65-85%, Tossup 35-65%. An uncontested
 or same-party general election is Safe for the party on the ballot. Use only the information provided; never
-invent polls, events or numbers; never express a preference for any candidate or party."""
+invent polls, events or numbers; never express a preference for any candidate or party.
+Voice for "overview", "rationale" and "watch": write as the forecast itself, in plain third person about the race.
+Never mention the baseline, the model, the dossier, this review, an analyst, or yourself; refer to evidence directly
+("polls show", "raters call it", "Ossoff has raised", "markets price"). Do not quote the forecast's own probability."""
 
 NATIONAL_SYSTEM = """You are the lead analyst of a nonpartisan U.S. election forecast reviewing the national picture for the
 2026 midterms. You are given the generic-ballot averages, the quantitative model's chamber-level outputs, the
@@ -69,7 +72,10 @@ Return ONLY a JSON object with exactly these keys:
   "key_factors": [string],            // 3 to 5 short national factors
   "chambers": {"house": string, "senate": string, "governor": string}   // one sentence each
 }
-Use only the information provided; never express a preference for any party."""
+Use only the information provided; never express a preference for any party.
+Voice for "summary" and "chambers": write as the forecast itself, in plain third person. Describe where each chamber
+stands and why using the evidence (generic ballot, polls, money, seats in play, markets); do not mention the model,
+a baseline, this review, an analyst, or yourself, and do not quote the forecast's own control probabilities."""
 
 
 class AuthError(RuntimeError):
@@ -138,8 +144,11 @@ def national_dossier(con) -> dict:
     return dict(generic_ballot=gb, quantitative_chambers=chambers, chamber_markets=markets, race_label_counts=labels, recent_headlines=news)
 
 
+PROMPT_VERSION = "2"
+
+
 def _hash(payload) -> str:
-    return hashlib.sha1(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:16]
+    return hashlib.sha1((PROMPT_VERSION + json.dumps(payload, sort_keys=True, default=str)).encode()).hexdigest()[:16]
 
 
 # ---------------------------------------------------------------------------- HTTP + parsing
@@ -347,12 +356,12 @@ def load(con, verbose=True, race_ids: Optional[list[str]] = None, workers: int =
     todo = []
     for rid in race_ids:
         dossier = race_dossier(con, rid)
-        if not dossier:
+        if not dossier or dossier["race"].get("uncontested"):
             continue
         h = _hash(dossier)
         if existing.get(rid) != h:
             todo.append((rid, dossier, h))
-    stats = {"model": AI_MODEL, "races": len(race_ids), "decided": 0, "unchanged": len(race_ids) - len(todo), "errors": 0, "national": False}
+    stats = {"model": AI_MODEL, "races": len(race_ids), "decided": 0, "to_decide": len(todo), "errors": 0, "national": False}
     if len(todo) > max_calls:
         if verbose:
             print(f"  ai: {len(todo)} races need decisions; capping at {max_calls} this run (AI_MAX_CALLS)")
