@@ -151,15 +151,15 @@ function chamberCard(key, ch, view) {
     const otherMean = isNum(total) && isNum(dMean) && isNum(rMean) ? Math.max(0, total - dMean - rMean) : null;
     const probs = h('div', { class: 'control-probs' },
       h('div', { class: 'side dem' },
-        h('div', { class: 'big', style: { color: 'var(--dem)' } }, fmt.dec(dMean, 1)),
+        h('div', { class: 'big', style: { color: 'var(--dem)' } }, fmt.num(dMean)),
         h('div', { class: 'lbl' }, h('span', { class: 'party-dot dem', 'aria-hidden': 'true' }), `Dem seats · ${fmt.pct(dShare)}`)),
       h('div', { class: 'side rep' },
-        h('div', { class: 'big', style: { color: 'var(--rep)' } }, fmt.dec(rMean, 1)),
+        h('div', { class: 'big', style: { color: 'var(--rep)' } }, fmt.num(rMean)),
         h('div', { class: 'lbl' }, h('span', { class: 'party-dot rep', 'aria-hidden': 'true' }), `Rep seats · ${fmt.pct(rShare)}`)),
     );
-    if (isNum(otherMean) && otherMean > 0.05) probs.append(h('div', { class: 'neither' }, `Other / no-party majority: ${fmt.dec(otherMean, 1)} seats`));
+    if (isNum(otherMean) && otherMean > 0.05) probs.append(h('div', { class: 'neither' }, `Other / no-party majority: ${fmt.num(otherMean)} seats`));
     card.append(probs, splitBar(dShare, rShare, nShare,
-      `Democrats ${fmt.dec(dMean, 1)} seats (${fmt.pct(dShare)}), Republicans ${fmt.dec(rMean, 1)} seats (${fmt.pct(rShare)})`));
+      `Democrats ${fmt.num(dMean)} seats (${fmt.pct(dShare)}), Republicans ${fmt.num(rMean)} seats (${fmt.pct(rShare)})`));
   } else {
     const pD = ch.p_dem, pR = ch.p_rep, pN = ch.p_neither;
     const probs = h('div', { class: 'control-probs' },
@@ -177,7 +177,7 @@ function chamberCard(key, ch, view) {
 
   const cur = ch.current || {};
   const flips = ch.expected_flips || {};
-  const seatRange = (s) => (s ? h('span', {}, fmt.dec(s.mean, 1), ' ', h('span', { class: 'range' }, `(${fmt.num(s.p10)}–${fmt.num(s.p90)})`)) : DASH);
+  const seatRange = (s) => (s ? h('span', {}, fmt.num(s.mean), ' ', h('span', { class: 'range' }, `(${fmt.num(s.p10)}–${fmt.num(s.p90)})`)) : DASH);
   card.append(
     h('dl', { class: 'stats' },
       h('div', {}, h('dt', {}, 'Expected D seats', h('span', { class: 'muted' }, ' · 80% range')), h('dd', {}, seatRange(ch.dem_seats))),
@@ -409,8 +409,8 @@ function drawTrend(w, history, mode = 'control', totals = {}) {
       .map((ch) => {
         const v = valueOf(d, ch), seats = seatsOf(d, ch);
         const detail = mode === 'seats'
-          ? `${fmt.pct(v)} of seats · ${fmt.dec(seats, 1)} seats`
-          : `${fmt.pct(v)} · ${fmt.dec(seats, 1)} seats`;
+          ? `${fmt.pct(v)} of seats · ${fmt.num(seats)} seats`
+          : `${fmt.pct(v)} · ${fmt.num(seats)} seats`;
         return [CHAMBER_LABEL[ch], detail, seriesColor(ch)];
       });
     if (isNum(d.generic)) rows.push(['Generic ballot', fmt.margin(d.generic)]);
