@@ -49,7 +49,7 @@ so re-runs are fast and polite to the upstream sites.
 
 1. **Evidence**: every source above is ingested into SQLite.
 2. **Baseline**: the quantitative model (below) turns the evidence into a margin and uncertainty per race.
-3. **Decisions**: an LLM (Meta Muse Spark 1.3 Contributor via OpenCode Zen, `OPENCODE_API_KEY`) reviews each
+3. **Decisions**: an LLM (Meta Muse Spark 1.3 via OpenCode Zen, `OPENCODE_API_KEY`) reviews each
    race's full dossier (candidates, money and outside spending, ratings, polls, markets, headlines, the baseline)
    and returns a strict-JSON decision: final margin, uncertainty, label, key factors, rationale, what to watch,
    and a two-paragraph overview. A national review sets a shared environment adjustment and the scale of the
@@ -124,7 +124,7 @@ repository secrets with the same names for the GitHub Actions workflow. Each one
 | `FEC_API_KEY` | https://api.data.gov/signup (instant, 1,000 req/hour) | Fresh candidate totals layered over the weekly bulk file, plus **outside spending** (independent expenditures for/against every federal principal candidate) which feeds the money term |
 | `FOLLOWTHEMONEY_API_KEY` | free account at https://www.followthemoney.org | **Governor fundraising** from state campaign-finance filings for the candidates Wikipedia doesn't cover |
 | `CENSUS_API_KEY` | https://api.census.gov/data/key_signup.html (instant) | **District and state demographics** (college share, white non-Hispanic share); the simulation then moves demographically similar races together when it draws errors |
-| `OPENCODE_API_KEY` | https://opencode.ai/auth (OpenCode Zen; the default model tier is free) | The decision layer: per-race forecast decisions, overviews and the national review by Meta's Muse Spark 1.3 Contributor. Set `AI_MODEL=muse-spark-1.3` for the paid non-contributor tier. Without it the quantitative baseline stands. |
+| `OPENCODE_API_KEY` | https://opencode.ai/auth (OpenCode Zen, billing required) | The decision layer: per-race forecast decisions, overviews and the national review by Meta's Muse Spark 1.3 (paid tier, about $1.25/M input and $4.25/M output tokens; a full 506-race pass is roughly $3-4, a typical daily refresh about $2). OpenCode's free `-contributor-free` tier only works inside the OpenCode client. Without a key the quantitative baseline stands. |
 
 Without keys the pipeline runs exactly as before. States that redrew maps for 2026 use statewide demographics because ACS district data predates the new lines.
 

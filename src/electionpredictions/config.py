@@ -37,10 +37,11 @@ USER_AGENT = os.environ.get(
 FEC_API_KEY = os.environ.get("FEC_API_KEY", "DEMO_KEY")
 FOLLOWTHEMONEY_API_KEY = os.environ.get("FOLLOWTHEMONEY_API_KEY", "")
 CENSUS_API_KEY = os.environ.get("CENSUS_API_KEY", "")
-# AI race briefs via OpenCode Zen (OpenAI-compatible). Default model: Meta Muse Spark 1.3 Contributor (free tier).
+# Decision layer via OpenCode Zen (OpenAI-compatible). Default model: Meta Muse Spark 1.3 (paid tier;
+# OpenCode's free '-contributor-free' tier only works inside the OpenCode client, not over the API).
 OPENCODE_API_KEY = os.environ.get("OPENCODE_API_KEY") or os.environ.get("OPENCODE_ZEN_API_KEY", "")
-AI_MODEL = os.environ.get("AI_MODEL", "muse-spark-1.3-contributor-free")
-AI_BASE_URL = os.environ.get("AI_BASE_URL", "https://opencode.ai/zen/v1")
+AI_MODEL = os.environ.get("AI_MODEL") or "muse-spark-1.3"
+AI_BASE_URL = os.environ.get("AI_BASE_URL") or "https://opencode.ai/zen/v1"
 
 # States that redrew congressional maps for 2026 (mid-decade); ACS district data predates those lines.
 REDISTRICTED_2026 = {"TX", "CA", "FL", "MO", "NC", "OH", "UT", "AL", "LA"}
