@@ -12,7 +12,7 @@ from typing import Optional
 
 from dateutil import parser as dtparser
 
-from ..config import STATES
+from ..config import CYCLE, DC_NAME, STATES
 from ..db import log_run, now_iso, rows, upsert
 from ..util import clean, last_name, parse_date_range, parse_pct, parse_sample, party_code
 from .races import _col, same_person
@@ -29,6 +29,11 @@ CAND_RE = re.compile(
 
 
 def article_titles(race: dict) -> list[str]:
+    if race["chamber"] == "president":
+        if race["state"] == "DC":
+            return ["2028 United States presidential election in the District of Columbia"]
+        name = STATES.get(race["state"], DC_NAME)
+        return [f"2028 United States presidential election in {name}"]
     name = STATES[race["state"]]
     if race["chamber"] == "senate":
         if race["special"]:
@@ -159,7 +164,7 @@ def parse_polling_table(t: WikiTable, race: dict, cands: list[dict], dem: Option
             aggs.append(dict(race_id=race["race_id"], source=re.sub(r"\[.*?\]", "", srctxt) or "Average",
                              as_of=as_of, dem=d, rep=r, margin=round(d - r, 2)))
             continue
-        start, end = parse_date_range(row[dates], default_year=2026)
+        start, end = parse_date_range(row[dates], default_year=CYCLE)
         if end is None:
             continue
         n, pop = parse_sample(row[sample]) if sample else (None, None)
@@ -235,7 +240,9 @@ def _sides(cands: list[dict]):
     return dem, rep
 
 
-def load(con, chambers=("senate", "governor", "house"), verbose=True) -> dict:
+def load(con, chambers=None, verbose=True) -> dict:
+    if chambers is None:
+        chambers = ("president",) if CYCLE == 2028 else ("senate", "governor", "house")
     started = now_iso()
     races = rows(con, "SELECT * FROM races WHERE chamber IN (%s) ORDER BY chamber, state, district" % ",".join("?" * len(chambers)), chambers)
     stats = {"pages": 0, "missing_pages": 0, "polls": 0, "aggregates": 0, "races_with_polls": 0}

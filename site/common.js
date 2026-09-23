@@ -23,8 +23,8 @@ export const ELECTION_DATE = '2026-11-03';
 export const DASH = '—';
 
 export const CHAMBERS = ['house', 'senate', 'governor'];
-export const CHAMBER_LABEL = { house: 'House', senate: 'Senate', governor: 'Governors' };
-export const CHAMBER_SINGULAR = { house: 'House', senate: 'Senate', governor: 'Governor' };
+export const CHAMBER_LABEL = { house: 'House', senate: 'Senate', governor: 'Governors', president: 'President' };
+export const CHAMBER_SINGULAR = { house: 'House', senate: 'Senate', governor: 'Governor', president: 'President' };
 
 export const LABELS = ['Safe D', 'Likely D', 'Lean D', 'Tossup', 'Lean R', 'Likely R', 'Safe R'];
 export const COMPETITIVE = new Set(['Likely D', 'Lean D', 'Tossup', 'Lean R', 'Likely R']);
@@ -39,7 +39,7 @@ export const STATE_NAMES = {
   ND: 'North Dakota', OH: 'Ohio', OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania',
   RI: 'Rhode Island', SC: 'South Carolina', SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas',
   UT: 'Utah', VT: 'Vermont', VA: 'Virginia', WA: 'Washington', WV: 'West Virginia',
-  WI: 'Wisconsin', WY: 'Wyoming',
+  WI: 'Wisconsin', WY: 'Wyoming', DC: 'District of Columbia',
 };
 
 /** Tile-map layout: 8 rows × 11 columns, roughly geographic (NPR/538 style). '' = empty cell. */
@@ -85,9 +85,9 @@ export function raceHref(id) {
   return withData(`race.html?id=${encodeURIComponent(id)}`);
 }
 
-/** Fetch `${DATA_BASE}/${relPath}` and parse JSON, with readable errors. */
-export async function loadJSON(relPath) {
-  const url = `${DATA_BASE}/${relPath}`;
+/** Fetch `${base}/${relPath}` and parse JSON, with readable errors. */
+export async function loadJSON(relPath, base) {
+  const url = `${base || DATA_BASE}/${relPath}`;
   let res;
   try {
     res = await fetch(url, { cache: 'no-cache' });

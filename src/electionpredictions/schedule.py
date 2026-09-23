@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from .config import ELECTION_DATE, STATES
+from .config import DC_NAME, ELECTION_DATE, STATES
 
 ET = timezone(timedelta(hours=-5))  # Eastern Standard Time on election day 2026
 
@@ -26,7 +26,7 @@ STATEWIDE_CLOSE_ET: dict[str, str] = {
     "IN": "19:00", "KY": "19:00",
     "GA": "19:00", "SC": "19:00", "VT": "19:00", "VA": "19:00",
     "NC": "19:30", "OH": "19:30", "WV": "19:30",
-    "AL": "20:00", "CT": "20:00", "DE": "20:00", "FL": "20:00", "IL": "20:00", "ME": "20:00", "MD": "20:00",
+    "AL": "20:00", "CT": "20:00", "DC": "20:00", "DE": "20:00", "FL": "20:00", "IL": "20:00", "ME": "20:00", "MD": "20:00",
     "MA": "20:00", "MS": "20:00", "MO": "20:00", "NH": "20:00", "NJ": "20:00", "OK": "20:00", "PA": "20:00",
     "RI": "20:00", "TN": "20:00",
     "AR": "20:30",
@@ -216,7 +216,7 @@ def call_estimate(race: dict, close: datetime) -> dict:
         e, t, l = close + timedelta(hours=h90), close + timedelta(hours=24 * cd), close + timedelta(hours=36 * cd)
         summary = "Overnight into the next day" if cd <= 1 else f"About {_days(cd)} after the election; could be longer"
     if race["state"] == "AK" and tier >= 2:
-        rcv = datetime(2026, 11, 18, 21, 0, tzinfo=ET)  # tabulation scheduled ~15 days out
+        rcv = datetime(ELECTION_DATE.year, 11, 18, 21, 0, tzinfo=ET)  # tabulation scheduled ~15 days out
         t, l = max(t, rcv), max(l, rcv + timedelta(days=2))
         summary = "After ranked-choice tabulation (~Nov 18)"
     if race["state"] == "ME" and tier >= 2:
@@ -239,7 +239,7 @@ def build_schedule(race_summaries: list[dict], generated_at: str) -> dict:
         est = call_estimate(r, close)
         key = (close.isoformat(), r["state"])
         g = groups.setdefault(key, dict(
-            state=r["state"], state_name=STATES[r["state"]], close_utc=close.astimezone(timezone.utc).isoformat(),
+            state=r["state"], state_name=STATES.get(r["state"], DC_NAME), close_utc=close.astimezone(timezone.utc).isoformat(),
             close_et=_fmt_et(close), local=local_desc, note=note, races=[], sources=RESULTS_SOURCES.get(r["state"], []),
         ))
         g["races"].append(dict(
@@ -248,7 +248,7 @@ def build_schedule(race_summaries: list[dict], generated_at: str) -> dict:
             call=dict(earliest=est["earliest"].astimezone(timezone.utc).isoformat(), typical=est["typical"].astimezone(timezone.utc).isoformat(),
                       late=est["late"].astimezone(timezone.utc).isoformat(), summary=est["summary"], tier=est["tier"], why=est["why"]),
         ))
-    order = {"senate": 0, "governor": 1, "house": 2}
+    order = {"president": -1, "senate": 0, "governor": 1, "house": 2}
     out = []
     for g in groups.values():
         g["races"].sort(key=lambda x: (order[x["chamber"]], x["short"]))

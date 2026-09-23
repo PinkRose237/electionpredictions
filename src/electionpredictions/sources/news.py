@@ -8,7 +8,7 @@ from typing import Optional
 import feedparser
 from dateutil import parser as dtparser
 
-from ..config import STATES, TTL_NEWS
+from ..config import CYCLE, DC_NAME, STATES, TTL_NEWS
 from ..db import log_run, now_iso, rows, upsert
 from ..util import last_name, ordinal
 from .http import get
@@ -17,7 +17,10 @@ RSS = "https://news.google.com/rss/search"
 
 
 def query_for(race: dict, dem: Optional[dict], rep: Optional[dict]) -> str:
-    st = STATES[race["state"]]
+    st = DC_NAME if race["state"] == "DC" else STATES[race["state"]]
+    if race["chamber"] == "president":
+        # Generic candidates have no quotable surnames; search the state race directly.
+        return f"{st} {CYCLE} presidential election polls"
     names = [last_name(c["name"]) for c in (dem, rep) if c]
     who = " OR ".join(f'"{n}"' for n in names)
     if race["chamber"] == "senate":
@@ -54,7 +57,7 @@ def fetch(query: str, limit: int = 15) -> list[dict]:
 def select_races(con) -> list[dict]:
     return rows(con, """
         SELECT r.* FROM races r
-        WHERE r.chamber IN ('senate','governor')
+        WHERE r.chamber IN ('senate','governor','president')
            OR EXISTS (SELECT 1 FROM ratings g WHERE g.race_id=r.race_id)
            OR EXISTS (SELECT 1 FROM polls p WHERE p.race_id=r.race_id)
         ORDER BY r.chamber, r.state, r.district""")

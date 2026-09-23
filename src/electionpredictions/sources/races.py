@@ -7,7 +7,7 @@ from typing import Optional
 
 import pandas as pd
 
-from ..config import STATES
+from ..config import CYCLE, DC_NAME, ELECTORAL_VOTES_2028, PRESIDENT_2024_WINNER, PRESIDENT_JURISDICTIONS, PRESIDENT_PVI_2028, STATES
 from ..db import now_iso, upsert
 from ..util import clean, parse_pvi, race_id, split_candidates, state_abbr
 from .wikipedia import extract_tables, find_tables, link_map, page_html
@@ -15,6 +15,7 @@ from .wikipedia import extract_tables, find_tables, link_map, page_html
 SENATE_PAGE = "2026 United States Senate elections"
 HOUSE_PAGE = "2026 United States House of Representatives elections"
 GOV_PAGE = "2026 United States gubernatorial elections"
+PRESIDENT_PAGE = "2028 United States presidential election"
 
 
 def _col(df: pd.DataFrame, *names: str) -> Optional[str]:
@@ -342,9 +343,40 @@ def _cand_rows(rid: str, clist: list[tuple[str, str]], incumbent: str | None, li
     return out
 
 
+def build_president() -> tuple[list[dict], list[dict]]:
+    """The 2028 presidential race universe: one winner-take-all contest per state plus DC.
+
+    No nominees exist yet this early, so every jurisdiction gets a Generic Democrat vs Generic
+    Republican matchup. Lean comes from the embedded Cook PVI table (config.PRESIDENT_PVI_2028);
+    the "holder" is the party holding the White House (R). Maine/Nebraska district splits are
+    folded into the statewide winner as a documented simplification.
+    """
+    races, cands = [], []
+    for st in PRESIDENT_JURISDICTIONS:
+        rid = race_id("president", st)
+        name = DC_NAME if st == "DC" else STATES[st]
+        races.append(dict(
+            race_id=rid, chamber="president", state=st, district=None, special=0,
+            name=f"{name} presidential",
+            incumbent=None, incumbent_party=None, incumbent_running=0,
+            holder_party="R", pvi=PRESIDENT_PVI_2028[st],
+            last_result=f"2024: {PRESIDENT_2024_WINNER[st]} won ({ELECTORAL_VOTES_2028[st]} EVs)",
+            status="Open seat: incumbent president term-limited", wiki_title=None, updated_at=now_iso(),
+        ))
+        cands.extend([
+            dict(race_id=rid, name="Generic Democrat", party="D", is_incumbent=0, major=1,
+                 fec_id=None, receipts=None, disbursements=None, cash_on_hand=None, coverage_end=None),
+            dict(race_id=rid, name="Generic Republican", party="R", is_incumbent=0, major=1,
+                 fec_id=None, receipts=None, disbursements=None, cash_on_hand=None, coverage_end=None),
+        ])
+    return races, cands
+
+
 def load_all(con) -> dict:
     counts = {}
-    for label, fn in (("senate", build_senate), ("governor", build_governors), ("house", build_house)):
+    builders = (("president", build_president),) if CYCLE == 2028 else (
+        ("senate", build_senate), ("governor", build_governors), ("house", build_house))
+    for label, fn in builders:
         races, cands = fn()
         upsert(con, "races", races, keys=["race_id"])
         # replace candidate lists wholesale for these races (keep FEC columns if same name)

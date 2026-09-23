@@ -8,7 +8,7 @@ import re
 from datetime import datetime
 from typing import Optional
 
-from ..config import STATES, TTL_MARKETS
+from ..config import CYCLE, DC_NAME, ELECTION_DATE, STATES, TTL_MARKETS
 from ..db import log_run, now_iso, rows, upsert
 from ..util import last_name, slug, state_abbr
 from .http import get
@@ -17,7 +17,7 @@ from .races import same_person
 GAMMA = "https://gamma-api.polymarket.com"
 PREDICTIT = "https://www.predictit.org/api/marketdata/all/"
 KALSHI = "https://api.elections.kalshi.com/trade-api/v2"
-CONTROL_IDS = {"senate": "SENATE-CONTROL", "house": "HOUSE-CONTROL"}
+CONTROL_IDS = {"senate": "SENATE-CONTROL", "house": "HOUSE-CONTROL", "president": "PRESIDENT-CONTROL"}
 
 
 def _party_from_text(q: str) -> Optional[str]:
@@ -44,7 +44,11 @@ def _cand_party(text: str, cands: list[dict]) -> Optional[str]:
 # ------------------------------------------------------------------ Polymarket
 def poly_slugs(race: dict) -> list[str]:
     st = race["state"]
-    s = slug(STATES[st])
+    s = slug(DC_NAME if st == "DC" else STATES[st])
+    if race["chamber"] == "president":
+        yy = str(CYCLE)
+        return [f"{s}-presidential-election-winner-{yy}", f"{s}-presidential-election-winner",
+                f"{s}-presidential-winner-{yy}"]
     if race["chamber"] == "senate":
         if race["special"]:
             return [f"{s}-senate-special-election-winner", f"{s}-special-senate-election-winner", f"{s}-senate-election-winner"]
@@ -101,12 +105,24 @@ def load_polymarket(con, races: list[dict], cands_by_race: dict) -> int:
         if ev is None and race["chamber"] in ("senate", "governor"):
             kind = "Senate" if race["chamber"] == "senate" else "Governor"
             ev = poly_search(f"{STATES[race['state']]} {kind}", rf"^{STATES[race['state']]} {kind}.*(winner|election)")
+        if ev is None and race["chamber"] == "president":
+            st_name = DC_NAME if race["state"] == "DC" else STATES[race["state"]]
+            ev = poly_search(f"{st_name} presidential election winner",
+                             rf"^{re.escape(st_name)}.*president.*(winner|election)")
         if not ev:
             continue
         rec = poly_parse(ev, cands_by_race.get(race["race_id"], []))
         if rec:
             out.append(dict(race_id=race["race_id"], platform="polymarket", fetched_at=now_iso(), **rec))
-    for chamber, slug_ in (("senate", "which-party-will-win-the-senate-in-2026"), ("house", "which-party-will-win-the-house-in-2026")):
+    control_slugs = [("senate", "which-party-will-win-the-senate-in-2026"), ("house", "which-party-will-win-the-house-in-2026")]
+    if CYCLE == 2028:
+        control_slugs = [("president", f"which-party-will-win-the-{CYCLE}-presidential-election")]
+        ev = poly_search(f"{CYCLE} presidential election winner",
+                         rf"(presidential election.*winner|win.*{CYCLE}.*president|{CYCLE}.*presidential.*winner)")
+        rec = poly_parse(ev, []) if ev else None
+        if rec:
+            out.append(dict(race_id=CONTROL_IDS["president"], platform="polymarket", fetched_at=now_iso(), **rec))
+    for chamber, slug_ in control_slugs:
         ev = poly_event(slug_)
         rec = poly_parse(ev, []) if ev else None
         if rec:
@@ -137,11 +153,23 @@ def load_predictit(con, race_ids: set[str], cands_by_race: dict) -> int:
             if mm:
                 st = state_abbr(mm.group(1))
                 rid = f"{st}-GOV" if st else None
+        if rid is None and CYCLE == 2028:
+            mm = re.match(r"^(.*?) presidential (party )?winner\?$", sn, re.I) or \
+                 re.match(r"^which party will win (.*?) (in|during) the \d{4} presidential election", sn, re.I)
+            if mm:
+                raw = mm.group(1)
+                if raw.strip().lower() in ("the district of columbia", "district of columbia", "dc"):
+                    rid = "DC-PRES"
+                else:
+                    st = state_abbr(raw)
+                    rid = f"{st}-PRES" if st else None
         if rid is None:
-            if re.search(r"control the Senate after 2026|win the Senate in 2026", sn, re.I):
+            if CYCLE == 2026 and re.search(r"control the Senate after 2026|win the Senate in 2026", sn, re.I):
                 rid = CONTROL_IDS["senate"]
-            elif re.search(r"win the House in 2026|control the House after 2026", sn, re.I):
+            elif CYCLE == 2026 and re.search(r"win the House in 2026|control the House after 2026", sn, re.I):
                 rid = CONTROL_IDS["house"]
+            elif re.search(r"win.*2028.*presidential|presidential.*2028.*winner|who will win the 2028 presidential", sn, re.I):
+                rid = CONTROL_IDS["president"]
         if rid is None or (rid not in race_ids and rid not in CONTROL_IDS.values()):
             continue
         p: dict[str, Optional[float]] = {"D": None, "R": None, "I": None}
@@ -162,6 +190,7 @@ def load_predictit(con, race_ids: set[str], cands_by_race: dict) -> int:
 SEN_RE = re.compile(r"^(?:KX)?SENATE(?:PARTY)?-?([A-Z]{2})(S)?$")
 GOV_RE = re.compile(r"^(?:KX)?GOV(?:PARTY)?-?([A-Z]{2})$")
 HOUSE_RE = re.compile(r"^(?:KX)?HOUSE(?:PARTY)?-?([A-Z]{2})(\d{1,2})$")
+PRES_RE = re.compile(r"^(?:KX)?PRES(?:WINNER|PARTY)?-?([A-Z]{2})$")
 
 
 def kalshi_series() -> list[dict]:
@@ -206,12 +235,13 @@ def _kalshi_price(m: dict) -> Optional[float]:
 def kalshi_race_odds(series_ticker: str, cands: list[dict]) -> Optional[dict]:
     d = get(f"{KALSHI}/events", {"series_ticker": series_ticker, "with_nested_markets": "true", "limit": 50}, kind="kalshi", ttl=TTL_MARKETS)
     best = None
+    ey, em = ELECTION_DATE.year, ELECTION_DATE.month
     for ev in (d or {}).get("events", []):
         markets = ev.get("markets", [])
         if not markets:
             continue
         close = markets[0].get("close_time") or markets[0].get("expiration_time") or ""
-        if not ("2026-11" <= close[:7] <= "2027-12"):
+        if not (f"{ey}-{em:02d}" <= close[:7] <= f"{ey + 1}-12"):
             continue
         p: dict[str, Optional[float]] = {"D": None, "R": None, "I": None}
         vol = 0.0
@@ -256,6 +286,9 @@ def load_kalshi(con, race_ids: set[str], cands_by_race: dict) -> int:
             rid = f"{m.group(1)}-GOV"
         elif (m := HOUSE_RE.match(t)):
             rid = f"{m.group(1)}-{int(m.group(2)):02d}"
+        elif (m := PRES_RE.match(t)):
+            st = m.group(1)
+            rid = f"{st}-PRES" if (st in STATES or st == "DC") else None
         if rid and rid in race_ids:
             targets.setdefault(rid, []).append(t)
     out = []
@@ -267,7 +300,8 @@ def load_kalshi(con, race_ids: set[str], cands_by_race: dict) -> int:
                 best = rec
         if best:
             out.append(dict(race_id=rid, platform="kalshi", fetched_at=now_iso(), **best))
-    for chamber, ticker in (("senate", "KXSENATE"), ("house", "KXHOUSE")):
+    control_tickers = [("senate", "KXSENATE"), ("house", "KXHOUSE")] if CYCLE == 2026 else [("president", "KXPRES")]
+    for chamber, ticker in control_tickers:
         rec = kalshi_race_odds(ticker, [])
         if rec:
             out.append(dict(race_id=CONTROL_IDS[chamber], platform="kalshi", fetched_at=now_iso(), **rec))

@@ -9,7 +9,7 @@ from typing import Optional
 import numpy as np
 from scipy.stats import norm
 
-from ..config import GOVERNORS_NOT_UP, REDISTRICTED_2026, REGION_OF, SENATE_NOT_UP, days_to_election
+from ..config import ELECTORAL_VOTES_2028, EVS_TO_WIN_2028, GOVERNORS_NOT_UP, PRESIDENT_2024_WINNER, REDISTRICTED_2026, REGION_OF, SENATE_NOT_UP, days_to_election
 from ..db import log_run, now_iso, rows, upsert
 from ..util import prob_label
 from .fundamentals import PARAMS, RATING_SD, RATING_WEIGHT, fundamentals, rating_summary
@@ -77,6 +77,12 @@ def race_forecast(race: dict, cands: list[dict], ratings: list[dict], polls: lis
     fund = fundamentals(race, dem, rep, generic)
     dem_side_party = dem["party"] if dem else "D"
     rating = rating_summary(ratings, race["holder_party"], dem_side_party, fund["margin"])
+    if race["chamber"] == "president" and rating and rating.get("implicit"):
+        # No expert ratings are published yet for 2028; the usual implicit "safe for the holder"
+        # fallback would drag every state toward the White House party, so the early model rests
+        # on fundamentals and polls instead.
+        notes.append("No expert ratings published yet; forecast rests on fundamentals and polls.")
+        rating = None
     if rating and not rating["implicit"]:
         prior = (1 - RATING_WEIGHT) * fund["margin"] + RATING_WEIGHT * rating["margin"]
         prior_sd = math.sqrt(((1 - RATING_WEIGHT) * fund["sd"]) ** 2 + (RATING_WEIGHT * RATING_SD) ** 2 + 2.0 ** 2)
@@ -239,32 +245,55 @@ def run(con, today: Optional[date] = None, n_sims: int = 20000, seed: Optional[i
         r["flip_prob"] = (1 - r["p_dem"]) if hp == "D" else r["p_dem"] if hp == "R" else None
 
     chambers = {}
-    for chamber, not_up, needed_frac in (("house", {"D": 0, "R": 0}, None), ("senate", SENATE_NOT_UP, None), ("governor", GOVERNORS_NOT_UP, None)):
+    for chamber, not_up, needed_frac in (("house", {"D": 0, "R": 0}, None), ("senate", SENATE_NOT_UP, None),
+                                         ("governor", GOVERNORS_NOT_UP, None), ("president", {"D": 0, "R": 0}, None)):
         idx = [i for i, r in enumerate(results) if r["chamber"] == chamber]
+        if not idx:
+            continue
         d_caucus = np.array([1 if not (results[i]["dem"] and results[i]["dem"]["party"] == "I" and results[i]["race_id"] in NON_CAUCUSING_INDEPENDENTS) else 0 for i in idx])
         w = wins[:, idx]
-        d_seats = not_up["D"] + (w * d_caucus).sum(axis=1)
-        r_seats = not_up["R"] + (~w).sum(axis=1)
-        total = {"house": 435, "senate": 100, "governor": 50}[chamber]
-        needed = {"house": 218, "senate": 51, "governor": 26}[chamber]
-        if chamber == "senate":
-            p_dem = float((d_seats >= 51).mean())
-            p_rep = float((r_seats >= 50).mean())
-        else:
+        if chamber == "president":
+            # Winner-take-all Electoral College: a state win banks all of its electors.
+            ev = np.array([ELECTORAL_VOTES_2028[results[i]["state"]] for i in idx])
+            d_seats = (w * ev).sum(axis=1)
+            r_seats = ((~w) * ev).sum(axis=1)
+            total, needed = 538, EVS_TO_WIN_2028
             p_dem = float((d_seats >= needed).mean())
             p_rep = float((r_seats >= needed).mean())
+        else:
+            d_seats = not_up["D"] + (w * d_caucus).sum(axis=1)
+            r_seats = not_up["R"] + (~w).sum(axis=1)
+            total = {"house": 435, "senate": 100, "governor": 50}[chamber]
+            needed = {"house": 218, "senate": 51, "governor": 26}[chamber]
+            if chamber == "senate":
+                p_dem = float((d_seats >= 51).mean())
+                p_rep = float((r_seats >= 50).mean())
+            else:
+                p_dem = float((d_seats >= needed).mean())
+                p_rep = float((r_seats >= needed).mean())
         hist = np.bincount(d_seats.astype(int), minlength=total + 1) / n_sims
         holders = [results[i]["holder_party"] for i in idx]
-        exp_flip_d = float(sum(results[i]["p_dem"] for i in idx if results[i]["holder_party"] == "R"))
-        exp_flip_r = float(sum(1 - results[i]["p_dem"] for i in idx if results[i]["holder_party"] == "D"))
+        if chamber == "president":
+            # Flips and the reference split are measured against the 2024 result (226 D / 312 R),
+            # since every 2028 race nominally "held" by the White House party would be meaningless.
+            w24 = [PRESIDENT_2024_WINNER[results[i]["state"]] for i in idx]
+            ev24 = [ELECTORAL_VOTES_2028[results[i]["state"]] for i in idx]
+            exp_flip_d = float(sum(results[i]["p_dem"] for i in idx if PRESIDENT_2024_WINNER[results[i]["state"]] == "R"))
+            exp_flip_r = float(sum(1 - results[i]["p_dem"] for i in idx if PRESIDENT_2024_WINNER[results[i]["state"]] == "D"))
+            current = {"D": sum(e for e, s in zip(ev24, w24) if s == "D"),
+                       "R": sum(e for e, s in zip(ev24, w24) if s == "R"), "other": 0}
+        else:
+            exp_flip_d = float(sum(results[i]["p_dem"] for i in idx if results[i]["holder_party"] == "R"))
+            exp_flip_r = float(sum(1 - results[i]["p_dem"] for i in idx if results[i]["holder_party"] == "D"))
+            current = {"D": holders.count("D") + not_up["D"], "R": holders.count("R") + not_up["R"],
+                       "other": sum(1 for h in holders if h not in ("D", "R"))}
         chambers[chamber] = dict(
             total=total, seats_up=len(idx), needed=needed, not_up=not_up,
             p_dem=p_dem, p_rep=p_rep, p_neither=max(0.0, 1 - p_dem - p_rep),
             dem_seats=_pct(d_seats), rep_seats=_pct(r_seats),
             histogram=[dict(seats=int(s), p=float(p)) for s, p in enumerate(hist) if p > 0],
             expected_flips={"D": exp_flip_d, "R": exp_flip_r},
-            current={"D": holders.count("D") + not_up["D"], "R": holders.count("R") + not_up["R"],
-                     "other": sum(1 for h in holders if h not in ("D", "R"))},
+            current=current,
         )
     out = dict(run_date=today.isoformat(), days_to_election=dte, generic=gb, national_sigma=sig_nat,
                races={r["race_id"]: r for r in results}, chambers=chambers, n_sims=n_sims, demographics=bool(demo),

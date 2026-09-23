@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>2028 Presidential Forecast — Early Model</title>
+  <meta name="description" content="Early Electoral College forecast for the 2028 U.S. presidential election: generic Democrat vs generic Republican across 50 states plus DC.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='16' height='32' rx='4' fill='%232166ac'/%3E%3Crect x='16' width='16' height='32' rx='4' fill='%23b2182b'/%3E%3Crect x='10' width='12' height='32' fill='%232166ac'/%3E%3Crect x='16' width='6' height='32' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="visually-hidden" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html" data-nav="dashboard"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Midterm Model 2026</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" data-nav="dashboard">Dashboard</a>
+        <a href="president.html" data-nav="president">2028 President</a>
+        <a href="results.html" data-nav="results">Election Results</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
+      </nav>
+      <div class="topbar-meta" data-updated></div>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <div id="status" class="status" role="status">Loading the 2028 forecast…</div>
+
+    <div id="pres" hidden>
+      <div class="page-head">
+        <h1>2028 presidential forecast <span class="badge">early model</span></h1>
+        <p>Generic Democrat vs. generic Republican for president on November 7, 2028 — 51 winner-take-all contests, 538 electoral votes, 270 to win. No nominees exist yet, so this is a fundamentals-first outlook that will sharpen as polls, ratings and candidates arrive.</p>
+      </div>
+
+      <section class="section" aria-label="Electoral College outlook">
+        <div class="view-toggle" role="group" aria-label="Presidential numbers" id="pres-view">
+          <button type="button" data-view="control" aria-pressed="true">Chance of winning</button>
+          <button type="button" data-view="evs" aria-pressed="false">Expected electoral votes</button>
+        </div>
+        <div class="pres-hero">
+          <div id="pres-card"></div>
+        </div>
+      </section>
+
+      <section class="section two-col" aria-label="Trend and path">
+        <div class="card" id="pres-trend"></div>
+        <div class="card" id="pres-path"></div>
+      </section>
+
+      <section class="section" aria-label="States">
+        <div class="card map-card">
+          <h3>Every jurisdiction</h3>
+          <p class="card-sub">Tiles are coloured by the chance a Democrat wins. The number is its electoral votes. Maine and Nebraska are counted winner-take-all here; their district splits are folded into the statewide winner.</p>
+          <div id="pres-map" class="chart-box map-wrap"></div>
+          <div id="pres-map-legend"></div>
+        </div>
+        <div id="pres-table-block"></div>
+      </section>
+
+      <section class="section" aria-labelledby="h-close">
+        <div class="section-head">
+          <h2 id="h-close">Closest states</h2>
+          <p>The eight jurisdictions nearest a coin flip.</p>
+        </div>
+        <div id="pres-closest" class="closest-grid"></div>
+      </section>
+
+      <section class="section" aria-label="How this works">
+        <div class="card method-card">
+          <h3>How this early model works</h3>
+          <ul>
+            <li><b>Generic candidates.</b> Both parties' nominees are unknown, so each state is modelled as Generic Democrat vs. Generic Republican. Named-candidate polls are listed on state pages but don't move the average until nominees exist.</li>
+            <li><b>Fundamentals first.</b> Each state's outlook starts from its Cook PVI (how it voted in 2020/2024 vs. the nation) plus a neutral national environment. State polls and expert ratings blend in automatically once published.</li>
+            <li><b>Wide early uncertainty.</b> With the election far out, the simulation allows large national swings — the bands are honest about how much can change.</li>
+            <li><b>Electoral College math.</b> 20,000 correlated simulations decide each state, then count 538 electoral votes; 270 wins. A 269–269 tie goes to the House and counts for neither party.</li>
+            <li><b>Markets are context only</b>, not a model input — same as the midterm dashboard.</li>
+          </ul>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <h4>Data sources</h4>
+        <ul>
+          <li>State lean: Cook Partisan Voting Index (2020 + 2024 results)</li>
+          <li>Polls and expert ratings: Wikipedia, as published (sparse this early)</li>
+          <li>Prediction markets: Polymarket, PredictIt, Kalshi (shown for comparison, not a model input)</li>
+          <li>News: Google News</li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li><a href="methodology.html" data-nav="methodology">How the model works</a></li>
+          <li data-generated></li>
+          <li><a href="admin.html">Admin</a></li>
+          <li><span data-site-name>Midterm Model 2026</span> · not affiliated with any campaign or party</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./president.js"></script>
+</body>
+</html>

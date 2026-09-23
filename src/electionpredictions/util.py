@@ -159,6 +159,8 @@ def race_id(chamber: str, state: str, district: int | None = None, special: bool
         return f"{state}-{district:02d}"
     if chamber == "senate":
         return f"{state}-SEN" + ("-SP" if special else "")
+    if chamber == "president":
+        return f"{state}-PRES"
     return f"{state}-GOV"
 
 

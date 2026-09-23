@@ -174,11 +174,13 @@ def load(con, verbose=True, use_api_fallback=False) -> dict:
         allrows = []
         if use_api_fallback:
             stats["source"] = "api"
-            allrows = fetch_totals_api("S") + [r for st in STATES for r in fetch_totals_api("H", st)]
+            allrows = fetch_totals_api("P") if CYCLE == 2028 else (
+                fetch_totals_api("S") + [r for st in STATES for r in fetch_totals_api("H", st)])
     if HAS_KEY:
         # With a real key the API is cheap: overlay fresher totals on the weekly bulk file.
         try:
-            api_rows = fetch_totals_api("S") + [r for st in STATES for r in fetch_totals_api("H", st)]
+            api_rows = fetch_totals_api("P") if CYCLE == 2028 else (
+                fetch_totals_api("S") + [r for st in STATES for r in fetch_totals_api("H", st)])
             by_id = {r["candidate_id"]: r for r in allrows}
             for r in api_rows:
                 cur = by_id.get(r["candidate_id"])
@@ -191,14 +193,19 @@ def load(con, verbose=True, use_api_fallback=False) -> dict:
             print(f"  ! FEC API refresh failed: {e}")
     stats["fec_rows"] = len(allrows)
     by_key: dict[tuple, list[dict]] = {}
+    offices = ("P",) if CYCLE == 2028 else ("S", "H")
     for f in allrows:
-        if f["office"] not in ("S", "H"):
+        if f["office"] not in offices:
             continue
         by_key.setdefault((f["office"], f["state"], f["district"] if f["office"] == "H" else "00"), []).append(f)
     unmatched = []
-    races = rows(con, "SELECT * FROM races WHERE chamber IN ('senate','house')")
+    races = rows(con, "SELECT * FROM races WHERE chamber IN ('president')") if CYCLE == 2028 else \
+        rows(con, "SELECT * FROM races WHERE chamber IN ('senate','house')")
     for race in races:
-        key = ("S", race["state"], "00") if race["chamber"] == "senate" else ("H", race["state"], f"{race['district']:02d}")
+        if race["chamber"] == "president":
+            key = ("P", "US", "00")
+        else:
+            key = ("S", race["state"], "00") if race["chamber"] == "senate" else ("H", race["state"], f"{race['district']:02d}")
         pool = by_key.get(key, [])
         for c in rows(con, "SELECT * FROM candidates WHERE race_id=?", (race["race_id"],)):
             f = _match(c, pool)

@@ -10,7 +10,8 @@ def _race(rid, chamber, state, district=None, label="Tossup", p=0.5, unc=False):
 
 
 def test_every_state_has_a_close_time():
-    assert set(STATEWIDE_CLOSE_ET) == set(STATES)
+    assert set(STATES) <= set(STATEWIDE_CLOSE_ET)
+    assert STATEWIDE_CLOSE_ET["DC"] == "20:00"
 
 
 def test_close_times_and_utc_conversion():

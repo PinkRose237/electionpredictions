@@ -7,10 +7,10 @@ from typing import Optional
 
 from dateutil import parser as dtparser
 
-from ..config import STATES
+from ..config import CYCLE, DC_NAME, STATES
 from ..db import upsert
 from ..util import clean, parse_rating, race_id, state_abbr
-from .races import HOUSE_PAGE, GOV_PAGE, SENATE_PAGE, _col, _district_number, _row_str
+from .races import HOUSE_PAGE, GOV_PAGE, PRESIDENT_PAGE, SENATE_PAGE, _col, _district_number, _row_str
 from .wikipedia import extract_tables, find_tables, page_html
 
 HOUSE_RATINGS_PAGE = "2026 United States House of Representatives election ratings"
@@ -132,8 +132,35 @@ def house_ratings() -> tuple[list[dict], dict[str, float]]:
     return out, pvis
 
 
+def president_ratings() -> list[dict]:
+    """State-level 2028 presidential ratings, if any rater has published them yet."""
+    tables = extract_tables(page_html(PRESIDENT_PAGE))
+    out = []
+    for t in find_tables(tables, endswith=["Predictions"]):
+        df = t.flat()
+        sc = _col(df, "State")
+        if not sc:
+            continue
+
+        def id_fn(row):
+            raw = _row_str(row, sc)
+            if raw == DC_NAME or "district of columbia" in raw.lower():
+                return race_id("president", "DC")
+            st = state_abbr(raw)
+            return race_id("president", st) if st else None
+
+        out.extend(_ratings_from_table(df, id_fn))
+    return out
+
+
 def load_all(con) -> dict:
     counts = {}
+    if CYCLE == 2028:
+        pres = president_ratings()
+        con.execute("DELETE FROM ratings")
+        upsert(con, "ratings", pres, keys=["race_id", "rater"])
+        con.commit()
+        return dict(president=len(pres))
     sen = senate_ratings()
     gov = governor_ratings()
     hou, pvis = house_ratings()

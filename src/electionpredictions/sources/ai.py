@@ -21,7 +21,7 @@ from typing import Optional
 
 import requests
 
-from ..config import AI_BASE_URL, AI_MODEL, OPENCODE_API_KEY, USER_AGENT
+from ..config import AI_BASE_URL, AI_MODEL, CYCLE, OPENCODE_API_KEY, USER_AGENT
 from ..db import log_run, now_iso, rows, upsert
 from ..util import prob_label
 
@@ -76,6 +76,24 @@ Use only the information provided; never express a preference for any party.
 Voice for "summary" and "chambers": write as the forecast itself, in plain third person. Describe where each chamber
 stands and why using the evidence (generic ballot, polls, money, seats in play, markets); do not mention the model,
 a baseline, this review, an analyst, or yourself, and do not quote the forecast's own control probabilities."""
+
+NATIONAL_SYSTEM_2028 = """You are the lead analyst of a nonpartisan U.S. election forecast reviewing the national picture for the
+2028 presidential election. You are given the national polling averages, the quantitative model's Electoral College
+outputs, the prediction markets' odds and a sample of recent headlines. Decide two adjustments that apply to every
+state:
+
+Return ONLY a JSON object with exactly these keys:
+{
+  "environment_adjustment": number,   // points to add to the national environment for every state, Democratic-positive, between -3 and 3 (0 = the national average is right)
+  "uncertainty_multiplier": number,   // scale for the shared national polling-error term, between 0.7 and 1.5 (1 = historical average)
+  "summary": string,                  // 120-180 words, two short paragraphs, neutral tone, plain prose, no markdown: where the presidential race stands and why
+  "key_factors": [string],            // 3 to 5 short national factors
+  "chambers": {"president": string}   // one sentence on the Electoral College outlook
+}
+Use only the information provided; never express a preference for any party.
+Voice for "summary" and "chambers": write as the forecast itself, in plain third person. Describe where the race
+stands and why using the evidence (national polls, state polls, fundraising, swing states, markets); do not mention
+the model, a baseline, this review, an analyst, or yourself, and do not quote the forecast's own win probabilities."""
 
 
 class AuthError(RuntimeError):
@@ -140,7 +158,8 @@ def national_dossier(con) -> dict:
     markets = [dict(race_id=m["race_id"], platform=m["platform"], p_dem=_round(m["p_dem"], 2)) for m in rows(con, "SELECT * FROM markets WHERE race_id LIKE '%-CONTROL'")]
     labels = rows(con, "SELECT json_extract(detail, '$.label') label, count(*) n FROM forecasts WHERE run_date=(SELECT max(run_date) FROM forecasts) GROUP BY 1")
     news = [dict(title=n["title"], source=n["source"], published=(n["published"] or "")[:10])
-            for n in rows(con, "SELECT n.* FROM news n JOIN races r USING(race_id) WHERE r.chamber='senate' ORDER BY n.published DESC LIMIT 25")]
+            for n in rows(con, "SELECT n.* FROM news n JOIN races r USING(race_id) WHERE r.chamber=? ORDER BY n.published DESC LIMIT 25",
+                          ("president" if CYCLE == 2028 else "senate",))]
     return dict(generic_ballot=gb, quantitative_chambers=chambers, chamber_markets=markets, race_label_counts=labels, recent_headlines=news)
 
 
@@ -311,7 +330,7 @@ def validate_national_decision(d: dict) -> dict:
         uncertainty_multiplier=min(1.5, max(0.7, float(d.get("uncertainty_multiplier", 1) or 1))),
         summary=str(d.get("summary") or "").strip(),
         key_factors=[str(x).strip() for x in (d.get("key_factors") or []) if str(x).strip()][:6],
-        chambers={k: str(v).strip() for k, v in (d.get("chambers") or {}).items() if k in ("house", "senate", "governor")},
+        chambers={k: str(v).strip() for k, v in (d.get("chambers") or {}).items() if k in ("house", "senate", "governor", "president")},
     )
     return out
 
@@ -329,12 +348,13 @@ def decide_race(dossier: dict) -> dict:
 
 
 def decide_national(dossier: dict) -> dict:
+    system = NATIONAL_SYSTEM_2028 if CYCLE == 2028 else NATIONAL_SYSTEM
     user = "National dossier (JSON):\n" + json.dumps(dossier, default=str)
-    text = complete(NATIONAL_SYSTEM, user)
+    text = complete(system, user)
     try:
         d = parse_json(text)
     except (ValueError, json.JSONDecodeError):
-        text = complete(NATIONAL_SYSTEM, user + "\n\nYour previous reply was not valid JSON. Reply with the JSON object only.")
+        text = complete(system, user + "\n\nYour previous reply was not valid JSON. Reply with the JSON object only.")
         d = parse_json(text)
     return validate_national_decision(d)
 

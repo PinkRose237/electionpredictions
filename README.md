@@ -108,6 +108,23 @@ GitHub Actions) and optionally add an `FEC_API_KEY` repository secret.
 Because the exporter merges each run's history into the published JSON, trend lines survive even if
 the SQLite database is rebuilt from scratch.
 
+## 2028 presidential model (early, separate section)
+
+`site/president.html` tracks Generic Democrat vs. Generic Republican across 51 winner-take-all
+contests (50 states + DC, 538 EVs, 270 to win) for November 7, 2028. It runs off the same code with
+a cycle switch — a separate database and data directory, so the 2026 dashboard is untouched:
+
+```bash
+EP_CYCLE=2028 uv run electionpredictions run --skip ai,followthemoney  # ingest, model, export to site/data2028 (~2 min; ai needs OPENCODE_API_KEY)
+EP_CYCLE=2028 uv run electionpredictions status
+uv run electionpredictions serve  # open /president.html
+```
+
+Early on this rests on fundamentals (Cook PVI per state, neutral national environment, wide
+time-scaled uncertainty); state polls, expert ratings, FEC money, markets and news blend in
+automatically as they appear. Maine/Nebraska award by district in reality — modelled winner-take-all
+for now. State pages work via `race.html?id=PA-PRES&data=data2028`.
+
 ## Deploying the site
 
 `site/` is plain HTML/CSS/JS with no build step. Publish that directory anywhere static files are

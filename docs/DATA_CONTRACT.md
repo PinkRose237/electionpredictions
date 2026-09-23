@@ -43,6 +43,17 @@ Notes: `needed` for the Senate is 51 because the Vice President (R) breaks ties;
 no party reaches control on its own (independents decide). `histogram` lists Democratic seat totals with
 nonzero probability, ascending. `rating_counts` are counts of the **model's** labels among races up.
 
+## 2028 presidential model (`EP_CYCLE=2028`, data in `site/data2028/`, page `site/president.html`)
+
+Same shapes as above, with the presidency as the only chamber. Seat fields carry **electoral votes**:
+`total` 538, `seats_up` 51 (50 states + DC, winner-take-all; Maine/Nebraska district splits are folded
+into the statewide winner), `needed` 270, `not_up` `{D: 0, R: 0}`. `p_neither` is a 269–269 tie
+(decided by the House). `dem_seats`/`rep_seats` are expected Democratic/Republican electoral votes;
+`current` is the 2024 reference split (D 226 / R 312); `expected_flips` are states changing hands vs 2024.
+Each `races.json` entry additionally carries `evs` (the jurisdiction's electoral votes) and `prev`
+(2024 winner: `D` or `R`). Candidates are `Generic Democrat` / `Generic Republican` until nominees exist;
+named-candidate polls are stored (marked hypothetical) but only generic D-vs-R trial heats enter the average.
+
 ## `races.json` — array with one object per race (506 races)
 ```json
 {

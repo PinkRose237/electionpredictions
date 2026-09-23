@@ -11,6 +11,9 @@ PARAMS = {
     "house": dict(env_w=1.0, inc_adv=2.0, lean_w=1.0, money_w=1.0, prior_sd=7.0, floor=3.0),
     "senate": dict(env_w=0.9, inc_adv=3.0, lean_w=1.0, money_w=1.0, prior_sd=6.5, floor=2.5),
     "governor": dict(env_w=0.5, inc_adv=4.0, lean_w=0.75, money_w=0.8, prior_sd=8.0, floor=3.0),
+    # president: open-seat race, state lean (PVI) plus the national environment; money matters
+    # less before nominees exist (generic candidates raise nothing, so the term is ~0 anyway).
+    "president": dict(env_w=0.9, inc_adv=3.0, lean_w=1.0, money_w=0.5, prior_sd=7.0, floor=2.5),
 }
 RATING_MARGIN = {0: 0.0, 1: 2.5, 2: 5.0, 3: 9.0, 4: 16.0}
 RATING_SD = 6.3              # implied by historical accuracy of Lean/Likely/Safe calls

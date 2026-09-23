@@ -11,7 +11,7 @@ wheels/
 
 # pipeline state
 data/cache/
-data/elections.db*
+data/elections*.db*
 data/run.log
 site/_fixture/
 .pytest_cache/

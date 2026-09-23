@@ -5,14 +5,14 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from .config import ELECTION_DATE, SITE_DATA_DIR, STATES, days_to_election
+from .config import DC_NAME, ELECTION_DATE, ELECTORAL_VOTES_2028, PRESIDENT_2024_WINNER, SITE_DATA_DIR, STATES, days_to_election
 from .db import now_iso, rows
 from .model.forecast import _sides
 from .schedule import build_schedule
 from .util import ordinal
 
 VERSION = "0.1.0"
-CHAMBER_LABEL = {"house": "House", "senate": "Senate", "governor": "Governors"}
+CHAMBER_LABEL = {"house": "House", "senate": "Senate", "governor": "Governors", "president": "President"}
 LABELS = ["Safe D", "Likely D", "Lean D", "Tossup", "Lean R", "Likely R", "Safe R"]
 
 
@@ -36,6 +36,8 @@ def _short(race: dict) -> str:
         return f"{race['state']}-{race['district']:02d}" if race["district"] else f"{race['state']}-AL"
     if race["chamber"] == "senate":
         return f"{race['state']}-Sen" + (" (special)" if race["special"] else "")
+    if race["chamber"] == "president":
+        return f"{race['state']}-Pres"
     return f"{race['state']}-Gov"
 
 
@@ -116,7 +118,7 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
         label = detail.get("label")
         label_counts[race["chamber"]][label] += 1
         s = dict(
-            race_id=rid, chamber=race["chamber"], state=race["state"], state_name=STATES[race["state"]],
+            race_id=rid, chamber=race["chamber"], state=race["state"], state_name=STATES.get(race["state"], DC_NAME),
             district=race["district"] if race["chamber"] == "house" else None, special=bool(race["special"]),
             name=race["name"], short=_short(race),
             incumbent=race["incumbent"], incumbent_party=race["incumbent_party"], incumbent_running=bool(race["incumbent_running"]),
@@ -133,6 +135,9 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
             uncontested=bool(detail.get("uncontested")),
             news_count=len(news_by.get(rid, [])),
         )
+        if race["chamber"] == "president":
+            s["evs"] = ELECTORAL_VOTES_2028[race["state"]]
+            s["prev"] = PRESIDENT_2024_WINNER[race["state"]]
         summaries.append(s)
         weights = detail.get("weights") or {}
         poll_list = []
@@ -192,7 +197,8 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
         dem=avg["dem"] if avg else None, rep=avg["rep"] if avg else None,
         sources=[dict(source=g["source"], as_of=g["as_of"], dem=g["dem"], rep=g["rep"], margin=g["margin"]) for g in latest_gb if g["source"].lower() != "average"],
     )
-    control_mk = {"senate": markets_by.get("SENATE-CONTROL", []), "house": markets_by.get("HOUSE-CONTROL", []), "governor": []}
+    control_mk = {"senate": markets_by.get("SENATE-CONTROL", []), "house": markets_by.get("HOUSE-CONTROL", []),
+                  "governor": [], "president": markets_by.get("PRESIDENT-CONTROL", [])}
     chambers = {}
     for ch, row in cf.items():
         d = json.loads(row["detail"])

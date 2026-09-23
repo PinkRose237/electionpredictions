@@ -15,6 +15,9 @@ import {
 
 const id = (query.get('id') || '').trim();
 
+/** Election-day label, replaced from summary.json once it loads (president data is 2028). */
+let electionLabel = 'November 3, 2026';
+
 /** "Arizona 1st District" for House races whose data name is just the id; otherwise the data name. */
 function ordinal(n) {
   const v = n % 100;
@@ -48,12 +51,18 @@ async function main() {
     showError(status, err, `There is no race with the id “${id}”.`);
     return;
   }
-  loadJSON('summary.json').then((s) => { renderUpdated(s); renderFooterMeta(s); }).catch(() => {});
+  loadJSON('summary.json').then((s) => {
+    renderUpdated(s); renderFooterMeta(s);
+    if (s && s.election_date) electionLabel = fmt.date(s.election_date);
+    const eb = document.querySelector('[data-election-day]');
+    if (eb) eb.textContent = electionLabel;
+  }).catch(() => {});
   document.title = `${displayName(race)} — ${SITE_NAME}`;
   status.hidden = true;
   root.hidden = false;
+  const back = race.chamber === 'president' ? 'president.html' : `index.html#${race.chamber || 'house'}`;
   root.append(
-    h('a', { class: 'back-link', href: withData(`index.html#${race.chamber || 'house'}`) }, '← Back to dashboard'),
+    h('a', { class: 'back-link', href: withData(back) }, race.chamber === 'president' ? '← Back to 2028 forecast' : '← Back to dashboard'),
     header(race),
     headline(race),
     h('div', { class: 'race-grid' },
@@ -73,7 +82,10 @@ function header(race) {
   chips.push(race.state_name || STATE_NAMES[race.state] || race.state || DASH);
   chips.push(race.district == null ? chamber : `${chamber} · ${race.district === 0 ? 'At-large' : `District ${race.district}`}`);
   if (race.special) chips.push('Special election');
-  if (race.incumbent) {
+  if (race.chamber === 'president') {
+    chips.push('Open seat · incumbent term-limited');
+    if (isNum(race.evs)) chips.push(`${fmt.num(race.evs)} electoral votes`);
+  } else if (race.incumbent) {
     const status = race.open_seat || race.incumbent_running === false ? 'Open seat' : race.incumbent_running ? 'Incumbent running' : 'Incumbent';
     chips.push(`${status}: ${race.incumbent}${race.incumbent_party ? ` (${race.incumbent_party})` : ''}`);
   } else {
@@ -81,7 +93,7 @@ function header(race) {
   }
   chips.push(`PVI ${race.pvi_label || (isNum(race.pvi) ? fmt.margin(race.pvi, 0) : DASH)}`);
   return h('header', { class: 'race-header' },
-    h('div', { class: 'eyebrow' }, `${chamber}${race.short && race.chamber === 'house' ? ` · ${race.short}` : ''} · November 3, 2026`),
+    h('div', { class: 'eyebrow' }, `${chamber}${race.short && race.chamber === 'house' ? ` · ${race.short}` : ''} · `, h('span', { 'data-election-day': '' }, electionLabel)),
     h('h1', {}, displayName(race)),
     h('div', { class: 'chips' }, chips.map((c) => h('span', { class: 'chip' }, c))),
   );
