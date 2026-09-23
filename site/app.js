@@ -29,7 +29,26 @@ const S = {
   byChamber: { house: [], senate: [], governor: [] },
   byId: new Map(),
   built: new Set(),
+  view: 'control',
 };
+
+try {
+  const saved = localStorage.getItem('chamber-view');
+  if (saved === 'seats' || saved === 'control') S.view = saved;
+} catch (e) { /* storage unavailable */ }
+
+/** Expected seat share (0–1) for a chamber forecast, or nulls when missing. */
+function seatShare(ch) {
+  const dMean = ch && ch.dem_seats && ch.dem_seats.mean;
+  const rMean = ch && ch.rep_seats && ch.rep_seats.mean;
+  const total = ch && ch.total;
+  if (!isNum(dMean) || !isNum(rMean) || !isNum(total) || total <= 0) {
+    return { dMean: null, rMean: null, total: isNum(total) ? total : null, dShare: null, rShare: null, nShare: null };
+  }
+  const dShare = dMean / total;
+  const rShare = rMean / total;
+  return { dMean, rMean, total, dShare, rShare, nShare: Math.max(0, 1 - dShare - rShare) };
+}
 
 async function main() {
   initChrome({ current: 'dashboard' });
@@ -46,6 +65,7 @@ async function main() {
     document.getElementById('dashboard').hidden = false;
     renderUpdated(S.summary);
     renderFooterMeta(S.summary);
+    initChamberView();
     renderChambers(S.summary);
     renderOverview(S.summary);
     renderGeneric(S.summary);
@@ -82,11 +102,32 @@ function renderOverview(summary) {
 function renderChambers(summary) {
   const root = document.getElementById('chambers');
   const chambers = summary.chambers || {};
-  root.replaceChildren(...CHAMBERS.map((key) => chamberCard(key, chambers[key])));
+  root.replaceChildren(...CHAMBERS.map((key) => chamberCard(key, chambers[key], S.view)));
 }
 
-function splitBar(pD, pR, pN) {
-  const bar = h('div', { class: 'split-bar', role: 'img', 'aria-label': `Democrats ${fmt.pct(pD)}, Republicans ${fmt.pct(pR)}` });
+/** Segmented control switching the chamber cards + trend between control odds and seat share. */
+function initChamberView() {
+  const root = document.getElementById('chamber-view');
+  if (!root) return;
+  const btns = [...root.querySelectorAll('button[data-view]')];
+  const paint = () => {
+    for (const b of btns) b.setAttribute('aria-pressed', b.dataset.view === S.view ? 'true' : 'false');
+  };
+  for (const b of btns) {
+    b.addEventListener('click', () => {
+      if (S.view === b.dataset.view) return;
+      S.view = b.dataset.view;
+      try { localStorage.setItem('chamber-view', S.view); } catch (e) { /* storage unavailable */ }
+      paint();
+      renderChambers(S.summary);
+      renderTrend(S.summary);
+    });
+  }
+  paint();
+}
+
+function splitBar(pD, pR, pN, ariaLabel) {
+  const bar = h('div', { class: 'split-bar', role: 'img', 'aria-label': ariaLabel || `Democrats ${fmt.pct(pD)}, Republicans ${fmt.pct(pR)}` });
   const d = isNum(pD) ? pD : 0, r = isNum(pR) ? pR : 0, n = isNum(pN) ? pN : Math.max(0, 1 - d - r);
   if (d > 0) bar.append(h('span', { class: 'd', style: { width: `${d * 100}%` } }));
   if (n > 0.005) bar.append(h('span', { class: 'n', style: { width: `${n * 100}%` } }));
@@ -94,28 +135,44 @@ function splitBar(pD, pR, pN) {
   return bar;
 }
 
-function chamberCard(key, ch) {
+function chamberCard(key, ch, view) {
   const card = h('article', { class: 'card chamber-card', 'aria-label': `${CHAMBER_LABEL[key]} forecast` });
   if (!ch) {
     card.append(h('h2', {}, CHAMBER_LABEL[key]), h('p', { class: 'muted' }, 'No forecast data.'));
     return card;
   }
-  const pD = ch.p_dem, pR = ch.p_rep, pN = ch.p_neither;
   card.append(
     h('header', {},
       h('h2', {}, ch.label || CHAMBER_LABEL[key]),
       h('span', { class: 'sub' }, `${fmt.num(ch.seats_up)} of ${fmt.num(ch.total)} seats up`, h('br'), `${fmt.num(ch.needed)} for control`)),
   );
-  const probs = h('div', { class: 'control-probs' },
-    h('div', { class: 'side dem' },
-      h('div', { class: 'big', style: { color: 'var(--dem)' } }, fmt.pct(pD)),
-      h('div', { class: 'lbl' }, h('span', { class: 'party-dot dem', 'aria-hidden': 'true' }), 'Democratic control')),
-    h('div', { class: 'side rep' },
-      h('div', { class: 'big', style: { color: 'var(--rep)' } }, fmt.pct(pR)),
-      h('div', { class: 'lbl' }, h('span', { class: 'party-dot rep', 'aria-hidden': 'true' }), 'Republican control')),
-  );
-  if (isNum(pN) && pN > 0.005) probs.append(h('div', { class: 'neither' }, `Neither party outright (independents decide): ${fmt.pct(pN)}`));
-  card.append(probs, splitBar(pD, pR, pN));
+  if (view === 'seats') {
+    const { dMean, rMean, total, dShare, rShare, nShare } = seatShare(ch);
+    const otherMean = isNum(total) && isNum(dMean) && isNum(rMean) ? Math.max(0, total - dMean - rMean) : null;
+    const probs = h('div', { class: 'control-probs' },
+      h('div', { class: 'side dem' },
+        h('div', { class: 'big', style: { color: 'var(--dem)' } }, fmt.dec(dMean, 1)),
+        h('div', { class: 'lbl' }, h('span', { class: 'party-dot dem', 'aria-hidden': 'true' }), `Dem seats · ${fmt.pct(dShare)}`)),
+      h('div', { class: 'side rep' },
+        h('div', { class: 'big', style: { color: 'var(--rep)' } }, fmt.dec(rMean, 1)),
+        h('div', { class: 'lbl' }, h('span', { class: 'party-dot rep', 'aria-hidden': 'true' }), `Rep seats · ${fmt.pct(rShare)}`)),
+    );
+    if (isNum(otherMean) && otherMean > 0.05) probs.append(h('div', { class: 'neither' }, `Other / no-party majority: ${fmt.dec(otherMean, 1)} seats`));
+    card.append(probs, splitBar(dShare, rShare, nShare,
+      `Democrats ${fmt.dec(dMean, 1)} seats (${fmt.pct(dShare)}), Republicans ${fmt.dec(rMean, 1)} seats (${fmt.pct(rShare)})`));
+  } else {
+    const pD = ch.p_dem, pR = ch.p_rep, pN = ch.p_neither;
+    const probs = h('div', { class: 'control-probs' },
+      h('div', { class: 'side dem' },
+        h('div', { class: 'big', style: { color: 'var(--dem)' } }, fmt.pct(pD)),
+        h('div', { class: 'lbl' }, h('span', { class: 'party-dot dem', 'aria-hidden': 'true' }), 'Democratic control')),
+      h('div', { class: 'side rep' },
+        h('div', { class: 'big', style: { color: 'var(--rep)' } }, fmt.pct(pR)),
+        h('div', { class: 'lbl' }, h('span', { class: 'party-dot rep', 'aria-hidden': 'true' }), 'Republican control')),
+    );
+    if (isNum(pN) && pN > 0.005) probs.append(h('div', { class: 'neither' }, `Neither party outright (independents decide): ${fmt.pct(pN)}`));
+    card.append(probs, splitBar(pD, pR, pN));
+  }
   if (key === 'senate') card.append(h('p', { class: 'note' }, '51 needed; the Vice President breaks ties for Republicans.'));
 
   const cur = ch.current || {};
@@ -246,11 +303,17 @@ function renderGeneric(summary) {
 
 function renderTrend(summary) {
   const root = document.getElementById('trend');
+  const mode = S.view === 'seats' ? 'seats' : 'control';
+  const totals = {};
+  for (const ch of CHAMBERS) totals[ch] = summary.chambers && summary.chambers[ch] ? summary.chambers[ch].total : null;
   const history = (Array.isArray(summary.history) ? summary.history : []).filter((d) => d && parseDate(d.date));
   history.sort((a, b) => parseDate(a.date) - parseDate(b.date));
+  root.replaceChildren();
   root.append(
-    h('h2', {}, 'Chance of Democratic control over time'),
-    h('p', { class: 'card-sub' }, 'One point per daily model run'),
+    h('h2', {}, mode === 'seats' ? 'Democratic seat share over time' : 'Chance of Democratic control over time'),
+    h('p', { class: 'card-sub' }, mode === 'seats'
+      ? 'Expected share of seats for Democrats after the election, per daily model run'
+      : 'One point per daily model run'),
   );
   if (!history.length) {
     root.append(h('p', { class: 'muted' }, 'No model history yet.'));
@@ -258,7 +321,7 @@ function renderTrend(summary) {
   }
   const box = h('div', { class: 'chart-box' });
   root.append(box);
-  responsiveChart(box, (w) => drawTrend(w, history));
+  responsiveChart(box, (w) => drawTrend(w, history, mode, totals));
   const legend = h('div', { class: 'legend' }, CHAMBERS.map((ch) => {
     const key = h('span', { class: 'legend-line' });
     key.style.background = seriesColor(ch);
@@ -271,8 +334,17 @@ function renderTrend(summary) {
   }
 }
 
-function drawTrend(w, history) {
+function drawTrend(w, history, mode = 'control', totals = {}) {
   const H = 232, m = { t: 14, r: 104, b: 30, l: 40 };
+  const valueOf = (d, ch) => {
+    if (!d[ch]) return null;
+    if (mode === 'seats') {
+      const seats = d[ch].dem_seats, total = totals[ch];
+      return isNum(seats) && isNum(total) && total > 0 ? seats / total : null;
+    }
+    return d[ch].p_dem;
+  };
+  const seatsOf = (d, ch) => (d[ch] ? d[ch].dem_seats : null);
   const times = history.map((d) => parseDate(d.date).getTime());
   let t0 = Math.min(...times), t1 = Math.max(...times);
   if (t1 - t0 < 6 * 864e5) {
@@ -284,7 +356,9 @@ function drawTrend(w, history) {
   const y = scaleLinear([0, 1], [H - m.b, m.t]);
   const svg = svgEl('svg', {
     class: 'chart trend', viewBox: `0 0 ${w} ${H}`, width: w, height: H, role: 'img',
-    'aria-label': 'Probability of Democratic control of the House, Senate and governorships over time',
+    'aria-label': mode === 'seats'
+      ? 'Expected Democratic share of House, Senate and governorship seats over time'
+      : 'Probability of Democratic control of the House, Senate and governorships over time',
   });
   for (const v of [0, 0.25, 0.5, 0.75, 1]) {
     svg.append(svgEl('line', { class: v === 0.5 ? 'axis' : 'grid', x1: m.l, x2: w - m.r, y1: y(v), y2: y(v) }));
@@ -297,7 +371,7 @@ function drawTrend(w, history) {
   }
   const ends = [];
   for (const ch of CHAMBERS) {
-    const pts = history.map((d, i) => ({ t: times[i], v: d[ch] ? d[ch].p_dem : null })).filter((p) => isNum(p.v));
+    const pts = history.map((d, i) => ({ t: times[i], v: valueOf(d, ch) })).filter((p) => isNum(p.v));
     if (!pts.length) continue;
     const color = seriesColor(ch);
     if (pts.length > 1) {
@@ -331,8 +405,14 @@ function drawTrend(w, history) {
     cross.setAttribute('x2', xx);
     cross.setAttribute('visibility', 'visible');
     const d = history[best];
-    const rows = CHAMBERS.filter((ch) => d[ch] && isNum(d[ch].p_dem))
-      .map((ch) => [CHAMBER_LABEL[ch], `${fmt.pct(d[ch].p_dem)} · ${fmt.dec(d[ch].dem_seats, 1)} seats`, seriesColor(ch)]);
+    const rows = CHAMBERS.filter((ch) => isNum(valueOf(d, ch)))
+      .map((ch) => {
+        const v = valueOf(d, ch), seats = seatsOf(d, ch);
+        const detail = mode === 'seats'
+          ? `${fmt.pct(v)} of seats · ${fmt.dec(seats, 1)} seats`
+          : `${fmt.pct(v)} · ${fmt.dec(seats, 1)} seats`;
+        return [CHAMBER_LABEL[ch], detail, seriesColor(ch)];
+      });
     if (isNum(d.generic)) rows.push(['Generic ballot', fmt.margin(d.generic)]);
     tooltip.show(tipContent(fmt.date(d.date), rows), e.clientX, e.clientY);
   });

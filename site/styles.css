@@ -311,6 +311,20 @@ table.data { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .split-bar .r { background: var(--rep); height: 100%; }
 .split-bar .n { background: var(--tossup); height: 100%; }
 
+/* Chamber view toggle (control odds vs expected seats) */
+.view-toggle {
+  display: inline-flex; gap: 2px; padding: 3px; margin-bottom: var(--s4);
+  border: 1px solid var(--border); border-radius: 999px; background: var(--surface);
+}
+.view-toggle button {
+  font: inherit; font-size: 13.5px; font-weight: 600; cursor: pointer;
+  border: 0; border-radius: 999px; padding: 7px 16px;
+  background: transparent; color: var(--ink-3); white-space: nowrap;
+}
+.view-toggle button:hover { color: var(--ink); }
+.view-toggle button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.view-toggle button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
 /* 5. Dashboard --------------------------------------------------------------- */
 .chamber-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s4); }
 .chamber-card header { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: var(--s3); }
