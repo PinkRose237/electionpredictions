@@ -12,8 +12,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from typing import Optional
 
@@ -141,9 +143,17 @@ def _hash(payload) -> str:
 
 
 # ---------------------------------------------------------------------------- HTTP + parsing
+# OpenCode Go routes requests by session; one id per pipeline run keeps prompt-cache reuse across races.
+SESSION_ID = os.environ.get("OPENCODE_SESSION_ID") or f"electionpredictions-{uuid.uuid4()}"
+
+
+def _headers() -> dict:
+    return {"Authorization": f"Bearer {OPENCODE_API_KEY}", "Content-Type": "application/json", "User-Agent": USER_AGENT,
+            "x-opencode-session": SESSION_ID}
+
+
 def _post(path: str, body: dict, timeout: int = 180) -> requests.Response:
-    return requests.post(f"{AI_BASE_URL.rstrip('/')}/{path.lstrip('/')}", json=body, timeout=timeout,
-                         headers={"Authorization": f"Bearer {OPENCODE_API_KEY}", "Content-Type": "application/json", "User-Agent": USER_AGENT})
+    return requests.post(f"{AI_BASE_URL.rstrip('/')}/{path.lstrip('/')}", json=body, timeout=timeout, headers=_headers())
 
 
 def _extract_text(data: dict) -> str:
@@ -224,7 +234,8 @@ def complete(system: str, user: str, retries: int = 3) -> str:
 
 def probe() -> dict:
     """One tiny request per endpoint shape; returns statuses and response snippets for diagnosis."""
-    out = {"base_url": AI_BASE_URL, "model": AI_MODEL, "key_present": bool(OPENCODE_API_KEY), "key_prefix": OPENCODE_API_KEY[:6] + "…" if OPENCODE_API_KEY else None}
+    out = {"base_url": AI_BASE_URL, "model": AI_MODEL, "key_present": bool(OPENCODE_API_KEY), "key_prefix": OPENCODE_API_KEY[:6] + "…" if OPENCODE_API_KEY else None,
+           "session": SESSION_ID}
     tests = [
         ("chat/completions", {"model": AI_MODEL, "max_tokens": 20, "messages": [{"role": "user", "content": "Reply with the single word OK."}]}),
         ("responses", {"model": AI_MODEL, "max_output_tokens": 20, "input": [{"role": "user", "content": "Reply with the single word OK."}]}),
@@ -233,7 +244,7 @@ def probe() -> dict:
     for path, body in tests:
         try:
             if body is None:
-                r = requests.get(f"{AI_BASE_URL.rstrip('/')}/{path}", timeout=60, headers={"Authorization": f"Bearer {OPENCODE_API_KEY}", "User-Agent": USER_AGENT})
+                r = requests.get(f"{AI_BASE_URL.rstrip('/')}/{path}", timeout=60, headers=_headers())
             else:
                 r = _post(path, body, timeout=60)
             snippet = r.text[:300].replace("\n", " ")
