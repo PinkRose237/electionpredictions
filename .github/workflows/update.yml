@@ -35,11 +35,18 @@ jobs:
           CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
         run: uv run electionpredictions run
+      - name: Run presidential pipeline
+        env:
+          EP_CYCLE: "2028"
+          FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
+          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+        run: uv run electionpredictions run --skip followthemoney
       - name: Commit published data
         run: |
           git config user.name "forecast-bot"
           git config user.email "forecast-bot@users.noreply.github.com"
-          git add site/data
+          git add site/data site/data2028
           git commit -m "Update forecast $(date -u +%F)" || echo "nothing to commit"
           git pull --rebase origin main
           git push
