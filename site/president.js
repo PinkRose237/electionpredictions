@@ -9,7 +9,7 @@
 import {
   LABELS, STATE_GRID, DASH,
   query, resolveDataBase, loadJSON, fmt, isNum, clamp, parseDate,
-  onThemeChange, probColor, probGradient, textOn,
+  isDark, onThemeChange, probColor, probGradient, textOn,
   h, svgEl, scaleLinear, niceTicks, dateTicks, responsiveChart,
   tooltip, tipContent, attachTooltip,
   ratingP, ratingPill, probChip, matchupNode, partyClass,
