@@ -11,3 +11,4 @@
 - The decision layer (`sources/ai.py`) uses the OpenCode Go gateway (`https://opencode.ai/zen/go/v1`, OpenAI-compatible, `OPENCODE_API_KEY`), model `glm-5.3-flash` by default; pay-as-you-go Zen is `/zen/v1`; pipeline order is ingest -> model --baseline-only -> ai -> model -> export. The site must never mention AI.
 - The FEC API `DEMO_KEY` is limited to ~10 requests/hour; fundraising comes from the bulk `weball26.zip` file.
 - Wikipedia is fetched one whole page at a time; tables are located by heading path (`sources/wikipedia.py`).
+- Election-night results: the site pulls the NYT (AP) results JSON, with CNN as backup, live in the browser (`site/live.js`); `uv run electionpredictions results [--watch 120 --push]` snapshots the same feeds to `site/data/results-auto.json` (`sources/live_results.py`, keep it in step with live.js). `results.json` holds only the admin page's manual overrides.

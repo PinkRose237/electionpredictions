@@ -75,6 +75,30 @@ def status(con):
     print("Recent stages:", [f"{r['stage']}@{r['finished_at']} ok={r['ok']}" for r in rows(con, "SELECT * FROM runs ORDER BY run_id DESC LIMIT 8")])
 
 
+def results(watch: int = 0, push: bool = False):
+    """Snapshot the live results feeds into site/data/results-auto.json, once or every `watch` seconds."""
+    import subprocess
+
+    from .sources.live_results import SNAPSHOT_PATH, snapshot
+
+    rel = str(SNAPSHOT_PATH.relative_to(SITE_DIR.parent))
+    while True:
+        res = snapshot()
+        if push and res.get("written"):
+            git = lambda *a: subprocess.run(["git", *a], cwd=SITE_DIR.parent, capture_output=True, text=True)  # noqa: E731
+            git("add", rel)
+            if git("diff", "--cached", "--quiet", "--", rel).returncode:
+                git("commit", "-m", f"Results snapshot {now_iso()}", "--", rel)
+                pulled = git("pull", "--rebase", "--autostash", "origin", "main")
+                pushed = git("push")
+                print("[results] pushed" if pushed.returncode == 0 else f"[results] push failed: {(pulled.stderr + pushed.stderr).strip()}")
+            else:
+                print("[results] unchanged; nothing to push")
+        if not watch:
+            return res
+        time.sleep(watch)
+
+
 class _NoCacheHandler(http.server.SimpleHTTPRequestHandler):
     def end_headers(self):
         self.send_header("Cache-Control", "no-store")
@@ -108,6 +132,9 @@ def main(argv=None):
     s.add_argument("--port", type=int, default=8000)
     sub.add_parser("status", help="show what is in the database")
     sub.add_parser("ai-probe", help="make one tiny request to the AI provider and print what it answers (diagnostics)")
+    rs = sub.add_parser("results", help="save a snapshot of the live results feeds to site/data/results-auto.json")
+    rs.add_argument("--watch", type=int, default=0, metavar="SECONDS", help="keep refreshing every SECONDS (e.g. 120)")
+    rs.add_argument("--push", action="store_true", help="commit and push the snapshot whenever it changes")
     ap = sub.add_parser("set-admin-password", help="set the password for the site's admin page")
     ap.add_argument("--password", help="omit to be prompted")
     ap.add_argument("--repo", help="GitHub owner/name the admin page publishes to (default: origin remote)")
@@ -116,6 +143,9 @@ def main(argv=None):
         from .sources.ai import probe
 
         print(json.dumps(probe(), indent=2))
+        return
+    if args.cmd == "results":
+        results(watch=args.watch, push=args.push)
         return
     if args.cmd == "set-admin-password":
         import getpass

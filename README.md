@@ -74,14 +74,32 @@ race-specific error, which is what makes seat totals and control probabilities h
 correlated polling misses. The full write-up is in `site/methodology.html`; the implementation is
 `src/electionpredictions/model/`.
 
-## Entering election results (admin page)
+## Election night results
 
-`site/admin.html` is a password-gated results-entry page for every race, grouped by state with each
-state's official results link and a live poll-closing countdown. Entries autosave in the browser;
-**Publish** commits `site/data/results.json` to the repo with your own GitHub token (a fine-grained
-personal access token with *Contents: read and write* on this repo, stored only in your browser), and
-`.github/workflows/deploy-site.yml` redeploys the site. The results page and race pages then show the
-entered numbers.
+**Automatic.** The Election Results page pulls vote counts and race calls straight from public results
+feeds in the visitor's browser every minute once polls start closing (`site/live.js`): The New York Times'
+results JSON (AP votes and AP calls) first, CNN's results JSON for anything it is missing. Every race is
+matched to our Democratic/Republican sides by candidate name, so an independent standing in for a party
+(Nebraska Senate) lands on the right side. Above the per-state countdowns the page now shows a seat
+scoreboard per chamber (won, leading, flips, majority line) and a board of the key races.
+
+**Snapshot.** `uv run electionpredictions results` saves the same feeds to `site/data/results-auto.json`;
+add `--watch 120 --push` to keep it fresh from your own machine. `.github/workflows/results.yml` does
+this every 10 minutes from 6 pm ET on election night through Nov 6, then hourly through November. The
+page falls back to this snapshot when a browser can't reach the feeds, and it keeps the results after
+the feeds go offline. Both are unofficial endpoints the outlets don't document, so they can change
+without notice; check the official state links if numbers look off.
+
+**Corrections (admin page).** `site/admin.html` is a password-gated results desk for every race,
+grouped by state with each state's official results link and a poll-closing countdown. The feed's
+numbers appear in grey in every box; type over any of them, call a race (D / R / Oth, click again to
+undo), or use **Paste** on a row: copy that race's table from any results site and the page reads the
+candidates' votes, the total and the percent reporting out of it. Empty boxes keep following the feed.
+"Show: Polls closed, not called" lists exactly the races still waiting. Overrides autosave in the
+browser; **Publish** commits them as `site/data/results.json` with your own GitHub token (a
+fine-grained personal access token with *Contents: read and write* on this repo, stored only in your
+browser), and `.github/workflows/deploy-site.yml` redeploys the site. Visitors' pages pick the new
+overrides up on their next refresh.
 
 - Set or change the password: `uv run electionpredictions set-admin-password` (writes a PBKDF2 hash
   to `site/admin-config.json`; use a long passphrase, the hash is public).
@@ -179,6 +197,7 @@ src/electionpredictions/
     fundamentals.py    lean + environment + incumbency + money; rating consensus
     forecast.py        combination, Monte Carlo simulation, chamber math
   schedule.py          poll-closing times per race + expected AP call windows (Election Results page)
+  sources/live_results.py  election-night results feed snapshot (results-auto.json; mirrors site/live.js)
   export.py            site/data JSON (schema in docs/DATA_CONTRACT.md)
   cli.py               command-line interface
 site/                  the website (index.html, results.html, admin.html, race.html, methodology.html, *.js, styles.css, data/)

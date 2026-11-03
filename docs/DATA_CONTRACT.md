@@ -140,7 +140,7 @@ Groups are sorted by closing time then state; a state appears more than once whe
 (House districts in the earlier zone form their own group). `call.tier` is 0 (Safe) … 3 (Tossup) or
 `"uncontested"`.
 
-## `results.json` — entered election results (written by the admin page, optional)
+## `results.json` — manual result overrides (written by the admin page, optional)
 ```json
 {
   "updated_at": "2026-11-03T23:45:00.000Z",
@@ -152,4 +152,18 @@ Groups are sorted by closing time then state; a state appears more than once whe
 ```
 `status` is one of `pending, counting, called, runoff, recount, final`; `winner` is `dem`, `rep`, `other` or null
 (sides as in `races.json`, so an independent standing in for a party counts on that side). Vote fields may be null.
-Absent file = no results yet; pages must render without it.
+These entries are laid over the live feed field by field (`mergeResults` in `site/live.js`): `status`
+`pending` and null fields mean "use the feed"; anything else wins.
+Absent file = no overrides; pages must render without it.
+
+## `results-auto.json` — saved snapshot of the live results feeds (optional)
+Written by `uv run electionpredictions results` (and `.github/workflows/results.yml`). Same entry shape
+as `results.json`, plus which feed supplied each race:
+```json
+{"updated_at": "2026-11-04T03:10:00+00:00", "sources": ["nyt"],
+ "races": {"GA-SEN": {"status": "called", "winner": "dem", "reporting": 96.0,
+                      "votes": {"dem": 2501234, "rep": 2390000, "other": 41000}, "updated_at": "..."}},
+ "by": {"GA-SEN": "nyt"}}
+```
+`reporting` is the share of the expected vote counted (AP's estimate), 0–100. The results page pulls the
+same feeds live in the browser and uses this file only when it can't reach them.

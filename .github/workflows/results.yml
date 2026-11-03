@@ -1,0 +1,60 @@
+name: Results snapshot
+
+# Election night and the count that follows: save the live results feeds to site/data/results-auto.json
+# and redeploy. Visitors' browsers pull the feeds directly every minute; this snapshot is what they see when
+# their browser can't reach the feeds, and what stays once the feeds go offline.
+on:
+  schedule:
+    - cron: "*/10 23 3 11 *"    # Nov 3 from 6 pm ET
+    - cron: "*/10 * 4-6 11 *"   # every 10 minutes through Friday
+    - cron: "7 * 7-30 11 *"     # hourly for the rest of November
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: results-snapshot
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv sync
+      - run: uv run electionpredictions results
+      - id: commit
+        name: Commit the snapshot if it changed
+        run: |
+          git config user.name "forecast-bot"
+          git config user.email "forecast-bot@users.noreply.github.com"
+          git add site/data/results-auto.json
+          if git diff --cached --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
+          git commit -m "Results snapshot $(date -u +%FT%H:%MZ)"
+          git pull --rebase origin main
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+      - if: steps.commit.outputs.changed == 'true'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: snapshot
+    if: needs.snapshot.outputs.changed == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

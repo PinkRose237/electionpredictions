@@ -1,5 +1,9 @@
 /**
- * admin.js — password-gated results entry for every race.
+ * admin.js — password-gated results corrections for every race.
+ *
+ * The public page pulls vote counts and calls from the live feed by itself (live.js); this page shows
+ * the same feed values for every race and lets the admin override any field, call a race, or paste
+ * numbers copied from an official results site. Only the overrides are saved and published.
  *
  * Gate: PBKDF2-SHA256 of the password (Web Crypto) compared with the hash in admin-config.json.
  * Data: a draft in localStorage; Publish commits data/results.json to GitHub with the admin's own
@@ -7,19 +11,23 @@
  */
 import {
   STATE_NAMES, CHAMBER_LABEL, DASH, loadJSON, raceHref, withData, fmt, isNum, h, ratingPill,
-  initChrome, renderUpdated, renderFooterMeta, showError, DATA_BASE,
+  initChrome, renderUpdated, renderFooterMeta, showError, DATA_BASE, relativeTime,
 } from './common.js';
+import { fetchLive, mergeResults, hasOverride, shares, isCalled, parsePasted, FEED_SHORT } from './live.js';
 
 const ET = 'America/New_York';
 const DRAFT_KEY = 'results-draft';
 const TOKEN_KEY = 'gh-token';
 const OK_KEY = 'admin-ok';
-const STATUSES = [['pending', 'Not started'], ['counting', 'Counting'], ['called', 'Called'], ['runoff', 'Runoff'], ['recount', 'Recount'], ['final', 'Final']];
+const STATUSES = [['pending', 'Auto (feed)'], ['counting', 'Counting'], ['called', 'Called'], ['runoff', 'Runoff'], ['recount', 'Recount'], ['final', 'Final']];
+const FEED_MS = 60e3;
 
 let cfg = null, schedule = null, races = [], byId = new Map(), closeOf = new Map(), groupOf = new Map();
 let draft = { updated_at: null, published_at: null, races: {} };
-const ui = { search: '', chamber: 'all', onlyMissing: false, onlyCompetitive: false, sort: 'time' };
+const ui = { search: '', chamber: 'all', show: 'all', onlyCompetitive: false, sort: 'time' };
 let saveTimer = null;
+let feed = { races: {}, by: {}, sources: [], errors: [], fetched_at: null };
+let feedAuto = true, feedBusy = false, nextFeed = 0;
 
 // ---------------------------------------------------------------------------
 // Boot + gate
@@ -109,9 +117,13 @@ function entry(id, create = false) {
   }
   return e;
 }
-function isEntered(e) {
-  return !!e && (e.status !== 'pending' || isNum(e.reporting) || isNum(e.votes.dem) || isNum(e.votes.rep) || isNum(e.votes.other) || !!e.note);
+const isEntered = hasOverride;
+/** Feed value with the admin's overrides on top, for one race. */
+function merged(id) {
+  const m = draft.races[id];
+  return mergeResults(feed.races[id] ? { [id]: feed.races[id] } : {}, feed.by, m ? { [id]: m } : {})[id] || null;
 }
+function pollsClosed(id) { const c = closeOf.get(id); return !!c && Date.now() >= new Date(c).getTime(); }
 function touch(id) { const e = entry(id, true); e.updated_at = new Date().toISOString(); saveDraft(); return e; }
 
 // ---------------------------------------------------------------------------
@@ -124,8 +136,46 @@ function start() {
   renderToolbar();
   renderFilters();
   renderSections();
+  pullFeed();
   tick();
   setInterval(tick, 1000);
+}
+
+async function pullFeed() {
+  if (feedBusy) return;
+  feedBusy = true; nextFeed = Infinity;
+  renderFeedStatus();
+  try {
+    const res = await fetchLive(races);
+    if (Object.keys(res.races).length) feed = res;
+    else feed = { ...feed, errors: res.errors.length ? res.errors : ['no data'] };
+  } catch (e) { feed = { ...feed, errors: [e.message] }; }
+  feedBusy = false; nextFeed = Date.now() + FEED_MS;
+  renderFeedStatus();
+  // Refresh rows in place so nothing the admin is typing gets rebuilt under them.
+  if (ui.show !== 'all') { renderSections(); renderToolbarStats(); return; }
+  document.querySelectorAll('tr[data-race]').forEach((tr) => paintRow(tr.dataset.race, tr));
+  document.querySelectorAll('details.admin-state').forEach((det) => { const tr = det.querySelector('tr[data-race]'); if (tr) refreshSectionCount(tr); });
+  renderToolbarStats();
+}
+function renderFeedStatus() {
+  const el = document.getElementById('feed-status');
+  if (!el) return;
+  const n = Object.keys(feed.races).length;
+  const reporting = Object.values(feed.races).filter((e) => shares(e)).length;
+  const called = Object.values(feed.races).filter(isCalled).length;
+  const btn = h('button', { type: 'button', class: 'btn small', disabled: feedBusy ? '' : null }, feedBusy ? 'Pulling…' : 'Pull now');
+  btn.addEventListener('click', pullFeed);
+  const auto = h('input', { type: 'checkbox', checked: feedAuto ? '' : null });
+  auto.addEventListener('change', () => { feedAuto = auto.checked; if (feedAuto) nextFeed = Date.now() + FEED_MS; });
+  el.replaceChildren(...[
+    h('span', { class: `live-dot${n && !feed.errors.length ? ' ok' : feed.errors.length ? ' warn' : ''}`, 'aria-hidden': 'true' }),
+    n ? h('span', {}, h('b', {}, 'Live feed'), ` ${feed.sources.map((k) => FEED_SHORT[k]).join(' + ')} · ${n} races · ${reporting} reporting · ${called} called · pulled `, h('span', { 'data-ago': feed.fetched_at }, relativeTime(feed.fetched_at)))
+      : h('span', {}, feedBusy ? 'Pulling the live feed…' : 'Live feed not loaded'),
+    feed.errors.length ? h('span', { class: 'error-text' }, ` (${feed.errors.join('; ')})`) : null,
+    btn,
+    h('label', { class: 'check' }, auto, 'every minute'),
+  ].filter(Boolean));
 }
 
 function getToken() { try { return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || ''; } catch (e) { return ''; } }
@@ -151,17 +201,19 @@ function renderToolbar() {
   loadBtn.addEventListener('click', () => loadPublished(msg));
   const tokenBtn = h('button', { type: 'button', class: 'btn' }, getToken() ? 'GitHub token ✓' : 'GitHub token…');
   tokenBtn.addEventListener('click', () => tokenDialog(tokenBtn, msg));
-  const clearBtn = h('button', { type: 'button', class: 'btn danger' }, 'Clear draft');
+  const clearBtn = h('button', { type: 'button', class: 'btn danger' }, 'Clear all overrides');
   clearBtn.addEventListener('click', () => {
-    if (!confirm('Delete every entered result from this browser? (Published results on the site are untouched.)')) return;
+    if (!confirm('Delete every override from this browser? (Published results on the site are untouched until you publish again.)')) return;
     draft = { updated_at: null, published_at: draft.published_at, races: {} };
     saveDraft(true); renderSections();
   });
   bar.replaceChildren(
+    h('div', { class: 'feed-status', id: 'feed-status' }),
     h('div', { class: 'toolbar-row' }, publish, loadBtn, exportBtn, importBtn, importInput, tokenBtn, clearBtn),
     h('div', { class: 'toolbar-stats', id: 'toolbar-stats' }),
     msg,
   );
+  renderFeedStatus();
   renderToolbarStats();
 }
 function renderToolbarStats() {
@@ -170,9 +222,11 @@ function renderToolbarStats() {
   const entries = Object.entries(draft.races);
   const entered = entries.filter(([, e]) => isEntered(e)).length;
   const called = entries.filter(([, e]) => e.status === 'called' || e.status === 'final').length;
+  const attention = races.filter((r) => needsAttention(r.race_id)).length;
   el.replaceChildren(
-    h('span', {}, h('b', {}, `${entered} / ${races.length}`), ' races entered'),
-    h('span', {}, h('b', {}, String(called)), ' called'),
+    h('span', {}, h('b', {}, String(entered)), ` manual override${entered === 1 ? '' : 's'}`),
+    h('span', {}, h('b', {}, String(called)), ' called by hand'),
+    h('span', {}, h('b', {}, String(attention)), ' closed and uncalled'),
     h('span', {}, draft.updated_at ? `Saved locally ${fmt.time ? fmt.time(draft.updated_at) : new Date(draft.updated_at).toLocaleTimeString()}` : 'Nothing entered yet'),
     h('span', {}, draft.published_at ? `Last published ${new Date(draft.published_at).toLocaleString()}` : 'Not published yet'),
   );
@@ -182,20 +236,24 @@ function renderFilters() {
   const c = document.getElementById('filters');
   const search = h('input', { type: 'search', placeholder: 'Find a state, race or candidate…', 'aria-label': 'Search' });
   search.addEventListener('input', () => { ui.search = search.value.trim().toLowerCase(); renderSections(); });
-  const chamber = h('select', { 'aria-label': 'Chamber' }, h('option', { value: 'all' }, 'All races'),
+  const chamber = h('select', { 'aria-label': 'Chamber' }, h('option', { value: 'all' }, 'All chambers'),
     ...['senate', 'governor', 'house'].map((k) => h('option', { value: k }, CHAMBER_LABEL[k])));
   chamber.addEventListener('change', () => { ui.chamber = chamber.value; renderSections(); });
   const sort = h('select', { 'aria-label': 'Order' }, h('option', { value: 'time' }, 'Order by closing time'), h('option', { value: 'state' }, 'Order by state'));
   sort.addEventListener('change', () => { ui.sort = sort.value; renderSections(); });
-  const missing = h('input', { type: 'checkbox' });
-  missing.addEventListener('change', () => { ui.onlyMissing = missing.checked; renderSections(); });
+  const show = h('select', { 'aria-label': 'Show' },
+    h('option', { value: 'all' }, 'Every race'),
+    h('option', { value: 'attention' }, 'Polls closed, not called'),
+    h('option', { value: 'override' }, 'Has a manual override'),
+    h('option', { value: 'nofeed' }, 'Missing from the feed'));
+  show.addEventListener('change', () => { ui.show = show.value; renderSections(); });
   const comp = h('input', { type: 'checkbox' });
   comp.addEventListener('change', () => { ui.onlyCompetitive = comp.checked; renderSections(); });
   const expand = h('button', { type: 'button', class: 'btn small' }, 'Expand all');
   expand.addEventListener('click', () => document.querySelectorAll('details.admin-state').forEach((d) => { d.open = true; }));
   const collapse = h('button', { type: 'button', class: 'btn small' }, 'Collapse all');
   collapse.addEventListener('click', () => document.querySelectorAll('details.admin-state').forEach((d) => { d.open = false; }));
-  c.replaceChildren(search, chamber, sort, h('label', { class: 'check' }, missing, 'Not entered only'), h('label', { class: 'check' }, comp, 'Lean & Tossup only'), expand, collapse);
+  c.replaceChildren(search, show, chamber, sort, h('label', { class: 'check' }, comp, 'Lean & Tossup only'), expand, collapse);
 }
 
 function visibleRaces(list) {
@@ -203,10 +261,17 @@ function visibleRaces(list) {
     const race = byId.get(r.race_id);
     if (!race) return false;
     if (ui.chamber !== 'all' && race.chamber !== ui.chamber) return false;
-    if (ui.onlyMissing && isEntered(entry(r.race_id))) return false;
+    if (ui.show === 'attention' && !needsAttention(r.race_id)) return false;
+    if (ui.show === 'override' && !isEntered(entry(r.race_id))) return false;
+    if (ui.show === 'nofeed' && feed.races[r.race_id]) return false;
     if (ui.onlyCompetitive && !(r.call.tier === 2 || r.call.tier === 3)) return false;
     return true;
   });
+}
+
+function needsAttention(id) {
+  const m = merged(id);
+  return pollsClosed(id) && !isCalled(m) && !(m && ['runoff', 'recount'].includes(m.status));
 }
 
 function renderSections() {
@@ -237,14 +302,12 @@ function renderSections() {
 }
 
 function stateSection(g, key, openStates) {
-  const entered = g.races.filter((r) => isEntered(entry(r.race_id))).length;
-  const called = g.races.filter((r) => ['called', 'final'].includes((entry(r.race_id) || {}).status)).length;
   const links = (g.sources || []).map((s) => h('a', { class: 'src-link', href: s.url, target: '_blank', rel: 'noopener', title: s.kind || '' }, `${s.label} ↗`));
-  const det = h('details', { class: 'admin-state', 'data-key': key, open: openStates.has(key) || !!ui.search ? '' : null },
+  const det = h('details', { class: 'admin-state', 'data-key': key, open: openStates.has(key) || !!ui.search || ui.show !== 'all' ? '' : null },
     h('summary', {},
       h('span', { class: 'st-name' }, g.state_name),
       h('span', { class: 'st-close' }, `${g.close_et}`, h('span', { class: 'countdown-inline', 'data-close': g.close_utc, 'data-closed-text': 'polls closed' }, '')),
-      h('span', { class: 'st-count' }, `${entered}/${g.races.length} entered · ${called} called`),
+      h('span', { class: 'st-count' }, sectionCount(g.races.map((r) => r.race_id))),
       h('span', { class: 'st-links' }, ...links),
     ),
     h('div', { class: 'table-wrap' }, raceTable(g.races)),
@@ -255,9 +318,9 @@ function stateSection(g, key, openStates) {
 function raceTable(list) {
   const table = h('table', { class: 'admin-table' },
     h('thead', {}, h('tr', {}, h('th', {}, 'Race'), h('th', {}, 'Polls close in'), h('th', {}, 'Democratic side'), h('th', {}, 'Republican side'),
-      h('th', {}, 'Other'), h('th', {}, '% in'), h('th', {}, 'Status'), h('th', {}, 'Call'), h('th', {}, 'Note'))));
+      h('th', {}, 'Other'), h('th', {}, '% in'), h('th', {}, 'Status'), h('th', {}, 'Call'), h('th', {}, 'Note'), h('th', {}, ''))));
   const tb = h('tbody');
-  for (const r of list) tb.append(raceRow(r));
+  for (const r of list) tb.append(...raceRow(r));
   table.append(tb);
   return table;
 }
@@ -265,12 +328,11 @@ function raceTable(list) {
 function numInput(id, field, side, placeholder) {
   const e = entry(id);
   const v = e ? (side ? e.votes[side] : e[field]) : null;
-  const inp = h('input', { type: 'text', inputmode: 'numeric', class: 'vote-input', placeholder, value: isNum(v) ? String(v) : '' });
+  const inp = h('input', { type: 'text', inputmode: 'numeric', class: 'vote-input', placeholder, value: isNum(v) ? String(v) : '', 'data-field': side || field });
   inp.addEventListener('input', () => {
     const n = parseNum(inp.value);
     const en = touch(id);
     if (side) en.votes[side] = n; else en[field] = n;
-    if (!side && field === 'reporting' && isNum(n) && n > 0 && en.status === 'pending') en.status = 'counting';
     refreshRow(id);
   });
   return inp;
@@ -292,8 +354,12 @@ function raceRow(r) {
   const note = h('input', { type: 'text', class: 'note-input', placeholder: 'note', value: e ? e.note || '' : '' });
   note.addEventListener('input', () => { touch(r.race_id).note = note.value; });
   const callBtn = (side, label) => {
-    const b = h('button', { type: 'button', class: `btn small call ${side}` }, label);
-    b.addEventListener('click', () => { const en = touch(r.race_id); en.status = 'called'; en.winner = side; if (!isNum(en.reporting)) en.reporting = 100; refreshRow(r.race_id); refreshComputed(r.race_id); });
+    const b = h('button', { type: 'button', class: `btn small call ${side}`, 'data-side': side, title: `Call for ${label === 'Oth' ? 'another candidate' : `the ${label} side`} (click again to undo)` }, label);
+    b.addEventListener('click', () => {
+      const en = touch(r.race_id);
+      if ((en.status === 'called' || en.status === 'final') && en.winner === side) { en.status = 'pending'; en.winner = null; } else { en.status = 'called'; en.winner = side; }
+      refreshRow(r.race_id);
+    });
     return b;
   };
   const sources = (groupOf.get(r.race_id) || {}).sources || [];
@@ -311,44 +377,128 @@ function raceRow(r) {
     h('td', {}, status),
     h('td', { class: 'call-cell' }, dem ? callBtn('dem', 'D') : null, rep ? callBtn('rep', 'R') : null, callBtn('other', 'Oth')),
     h('td', {}, note),
+    h('td', { class: 'row-tools' }, pasteBtn(r.race_id, race), clearBtn(r.race_id)),
   );
-  tr.append(h('td', { class: 'computed-cell', colspan: '9' }));
-  refreshComputed(r.race_id, tr);
-  return tr;
+  // What the public page will show for this race, on its own row underneath.
+  const cell = h('td', { class: 'computed-cell', colspan: '10' });
+  const info = h('tr', { class: 'computed-row' }, cell);
+  tr.computedCell = cell;
+  paintRow(r.race_id, tr);
+  return [tr, info];
 }
-function refreshRow(id) {
-  const tr = document.querySelector(`tr[data-race="${id}"]`);
+
+function clearBtn(id) {
+  const b = h('button', { type: 'button', class: 'btn small', title: 'Drop the manual override and go back to the feed' }, 'Use feed');
+  b.addEventListener('click', () => {
+    delete draft.races[id];
+    saveDraft();
+    const tr = document.querySelector(`tr[data-race="${id}"]`);
+    if (tr) {
+      tr.querySelectorAll('input.vote-input, input.note-input').forEach((i) => { i.value = ''; });
+      const sel = tr.querySelector('.status-select'); if (sel) sel.value = 'pending';
+    }
+    refreshRow(id);
+  });
+  return b;
+}
+
+/** "Paste" opens a box under the row: paste a race's table from any results site and apply the numbers it finds. */
+function pasteBtn(id, race) {
+  const b = h('button', { type: 'button', class: 'btn small', title: 'Paste results copied from an official site' }, 'Paste');
+  b.addEventListener('click', () => {
+    const tr = document.querySelector(`tr[data-race="${id}"]`);
+    const below = tr.computedCell.parentElement;
+    const open = below.nextElementSibling && below.nextElementSibling.classList.contains('paste-row') ? below.nextElementSibling : null;
+    if (open) { open.remove(); return; }
+    const ta = h('textarea', { class: 'paste-input', rows: '5', placeholder: `Select the ${race.short} table on the results site (candidate names, votes, % reporting), copy it, and paste it here.` });
+    const preview = h('div', { class: 'paste-preview muted small' });
+    const apply = h('button', { type: 'button', class: 'btn small primary', disabled: '' }, 'Apply');
+    let parsed = null;
+    ta.addEventListener('input', () => {
+      parsed = parsePasted(ta.value, race);
+      const bits = [];
+      if (isNum(parsed.dem)) bits.push(`${race.dem ? race.dem.name : 'Dem side'}: ${parsed.dem.toLocaleString()}`);
+      if (isNum(parsed.rep)) bits.push(`${race.rep ? race.rep.name : 'Rep side'}: ${parsed.rep.toLocaleString()}`);
+      if (isNum(parsed.other)) bits.push(`others: ${parsed.other.toLocaleString()}`);
+      if (isNum(parsed.reporting)) bits.push(`${parsed.reporting}% reporting`);
+      preview.textContent = bits.length ? `Found ${bits.join(' · ')}` : 'No candidate names found yet; include the rows with the candidates’ names.';
+      apply.disabled = !(isNum(parsed.dem) || isNum(parsed.rep));
+    });
+    apply.addEventListener('click', () => {
+      if (!parsed) return;
+      const en = touch(id);
+      for (const side of ['dem', 'rep', 'other']) en.votes[side] = isNum(parsed[side]) ? parsed[side] : (side === 'other' ? 0 : en.votes[side]);
+      if (isNum(parsed.reporting)) en.reporting = parsed.reporting;
+      const row = document.querySelector(`tr[data-race="${id}"]`);
+      row.querySelectorAll('input.vote-input').forEach((i) => {
+        const f = i.dataset.field;
+        const v = f === 'reporting' ? en.reporting : en.votes[f];
+        i.value = isNum(v) ? String(v) : '';
+      });
+      refreshRow(id);
+      pr.remove();
+    });
+    const cancel = h('button', { type: 'button', class: 'btn small' }, 'Cancel');
+    const pr = h('tr', { class: 'paste-row' }, h('td', { colspan: '10' }, ta, h('div', { class: 'paste-actions' }, apply, cancel, preview)));
+    cancel.addEventListener('click', () => pr.remove());
+    below.after(pr);
+    ta.focus();
+  });
+  return b;
+}
+function refreshRow(id, tr = document.querySelector(`tr[data-race="${id}"]`)) {
   if (!tr) return;
+  paintRow(id, tr);
+  refreshSectionCount(tr);
+  renderToolbarStats();
+}
+/** Row classes, call buttons, feed placeholders and the "site shows" line. */
+function paintRow(id, tr) {
   const e = entry(id);
+  const f = feed.races[id];
   tr.classList.toggle('entered', isEntered(e));
   const sel = tr.querySelector('.status-select');
   if (sel && e) sel.value = e.status;
-  tr.querySelectorAll('.call').forEach((b) => b.classList.toggle('active', !!e && (e.status === 'called' || e.status === 'final') && e.winner === b.classList[3]));
+  const manualCall = !!e && (e.status === 'called' || e.status === 'final');
+  tr.querySelectorAll('.call').forEach((b) => {
+    const side = b.dataset.side;
+    b.classList.toggle('active', manualCall && e.winner === side);
+    b.classList.toggle('feed', !manualCall && isCalled(f) && f.winner === side);
+  });
+  // Feed numbers sit in the placeholders, so an empty box means "use the feed".
+  tr.querySelectorAll('input.vote-input').forEach((i) => {
+    const k = i.dataset.field;
+    const v = !f ? null : k === 'reporting' ? f.reporting : f.votes[k];
+    i.placeholder = isNum(v) ? (k === 'reporting' ? `${v}%` : v.toLocaleString()) : (k === 'reporting' ? '%' : 'votes');
+  });
   refreshComputed(id, tr);
-  refreshSectionCount(tr);
-  renderToolbarStats();
 }
 /** Keep the state header's "n/m entered · k called" in step with the rows beneath it. */
 function refreshSectionCount(tr) {
   const det = tr.closest('details.admin-state');
   if (!det) return;
   const rows = [...det.querySelectorAll('tbody tr[data-race]')];
-  const entered = rows.filter((row) => isEntered(entry(row.dataset.race))).length;
-  const called = rows.filter((row) => ['called', 'final'].includes((entry(row.dataset.race) || {}).status)).length;
   const el = det.querySelector('.st-count');
-  if (el) el.textContent = `${entered}/${rows.length} entered · ${called} called`;
+  if (el) el.textContent = sectionCount(rows.map((row) => row.dataset.race));
+}
+function sectionCount(ids) {
+  const called = ids.filter((id) => isCalled(merged(id))).length;
+  const over = ids.filter((id) => isEntered(entry(id))).length;
+  return `${called}/${ids.length} called${over ? ` · ${over} overridden` : ''}`;
 }
 function refreshComputed(id, tr = document.querySelector(`tr[data-race="${id}"]`)) {
   if (!tr) return;
-  const cell = tr.querySelector('.computed-cell');
-  const e = entry(id);
-  if (!e || !isEntered(e)) { cell.textContent = ''; cell.hidden = true; return; }
+  const cell = tr.computedCell;
+  const e = merged(id);
+  const sh = shares(e);
+  if (!e || (!sh && !isCalled(e) && e.status === 'pending' && !e.note)) { cell.textContent = ''; cell.hidden = true; return; }
   cell.hidden = false;
-  const d = e.votes.dem || 0, r = e.votes.rep || 0, o = e.votes.other || 0, tot = d + r + o;
   const parts = [];
-  if (tot > 0) parts.push(`D ${(100 * d / tot).toFixed(1)}% · R ${(100 * r / tot).toFixed(1)}%${o ? ` · other ${(100 * o / tot).toFixed(1)}%` : ''} · margin ${fmt.margin(100 * (d - r) / tot)} · ${tot.toLocaleString()} votes`);
-  if (isNum(e.reporting)) parts.push(`${e.reporting}% reporting`);
-  if ((e.status === 'called' || e.status === 'final') && e.winner) parts.push(`Called for ${{ dem: 'the Democratic side', rep: 'the Republican side', other: 'another candidate' }[e.winner]}`);
+  parts.push(e.src === 'feed' ? `Site shows (feed ${FEED_SHORT[e.feed] || ''})` : e.src === 'mixed' ? 'Site shows (feed + your overrides)' : 'Site shows (your entry)');
+  if (sh) parts.push(`D ${sh.dem.toFixed(1)}% · R ${sh.rep.toFixed(1)}%${sh.other >= 0.05 ? ` · other ${sh.other.toFixed(1)}%` : ''} · margin ${fmt.margin(sh.margin)} · ${sh.total.toLocaleString()} votes`);
+  if (isNum(e.reporting) && (sh || e.reporting > 0)) parts.push(`${e.reporting}% in`);
+  if (isCalled(e)) parts.push(`Called for ${{ dem: 'the Democratic side', rep: 'the Republican side', other: 'another candidate' }[e.winner]}`);
+  else if (e.status !== 'pending' && e.status !== 'counting') parts.push(e.status);
   if (e.updated_at) parts.push(`updated ${new Date(e.updated_at).toLocaleTimeString()}`);
   cell.textContent = parts.join(' · ');
 }
@@ -433,6 +583,8 @@ async function publishResults(btn, msg) {
 const pad = (n) => String(n).padStart(2, '0');
 function tick() {
   const now = Date.now();
+  if (feedAuto && !feedBusy && now >= nextFeed && !document.hidden) pullFeed();
+  document.querySelectorAll('[data-ago]').forEach((el) => { el.textContent = relativeTime(el.dataset.ago); });
   document.querySelectorAll('[data-close]').forEach((el) => {
     const ms = new Date(el.dataset.close).getTime() - now;
     if (ms <= 0) { el.textContent = el.dataset.closedText || 'closed'; el.classList.add('closed'); return; }
