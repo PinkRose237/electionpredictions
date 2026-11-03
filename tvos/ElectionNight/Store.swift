@@ -6,7 +6,9 @@ import Observation
 /// top; if the feeds are unreachable it falls back to the site's saved snapshot (results-auto.json).
 @MainActor @Observable
 final class ResultsStore {
-    static let refreshInterval: Duration = .seconds(60)
+    /// Every 15 minutes until the first polls close (nothing is counted before then), every 5 after.
+    static let beforePolls: TimeInterval = 15 * 60
+    static let afterPolls: TimeInterval = 5 * 60
 
     private(set) var races: [String: Race] = [:]
     private(set) var summary: SiteSummary?
@@ -29,7 +31,9 @@ final class ResultsStore {
         loop = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
-                try? await Task.sleep(for: ResultsStore.refreshInterval)
+                // A refresh that couldn't load the site leaves no future time set: retry in a minute.
+                let wait = await self?.nextUpdate?.timeIntervalSinceNow ?? 0
+                try? await Task.sleep(for: .seconds(wait > 1 ? wait : 60))
             }
         }
     }
@@ -68,7 +72,7 @@ final class ResultsStore {
             results = mergeResults(feed: base, manual: manual?.races ?? [:])
             lastUpdate = Date()
         }
-        nextUpdate = Date().addingTimeInterval(60)
+        nextUpdate = nextRefresh(after: Date())
         loading = false
     }
 
@@ -90,6 +94,16 @@ final class ResultsStore {
             for g in sched.groups { if let d = iso.date(from: g.closeUtc) { for it in g.races { t[it.raceId] = d } } }
             closeTimes = t
         }
+    }
+
+    /// When to refresh next: 15-minute steps before the first polls close (landing exactly on that
+    /// moment), 5 minutes once counting starts. Demo mode keeps a 1-minute step so it visibly advances.
+    private func nextRefresh(after now: Date) -> Date {
+        if demo { return now.addingTimeInterval(60) }
+        if let first = closeTimes.values.min(), now < first {
+            return min(now.addingTimeInterval(Self.beforePolls), first)
+        }
+        return now.addingTimeInterval(Self.afterPolls)
     }
 
     // MARK: Derived views

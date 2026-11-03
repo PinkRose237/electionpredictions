@@ -106,7 +106,7 @@ struct HeaderBar: View {
         guard let last = store.lastUpdate else { return "" }
         let ago = Int(now.timeIntervalSince(last))
         let next = store.nextUpdate.map { max(0, Int($0.timeIntervalSince(now))) }
-        return "updated \(ago < 60 ? "\(ago)s" : "\(ago / 60)m") ago" + (next.map { " · next in \($0)s" } ?? "")
+        return "updated \(ago < 60 ? "\(ago)s" : "\(ago / 60)m") ago" + (next.map { " · next in \($0 / 60):\(String(format: "%02d", $0 % 60))" } ?? "")
     }
 }
 

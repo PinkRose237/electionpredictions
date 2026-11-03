@@ -9,7 +9,8 @@ A full-screen, always-on results board for the 2026 Senate and House races (no g
   roughly where each district sits and grouped by state.
 - **Key races**: Lean and Tossup races (plus Likely Senate races), anything within 5 points with votes in,
   and every flip, four at a time, rotating every 10 seconds.
-- Refreshes every 60 seconds by itself; **Play/Pause** on the Siri Remote refreshes immediately.
+- Refreshes every 15 minutes until the first polls close (6 pm ET), then every 5 minutes; **Play/Pause**
+  on the Siri Remote refreshes immediately. Demo mode steps every minute.
 - Keeps the screen awake (the Apple TV won't dim or start its screen saver while the app is open).
 
 The data is the same as the website's (`site/live.js`): live votes and race calls from the AP via The New
