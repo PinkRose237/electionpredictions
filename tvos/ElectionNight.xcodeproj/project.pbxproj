@@ -1,0 +1,345 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1239BE849BE02429962D6936 /* maps.json in Resources */ = {isa = PBXBuildFile; fileRef = 50515BAAE50E3B9CD50AB027 /* maps.json */; };
+		1F97BBE60701D878FF795B50 /* Feeds.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9CB35C546845817334B8F51 /* Feeds.swift */; };
+		26AE433FC8ACA0988AF5542A /* ElectionNightApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B199CF55123B09546A08E0D2 /* ElectionNightApp.swift */; };
+		42C1E1484CBF730A468C1E24 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 50EA38D8788BE8FD17FC2583 /* Assets.xcassets */; };
+		635BAB4944813DC057DC6D25 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = F3BCFD69EE3EFF88BFEACCF0 /* Models.swift */; };
+		68EF4F7A2066ECCB4B2D028A /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B6ABC7671481D9A8359E087 /* Store.swift */; };
+		B79C26FFBA9A279484A90D6D /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = C858B37B4323ED688E8D6465 /* Views.swift */; };
+		C92ED5660A8CB0FC63D1D2B9 /* MapData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6DDCCA11309D0F78258D630C /* MapData.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		13767DEDDE6D622A60503550 /* ElectionNight.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = ElectionNight.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		4B6ABC7671481D9A8359E087 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
+		50515BAAE50E3B9CD50AB027 /* maps.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = maps.json; sourceTree = "<group>"; };
+		50EA38D8788BE8FD17FC2583 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		6DDCCA11309D0F78258D630C /* MapData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapData.swift; sourceTree = "<group>"; };
+		B199CF55123B09546A08E0D2 /* ElectionNightApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ElectionNightApp.swift; sourceTree = "<group>"; };
+		B9CB35C546845817334B8F51 /* Feeds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Feeds.swift; sourceTree = "<group>"; };
+		C858B37B4323ED688E8D6465 /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
+		F3BCFD69EE3EFF88BFEACCF0 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		26744FF81B5862F38B4FABF1 = {
+			isa = PBXGroup;
+			children = (
+				40F5437B3A65DDD380CB9971 /* ElectionNight */,
+				662A8B6E4360B795CFD88A33 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		40F5437B3A65DDD380CB9971 /* ElectionNight */ = {
+			isa = PBXGroup;
+			children = (
+				50EA38D8788BE8FD17FC2583 /* Assets.xcassets */,
+				B199CF55123B09546A08E0D2 /* ElectionNightApp.swift */,
+				B9CB35C546845817334B8F51 /* Feeds.swift */,
+				6DDCCA11309D0F78258D630C /* MapData.swift */,
+				F3BCFD69EE3EFF88BFEACCF0 /* Models.swift */,
+				4B6ABC7671481D9A8359E087 /* Store.swift */,
+				C858B37B4323ED688E8D6465 /* Views.swift */,
+				560B19218E43CC25EE409F94 /* Resources */,
+			);
+			path = ElectionNight;
+			sourceTree = "<group>";
+		};
+		560B19218E43CC25EE409F94 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				50515BAAE50E3B9CD50AB027 /* maps.json */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		662A8B6E4360B795CFD88A33 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				13767DEDDE6D622A60503550 /* ElectionNight.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		EEF5EABA0847509874190831 /* ElectionNight */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 380435AD076A9BB473E24304 /* Build configuration list for PBXNativeTarget "ElectionNight" */;
+			buildPhases = (
+				88D154C105A63DC3F18850B8 /* Sources */,
+				0107BEBE527F2A6D2E7A5551 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ElectionNight;
+			packageProductDependencies = (
+			);
+			productName = ElectionNight;
+			productReference = 13767DEDDE6D622A60503550 /* ElectionNight.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		4EFF3AD0CA2EC32A1A30E774 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					EEF5EABA0847509874190831 = {
+						DevelopmentTeam = VHFS4A7KDU;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 1DAB27F7018F9121327CF2E3 /* Build configuration list for PBXProject "ElectionNight" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 26744FF81B5862F38B4FABF1;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 662A8B6E4360B795CFD88A33 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				EEF5EABA0847509874190831 /* ElectionNight */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		0107BEBE527F2A6D2E7A5551 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				42C1E1484CBF730A468C1E24 /* Assets.xcassets in Resources */,
+				1239BE849BE02429962D6936 /* maps.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		88D154C105A63DC3F18850B8 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				26AE433FC8ACA0988AF5542A /* ElectionNightApp.swift in Sources */,
+				1F97BBE60701D878FF795B50 /* Feeds.swift in Sources */,
+				C92ED5660A8CB0FC63D1D2B9 /* MapData.swift in Sources */,
+				635BAB4944813DC057DC6D25 /* Models.swift in Sources */,
+				68EF4F7A2066ECCB4B2D028A /* Store.swift in Sources */,
+				B79C26FFBA9A279484A90D6D /* Views.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		54155091F5686D967259D618 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Election Night";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jamesgriffis.electionnight;
+				SDKROOT = appletvos;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Debug;
+		};
+		807C1D45FC8DECF302ADB241 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
+				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Election Night";
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Dark;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jamesgriffis.electionnight;
+				SDKROOT = appletvos;
+				TARGETED_DEVICE_FAMILY = 3;
+			};
+			name = Release;
+		};
+		89CFB5904C41751C695659B4 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = VHFS4A7KDU;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+				TVOS_DEPLOYMENT_TARGET = 17.0;
+			};
+			name = Release;
+		};
+		CAA10E470D572773FB1BF467 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = VHFS4A7KDU;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = appletvos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+				TVOS_DEPLOYMENT_TARGET = 17.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1DAB27F7018F9121327CF2E3 /* Build configuration list for PBXProject "ElectionNight" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				CAA10E470D572773FB1BF467 /* Debug */,
+				89CFB5904C41751C695659B4 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		380435AD076A9BB473E24304 /* Build configuration list for PBXNativeTarget "ElectionNight" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				54155091F5686D967259D618 /* Debug */,
+				807C1D45FC8DECF302ADB241 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 4EFF3AD0CA2EC32A1A30E774 /* Project object */;
+}
