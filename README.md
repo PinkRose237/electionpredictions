@@ -116,7 +116,7 @@ overrides up on their next refresh.
 - Export/Import JSON and "Load published" let you move drafts between devices.
 
 **Apple TV.** `tvos/` holds an always-on Senate and House results board for Apple TV (maps, seat
-counts, rotating key races; refreshes every 15 minutes before polls close and every 5 after, keeps the screen awake). It reads the same feeds and
+counts, rotating key races; refreshes every minute, counts down to each poll closing, keeps the screen awake). It reads the same feeds and
 overrides as the site. See `tvos/README.md` to install it.
 
 ## Keeping it updated

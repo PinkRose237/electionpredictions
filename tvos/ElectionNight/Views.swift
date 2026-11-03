@@ -41,16 +41,31 @@ struct DashboardView: View {
                     Text(store.problem ?? "Loading races…").font(.system(size: 28)).foregroundStyle(Theme.ink2)
                 }
             } else {
-                VStack(spacing: 18) {
-                    HeaderBar()
-                    HStack(alignment: .top, spacing: 32) {
-                        ChamberPanel(chamber: "senate")
-                        ChamberPanel(chamber: "house")
+                // Five minutes before polls close, the countdown panel slides in on the right and the board
+                // narrows to make room; it slides back out the moment they close.
+                TimelineView(.periodic(from: .now, by: 1)) { ctx in
+                    let up = store.nextClose(after: ctx.date)
+                    let remaining = up.map { $0.at.timeIntervalSince(ctx.date) } ?? -1
+                    let show = remaining > 0 && remaining <= PollClosePanel.lead
+                    HStack(spacing: 0) {
+                        VStack(spacing: 18) {
+                            HeaderBar()
+                            HStack(alignment: .top, spacing: 32) {
+                                ChamberPanel(chamber: "senate")
+                                ChamberPanel(chamber: "house")
+                            }
+                            KeyRacesStrip(perPage: show ? 3 : 4)
+                        }
+                        .padding(.horizontal, 56)
+                        .padding(.vertical, 36)
+                        if show, let up {
+                            PollClosePanel(up: up, remaining: remaining)
+                                .frame(width: PollClosePanel.width)
+                                .transition(.move(edge: .trailing))
+                        }
                     }
-                    KeyRacesStrip()
+                    .animation(.spring(response: 0.8, dampingFraction: 0.86), value: show)
                 }
-                .padding(.horizontal, 56)
-                .padding(.vertical, 36)
             }
         }
         .ignoresSafeArea()
@@ -58,6 +73,67 @@ struct DashboardView: View {
         .focusable()
         .focusEffectDisabled()
         .onPlayPauseCommand { store.refreshNow() }
+    }
+}
+
+// MARK: - Poll-closing countdown
+
+/// The right-hand panel shown for the last five minutes before the next polls close.
+struct PollClosePanel: View {
+    static let lead: TimeInterval = 5 * 60
+    static let width: CGFloat = 430
+    let up: ResultsStore.UpcomingClose
+    let remaining: TimeInterval
+
+    private static let et: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "h:mm a"
+        f.timeZone = TimeZone(identifier: "America/New_York")
+        return f
+    }()
+
+    var body: some View {
+        let secs = Int(remaining.rounded(.up))
+        let urgent = secs <= 60
+        let accent = urgent ? Theme.ind : Theme.dem
+        let races = [up.senate > 0 ? "\(up.senate) Senate" : nil, up.house > 0 ? "\(up.house) House" : nil]
+            .compactMap { $0 }.joined(separator: " · ")
+        VStack(alignment: .leading, spacing: 18) {
+            Text("POLLS CLOSE IN").font(.system(size: 24, weight: .heavy)).tracking(2).foregroundStyle(Theme.ink2)
+            Text(String(format: "%d:%02d", secs / 60, secs % 60))
+                .font(.system(size: 128, weight: .bold).monospacedDigit())
+                .foregroundStyle(urgent ? Theme.ind : Theme.ink)
+                .contentTransition(.numericText(countsDown: true))
+                .minimumScaleFactor(0.6)
+                .lineLimit(1)
+            // Drains over the five minutes.
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.line)
+                    Capsule().fill(accent).frame(width: g.size.width * max(0, remaining) / Self.lead)
+                }
+            }
+            .frame(height: 8)
+            Rectangle().fill(Theme.line).frame(height: 2).padding(.vertical, 6)
+            Text("\(Self.et.string(from: up.at)) ET").font(.system(size: 40, weight: .bold)).foregroundStyle(Theme.ink)
+            if !races.isEmpty {
+                Text("\(races) race\(up.senate + up.house == 1 ? "" : "s")").font(.system(size: 24)).foregroundStyle(Theme.ink3)
+            }
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(up.states, id: \.self) { st in
+                    Text(st).font(.system(size: 30, weight: .semibold)).foregroundStyle(Theme.ink2).lineLimit(1)
+                }
+            }
+            .padding(.top, 6)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 40)
+        .padding(.top, 56)
+        .padding(.bottom, 40)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Theme.panel)
+        .overlay(alignment: .leading) { Rectangle().fill(accent).frame(width: 6) }
+        .animation(.easeInOut(duration: 0.4), value: urgent)
     }
 }
 
@@ -283,15 +359,16 @@ struct HouseMap: View {
 
 struct KeyRacesStrip: View {
     @Environment(ResultsStore.self) private var store
-    static let perPage = 4
+    /// Four cards across normally, three while the poll-closing panel narrows the board.
+    var perPage = 4
     static let pageSeconds = 10.0
 
     var body: some View {
         let list = store.keyRaces()
-        let pages = max(1, Int(ceil(Double(list.count) / Double(Self.perPage))))
+        let pages = max(1, Int(ceil(Double(list.count) / Double(perPage))))
         TimelineView(.periodic(from: .now, by: Self.pageSeconds)) { ctx in
             let page = Int(ctx.date.timeIntervalSince1970 / Self.pageSeconds) % pages
-            let slice = Array(list.dropFirst(page * Self.perPage).prefix(Self.perPage))
+            let slice = Array(list.dropFirst(page * perPage).prefix(perPage))
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
                     Text("KEY RACES").font(.system(size: 22, weight: .heavy)).tracking(1.5).foregroundStyle(Theme.ink2)
@@ -301,7 +378,7 @@ struct KeyRacesStrip: View {
                 }
                 HStack(spacing: 20) {
                     ForEach(slice) { RaceCard(race: $0) }
-                    ForEach(slice.count..<Self.perPage, id: \.self) { _ in Color.clear.frame(maxWidth: .infinity) }
+                    ForEach(slice.count..<perPage, id: \.self) { _ in Color.clear.frame(maxWidth: .infinity) }
                 }
                 .id(page)
                 .transition(.opacity)
@@ -337,13 +414,13 @@ struct RaceCard: View {
         let sh = e?.shares
         VStack(alignment: .leading, spacing: 9) {
             HStack {
-                Text(race.short).font(.system(size: 26, weight: .bold)).foregroundStyle(Theme.ink)
+                Text(race.short).font(.system(size: 26, weight: .bold)).foregroundStyle(Theme.ink).fixedSize()
                 if let l = race.label {
                     Text(l).font(.system(size: 16, weight: .semibold)).padding(.horizontal, 8).padding(.vertical, 2)
-                        .background(Theme.line, in: Capsule()).foregroundStyle(Theme.ink2)
+                        .background(Theme.line, in: Capsule()).foregroundStyle(Theme.ink2).fixedSize()
                 }
-                Spacer()
-                badge(e)
+                Spacer(minLength: 6)
+                badge(e).lineLimit(1).minimumScaleFactor(0.75)
             }
             row(.dem, e, sh?.dem)
             row(.rep, e, sh?.rep)

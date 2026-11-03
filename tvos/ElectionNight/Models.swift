@@ -11,6 +11,7 @@ struct Race: Decodable, Identifiable, Sendable {
     let raceId: String
     let chamber: String
     let state: String
+    let stateName: String?
     let district: Int?
     let name: String
     let short: String
