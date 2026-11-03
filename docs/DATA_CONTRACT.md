@@ -167,3 +167,18 @@ as `results.json`, plus which feed supplied each race:
 ```
 `reporting` is the share of the expected vote counted (AP's estimate), 0–100. The results page pulls the
 same feeds live in the browser and uses this file only when it can't reach them.
+
+## `calls.json` — race calls by news outlet (optional)
+Written by `uv run electionpredictions results` (`sources/race_calls.py`) for the Race Calls page.
+```json
+{"updated_at": "2026-11-04T02:10:00+00:00", "ratings_source": "https://www.allsides.com/media-bias/ratings",
+ "sources": [{"id": "fox", "name": "Fox News", "lean": "Right", "desk": "Fox News Decision Desk", "url": "...",
+              "rating_url": "...", "wire": false, "races_seen": 506, "calls": 212, "ok": true, "errors": [],
+              "checked_at": "2026-11-04T02:10:00+00:00"}],
+ "races": {"GA-SEN": {"fox": {"winner": "dem", "status": "called", "at": null},
+                      "cnn": {"winner": null, "status": "runoff", "at": null}}}}
+```
+`sources` is in display order; `lean` is the outlet's AllSides rating. `races` lists only races at least one
+outlet has called (or sent to a runoff); a source missing from a race has not called it. `winner` is `dem`,
+`rep` or `other` (sides as in `races.json`); `at` is the call time when the outlet publishes it. When a
+source's feed fails, its previous calls are kept and `ok` is false.

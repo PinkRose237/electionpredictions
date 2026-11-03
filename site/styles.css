@@ -469,6 +469,10 @@ table.data { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   .section { margin-bottom: var(--s6); }
   .topbar-inner { gap: var(--s4); }
   .nav a { padding: 16px 2px 14px; }
+  /* Five links no longer fit a phone: keep them on one line and let the bar scroll sideways. */
+  .nav { max-width: 100%; overflow-x: auto; gap: var(--s3); scrollbar-width: none; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a { white-space: nowrap; }
   .topbar-meta { margin-left: 0; width: 100%; padding-bottom: 10px; margin-top: -6px; white-space: normal; }
   .card { padding: var(--s4); }
   .control-probs .big { font-size: 34px; }
@@ -624,6 +628,35 @@ details[open].more summary::before { content: '▾ '; }
 .mini-bar { display: inline-flex; width: 46px; height: 6px; border-radius: 3px; overflow: hidden; background: var(--surface-3); margin-right: 6px; vertical-align: 1px; }
 .mini-bar .d { background: var(--dem); } .mini-bar .r { background: var(--rep); }
 @media (max-width: 640px) { .board-tabs { margin-left: 0; } .sb-big { font-size: 26px; } }
+
+/* Race Calls page */
+.source-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s3); margin-bottom: var(--s4); }
+.source-card { padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; }
+.source-card.down { opacity: 0.7; border-style: dashed; }
+.source-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.source-name { font-weight: 700; font-size: 16px; color: var(--ink); text-decoration: none; }
+.source-desk { color: var(--ink-2); font-size: 12.5px; }
+.source-count { font-size: 13.5px; color: var(--ink-2); }
+.dem-text { color: var(--dem); font-weight: 600; }
+.rep-text { color: var(--rep); font-weight: 600; }
+.dem-text.won, .rep-text.won { font-weight: 800; text-decoration: underline; text-underline-offset: 3px; }
+.lean, .lean-mini { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; text-decoration: none; white-space: nowrap; text-transform: none; letter-spacing: 0; }
+.lean-mini { margin-top: 3px; padding: 1px 6px; font-size: 10.5px; }
+.lean.left, .lean-mini.left, .lean.lean-left, .lean-mini.lean-left { background: var(--dem-soft); color: var(--dem); }
+.lean.center, .lean-mini.center { background: var(--surface-3); color: var(--ink-2); }
+.lean.right, .lean-mini.right, .lean.lean-right, .lean-mini.lean-right { background: var(--rep-soft); color: var(--rep); }
+.tally-card { padding: var(--s4) var(--s5); margin-bottom: var(--s5); }
+.calls-table .src-th { white-space: nowrap; }
+.call-chip { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 2px 8px; border-radius: 4px; background: var(--surface-3); color: var(--ink); }
+.call-chip.dem { background: var(--dem); color: #fff; }
+.call-chip.rep { background: var(--rep); color: #fff; }
+.call-chip.ind { background: var(--ind); color: #fff; }
+.call-chip.runoff { background: var(--ind-soft); color: var(--ind); }
+.calls-table tr.conflict td { background: color-mix(in srgb, var(--ind-soft) 55%, transparent); }
+.agree { font-size: 12.5px; font-weight: 600; }
+.agree.conflict { color: var(--ind); }
+.agree.partial { color: var(--ink-2); }
+.agree.all { color: var(--ink-2); font-weight: 500; }
 
 /* Admin page ---------------------------------------------------------------- */
 .btn { font: inherit; font-size: 14px; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); cursor: pointer; }

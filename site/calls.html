@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Race Calls — Midterm Model 2026</title>
+  <meta name="description" content="Who has called which 2026 Senate, House and governor races: calls from CNN, NBC News, Bloomberg, Fox News and the AP, side by side.">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='16' height='32' rx='4' fill='%232166ac'/%3E%3Crect x='16' width='16' height='32' rx='4' fill='%23b2182b'/%3E%3Crect x='10' width='12' height='32' fill='%232166ac'/%3E%3Crect x='16' width='6' height='32' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="visually-hidden" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html" data-nav="dashboard"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Midterm Model 2026</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" data-nav="dashboard">Dashboard</a>
+        <a href="president.html" data-nav="president">2028 President</a>
+        <a href="results.html" data-nav="results">Election Results</a>
+        <a href="calls.html" data-nav="calls">Race Calls</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
+      </nav>
+      <div class="topbar-meta" data-updated></div>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <div id="status" class="status" role="status">Loading race calls…</div>
+    <div id="calls" hidden>
+      <div class="page-head">
+        <h1>Race Calls</h1>
+        <p>Who has called what. Every major news organization projects winners on its own schedule, and they don't always agree or move at the same speed. This page lines up the calls from five of them, from across the political spectrum, for every Senate, House and governor race.</p>
+      </div>
+      <div id="livebar" class="card live-bar" role="status" aria-live="polite"></div>
+      <section id="sources" class="source-grid" aria-label="News sources"></section>
+      <section id="tally" class="card tally-card" aria-labelledby="h-tally"></section>
+      <div id="controls" class="results-controls" role="group" aria-label="Filters"></div>
+      <section id="table" aria-label="Calls by race"></section>
+      <section class="card method-card" aria-labelledby="h-about">
+        <h2 id="h-about" style="margin-top:0">About these calls</h2>
+        <ul>
+          <li>A call is a news organization's projection of the winner, made by its decision desk from vote counts, its own models and surveys. It is not an official result; states certify results weeks later.</li>
+          <li>CNN, NBC News and Fox News each run their own decision desk. Bloomberg publishes the Associated Press's calls, and the AP column shows the AP's calls as carried by The New York Times. So those two columns usually match, and they can still differ for a few minutes while one site catches up.</li>
+          <li>Lean labels are the <a href="https://www.allsides.com/media-bias/ratings" target="_blank" rel="noopener">AllSides Media Bias Ratings</a> for each outlet's online news coverage, as of November 3, 2026. They rate an outlet's coverage overall, not its decision desk.</li>
+          <li>A winner is shown on the Democratic or Republican side as this site lists the race, so an independent running in place of a party (Nebraska's Dan Osborn) counts on that side.</li>
+          <li>Calls are collected from each outlet's public results page about every 10 minutes and this page checks for new ones every minute. Some calls may appear on an outlet's own site a few minutes earlier.</li>
+        </ul>
+      </section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <h4>Data sources</h4>
+        <ul>
+          <li>Race calls: CNN, NBC News, Bloomberg (AP), Fox News, and the AP via The New York Times</li>
+          <li>Outlet lean ratings: AllSides Media Bias Ratings</li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li><a href="results.html" data-nav="results">Live results</a></li>
+          <li data-generated></li>
+          <li><span data-site-name>Midterm Model 2026</span> · not affiliated with any campaign or party</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./calls.js"></script>
+</body>
+</html>

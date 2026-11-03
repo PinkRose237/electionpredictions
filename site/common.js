@@ -698,6 +698,10 @@ export function initChrome({ current } = {}) {
     a.setAttribute('href', withData(a.getAttribute('href')));
     if (current && a.dataset.nav === current) a.setAttribute('aria-current', 'page');
   });
+  // On phones the nav scrolls sideways; bring the current page's link into view.
+  const nav = document.querySelector('.nav');
+  const here = nav && nav.querySelector('a[aria-current="page"]');
+  if (here && nav.scrollWidth > nav.clientWidth) nav.scrollLeft = here.offsetLeft - nav.offsetLeft - 16;
   mountThemeToggle(document.querySelector('.topbar-inner'));
 }
 

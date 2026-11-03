@@ -12,3 +12,4 @@
 - The FEC API `DEMO_KEY` is limited to ~10 requests/hour; fundraising comes from the bulk `weball26.zip` file.
 - Wikipedia is fetched one whole page at a time; tables are located by heading path (`sources/wikipedia.py`).
 - Election-night results: the site pulls the NYT (AP) results JSON, with CNN as backup, live in the browser (`site/live.js`); `uv run electionpredictions results [--watch 120 --push]` snapshots the same feeds to `site/data/results-auto.json` (`sources/live_results.py`, keep it in step with live.js). `results.json` holds only the admin page's manual overrides.
+- Race Calls page (`site/calls.html`): `sources/race_calls.py` reads CNN, NBC, Bloomberg, Fox News and AP(NYT) call feeds into `site/data/calls.json` (same `results` command). Lean labels are AllSides ratings; keep them sourced, never our own judgment.

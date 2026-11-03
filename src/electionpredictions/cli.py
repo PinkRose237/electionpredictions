@@ -76,19 +76,22 @@ def status(con):
 
 
 def results(watch: int = 0, push: bool = False):
-    """Snapshot the live results feeds into site/data/results-auto.json, once or every `watch` seconds."""
+    """Snapshot the live results feeds (results-auto.json) and the outlets' race calls (calls.json),
+    once or every `watch` seconds."""
     import subprocess
 
     from .sources.live_results import SNAPSHOT_PATH, snapshot
+    from .sources.race_calls import CALLS_PATH, write_calls
 
-    rel = str(SNAPSHOT_PATH.relative_to(SITE_DIR.parent))
+    rels = [str(p.relative_to(SITE_DIR.parent)) for p in (SNAPSHOT_PATH, CALLS_PATH)]
     while True:
         res = snapshot()
-        if push and res.get("written"):
+        calls = write_calls()
+        if push and (res.get("written") or calls.get("written")):
             git = lambda *a: subprocess.run(["git", *a], cwd=SITE_DIR.parent, capture_output=True, text=True)  # noqa: E731
-            git("add", rel)
-            if git("diff", "--cached", "--quiet", "--", rel).returncode:
-                git("commit", "-m", f"Results snapshot {now_iso()}", "--", rel)
+            git("add", *rels)
+            if git("diff", "--cached", "--quiet", "--", *rels).returncode:
+                git("commit", "-m", f"Results snapshot {now_iso()}", "--", *rels)
                 pulled = git("pull", "--rebase", "--autostash", "origin", "main")
                 pushed = git("push")
                 print("[results] pushed" if pushed.returncode == 0 else f"[results] push failed: {(pulled.stderr + pushed.stderr).strip()}")
@@ -132,7 +135,7 @@ def main(argv=None):
     s.add_argument("--port", type=int, default=8000)
     sub.add_parser("status", help="show what is in the database")
     sub.add_parser("ai-probe", help="make one tiny request to the AI provider and print what it answers (diagnostics)")
-    rs = sub.add_parser("results", help="save a snapshot of the live results feeds to site/data/results-auto.json")
+    rs = sub.add_parser("results", help="snapshot the live results feeds and outlets' race calls (results-auto.json, calls.json)")
     rs.add_argument("--watch", type=int, default=0, metavar="SECONDS", help="keep refreshing every SECONDS (e.g. 120)")
     rs.add_argument("--push", action="store_true", help="commit and push the snapshot whenever it changes")
     ap = sub.add_parser("set-admin-password", help="set the password for the site's admin page")

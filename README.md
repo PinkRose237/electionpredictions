@@ -90,6 +90,14 @@ page falls back to this snapshot when a browser can't reach the feeds, and it ke
 the feeds go offline. Both are unofficial endpoints the outlets don't document, so they can change
 without notice; check the official state links if numbers look off.
 
+**Race Calls page.** `site/calls.html` lines up the calls for every race from five news organizations:
+CNN and NBC News (AllSides: Lean Left; each runs its own decision desk), Bloomberg (Center; publishes the
+AP's calls), Fox News (Right; its own decision desk), and the AP itself as a wire column (Lean Left), read
+from each outlet's own results feed. Disagreements and races only some outlets have called sort to the
+top, with a seats-called tally per outlet. The same `results` command and workflow collect them into
+`site/data/calls.json`. Reuters, NewsNation, the Wall Street Journal and Decision Desk HQ block automated
+access, so they aren't included.
+
 **Corrections (admin page).** `site/admin.html` is a password-gated results desk for every race,
 grouped by state with each state's official results link and a poll-closing countdown. The feed's
 numbers appear in grey in every box; type over any of them, call a race (D / R / Oth, click again to
@@ -202,6 +210,7 @@ src/electionpredictions/
     forecast.py        combination, Monte Carlo simulation, chamber math
   schedule.py          poll-closing times per race + expected AP call windows (Election Results page)
   sources/live_results.py  election-night results feed snapshot (results-auto.json; mirrors site/live.js)
+  sources/race_calls.py    race calls from CNN, NBC, Bloomberg, Fox News and the AP (calls.json)
   export.py            site/data JSON (schema in docs/DATA_CONTRACT.md)
   cli.py               command-line interface
 site/                  the website (index.html, results.html, admin.html, race.html, methodology.html, *.js, styles.css, data/)
