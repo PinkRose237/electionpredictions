@@ -1,0 +1,53 @@
+{
+ "updated_at": "2026-11-04T05:58:47.800Z",
+ "races": {
+  "IN-02": {
+   "status": "pending",
+   "reporting": null,
+   "votes": {
+    "dem": null,
+    "rep": null,
+    "other": null
+   },
+   "winner": null,
+   "note": "",
+   "updated_at": "2026-11-03T19:42:55.915Z"
+  },
+  "IN-04": {
+   "status": "pending",
+   "reporting": null,
+   "votes": {
+    "dem": null,
+    "rep": null,
+    "other": null
+   },
+   "winner": null,
+   "note": "",
+   "updated_at": "2026-11-03T19:42:56.682Z"
+  },
+  "IN-03": {
+   "status": "pending",
+   "reporting": null,
+   "votes": {
+    "dem": null,
+    "rep": null,
+    "other": null
+   },
+   "winner": null,
+   "note": "",
+   "updated_at": "2026-11-03T19:43:00.587Z"
+  },
+  "LA-05": {
+   "status": "pending",
+   "reporting": null,
+   "votes": {
+    "dem": null,
+    "rep": null,
+    "other": null
+   },
+   "winner": null,
+   "note": "RUNOFF",
+   "updated_at": "2026-11-04T05:57:37.087Z"
+  }
+ }
+}
