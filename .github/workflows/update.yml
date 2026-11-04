@@ -1,4 +1,4 @@
-name: Update forecast
+name: Update forecast (2028)
 
 on:
   schedule:
@@ -28,13 +28,8 @@ jobs:
           restore-keys: |
             data-
       - run: uv sync
-      - name: Run pipeline
-        env:
-          FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
-          FOLLOWTHEMONEY_API_KEY: ${{ secrets.FOLLOWTHEMONEY_API_KEY }}
-          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-        run: uv run electionpredictions run
+      # The 2026 forecast is frozen at its final pre-election run (Nov 3, 18:46 UTC); re-running it after
+      # polls close would let results leak in. Only the 2028 presidential forecast still updates daily.
       - name: Run presidential pipeline
         env:
           EP_CYCLE: "2028"
@@ -46,7 +41,7 @@ jobs:
         run: |
           git config user.name "forecast-bot"
           git config user.email "forecast-bot@users.noreply.github.com"
-          git add site/data site/data2028
+          git add site/data2028
           git commit -m "Update forecast $(date -u +%F)" || echo "nothing to commit"
           git pull --rebase origin main
           git push
