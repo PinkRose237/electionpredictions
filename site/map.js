@@ -10,7 +10,7 @@ import {
   CHAMBER_LABEL, DASH, loadJSON, raceHref, fmt, isNum, h, svgEl, ratingPill, probChip, probColor, probGradient,
   partyClass, initChrome, renderUpdated, renderFooterMeta, showError, relativeTime, onThemeChange, DATA_BASE, withData,
 } from './common.js';
-import { fetchLive, mergeResults, shares, isCalled } from './live.js';
+import { fetchLive, mergeResults, applyConsensus, shares, isCalled } from './live.js';
 
 const REFRESH_MS = 60e3;
 const CHAMBERS = ['senate', 'house', 'governor'];
@@ -87,7 +87,7 @@ async function pull() {
 
 function remerge() {
   const base = feed || (snapshot ? { races: snapshot.races || {}, by: snapshot.by || {} } : { races: {}, by: {} });
-  results = mergeResults(base.races, base.by, manual && manual.races);
+  results = mergeResults(applyConsensus(base.races, calls), base.by, manual && manual.races);
 }
 
 // ---------------------------------------------------------------------------
@@ -415,6 +415,7 @@ function renderDetail() {
       isFlip(race) ? h('span', { class: 'md-flip' }, `Flip ${held(race)}→${party}`) : null);
   } else if (e && e.status === 'runoff') statusLine = h('div', { class: 'md-status' }, 'Headed to a runoff');
   else if (!pollsClosed(id)) statusLine = h('div', { class: 'md-status muted' }, `Polls close at ${clock(closeAt.get(id))}`);
+  else if (e && e.awaiting) statusLine = h('div', { class: 'md-status muted' }, `Called by ${e.awaiting} of ${e.awaitingOf} outlets · awaiting confirmation (3 needed)`);
   else statusLine = h('div', { class: 'md-status muted' }, sh ? 'Counting' : 'Polls closed · awaiting votes');
   parts.push(h('div', { class: 'md-head' }, h('h2', {}, displayName(race)), ratingPill(race.label)), statusLine);
 

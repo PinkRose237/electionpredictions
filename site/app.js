@@ -16,7 +16,7 @@ import {
   ratingPill, probChip, matchupNode, holderNode,
   initChrome, renderUpdated, renderFooterMeta, showError, relativeTime, withData, DATA_BASE,
 } from './common.js';
-import { mergeResults, isCalled } from './live.js';
+import { mergeResults, applyConsensus, isCalled } from './live.js';
 
 /** Categorical hues for the three chambers (validated for CVD separation in each mode). */
 const SERIES_LIGHT = { house: '#2a78d6', senate: '#1baf7a', governor: '#eb6834' };
@@ -98,9 +98,9 @@ async function renderNightBanner() {
   // From an hour before the first polls close (6 pm ET) until results are certified weeks later.
   const now = Date.now(), start = Date.parse('2026-11-03T22:00:00Z'), end = Date.parse('2026-12-20T00:00:00Z');
   if (!el || now < start || now > end) return;
-  const [auto, manual] = await Promise.all([freshJSON('results-auto.json'), freshJSON('results.json')]);
+  const [auto, manual, calls] = await Promise.all([freshJSON('results-auto.json'), freshJSON('results.json'), freshJSON('calls.json')]);
   if (!auto || !auto.races) return;
-  const merged = mergeResults(auto.races, auto.by || {}, manual && manual.races);
+  const merged = mergeResults(applyConsensus(auto.races, calls), auto.by || {}, manual && manual.races);
   const chambers = S.summary.chambers || {};
   const tally = {};
   let called = 0;
@@ -120,7 +120,7 @@ async function renderNightBanner() {
   el.hidden = false;
   el.replaceChildren(
     h('div', { class: 'nb-head' }, h('span', { class: 'live-dot' }), h('b', {}, 'Results are coming in'),
-      h('span', { class: 'muted' }, ` · ${called} of ${S.races.length} races called · updated ${relativeTime(auto.updated_at)}`)),
+      h('span', { class: 'muted' }, ` · ${called} of ${S.races.length} races called (confirmed by 3 of 5 news outlets) · updated ${relativeTime(auto.updated_at)}`)),
     h('div', { class: 'nb-seats' }, seat('senate', 'Senate'), seat('house', 'House'), seat('governor', 'Governors')),
     h('div', { class: 'nb-links' }, h('a', { class: 'btn primary', href: withData('results.html') }, 'Live results'),
       h('a', { class: 'btn', href: withData('map.html') }, 'Map'),

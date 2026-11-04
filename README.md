@@ -101,7 +101,8 @@ CNN and NBC News (AllSides: Lean Left; each runs its own decision desk), Bloombe
 AP's calls), Fox News (Right; its own decision desk), and the AP itself as a wire column (Lean Left), read
 from each outlet's own results feed. The most recent calls are listed first, with disagreements
 highlighted and a seats-called tally per outlet. A race is **Confirmed** once 3 of the 5 outlets have
-called it for the same candidate (also shown in the Results page's Latest calls and on race pages). The same `results` command and workflow collect them into
+called it for the same candidate. The whole site (Results page, Map, race pages, dashboard) and the
+Apple TV app count a race as called only once it's confirmed; before that it shows as awaiting confirmation. The same `results` command and workflow collect them into
 `site/data/calls.json`. Reuters, NewsNation, the Wall Street Journal and Decision Desk HQ block automated
 access, so they aren't included.
 

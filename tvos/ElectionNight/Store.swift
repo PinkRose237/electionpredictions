@@ -51,7 +51,8 @@ final class ResultsStore {
         let list = Array(races.values)
         async let liveTask = demo ? Feeds.LiveResult() : Feeds.fetchLive(races: list)
         async let manualTask = Feeds.siteFile("results.json", as: ResultsFile.self)
-        let (live, manual) = await (liveTask, manualTask)
+        async let callsTask = Feeds.siteFile("calls.json", as: CallsFile.self)
+        let (live, manual, outletCalls) = await (liveTask, manualTask, callsTask)
 
         var base = live.races
         if demo {
@@ -70,7 +71,9 @@ final class ResultsStore {
             problem = "Live feed unreachable (\(live.errors.first ?? "no data")); retrying"
         }
         if !base.isEmpty || results.isEmpty {
-            results = mergeResults(feed: base, manual: manual?.races ?? [:])
+            // Calls count once 3 of the 5 news outlets agree (calls.json); demo data keeps its own calls.
+            let confirmedBase = demo ? base : applyConsensus(base, calls: outletCalls)
+            results = mergeResults(feed: confirmedBase, manual: manual?.races ?? [:])
             lastUpdate = Date()
             noteNewCalls()
         }

@@ -254,6 +254,55 @@ export function shares(e) {
 export const isCalled = (e) => !!e && (e.status === 'called' || e.status === 'final') && !!e.winner;
 
 // ---------------------------------------------------------------------------
+// Confirmation: a race counts as called once 3 of the 5 news outlets agree (calls.json)
+// ---------------------------------------------------------------------------
+export const CONFIRM_AT = 3;
+
+/** The candidate side at least CONFIRM_AT outlets have called a race for, and how many: { winner, n, of } or null. */
+export function confirmation(byOutlet, of = 5) {
+  const votes = {};
+  for (const c of Object.values(byOutlet || {})) if (c && c.status !== 'runoff' && c.winner) votes[c.winner] = (votes[c.winner] || 0) + 1;
+  const [winner, n] = Object.entries(votes).sort((a, b) => b[1] - a[1])[0] || [null, 0];
+  return n >= CONFIRM_AT ? { winner, n, of } : null;
+}
+
+/**
+ * Apply the 3-of-5 rule to feed entries: a race is called (for the confirmed side) only once enough
+ * outlets agree; a race the feed calls before that goes back to counting, marked `awaiting` with how
+ * many outlets have called it. Without calls.json the feed's own calls stand. Manual overrides are laid
+ * on afterwards by mergeResults, so the editor can still call a race by hand.
+ */
+export function applyConsensus(feed, calls) {
+  if (!calls || !calls.races) return feed;
+  const of = (calls.sources || []).length || 5;
+  const out = {};
+  const ids = new Set([...Object.keys(feed || {}), ...Object.keys(calls.races)]);
+  for (const id of ids) {
+    const base = feed && feed[id];
+    const e = base ? { ...base, votes: { ...(base.votes || {}) } }
+      : { status: 'pending', reporting: null, votes: { dem: null, rep: null, other: null }, winner: null, updated_at: null };
+    const byOutlet = calls.races[id] || {};
+    const conf = confirmation(byOutlet, of);
+    const made = Object.values(byOutlet).filter((c) => c && c.status !== 'runoff').length;
+    const runoffs = Object.values(byOutlet).filter((c) => c && c.status === 'runoff').length;
+    if (conf) {
+      e.status = e.status === 'final' && e.winner === conf.winner ? 'final' : 'called';
+      e.winner = conf.winner;
+      e.confirmed = conf.n;
+      e.confirmedOf = of;
+    } else if (runoffs >= CONFIRM_AT) {
+      e.status = 'runoff';
+      e.winner = null;
+    } else {
+      if (e.status === 'called' || e.status === 'final') { e.status = 'counting'; e.winner = null; }
+      if (made > 0) { e.awaiting = made; e.awaitingOf = of; }
+    }
+    out[id] = e;
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // Paste parser for the admin page
 // ---------------------------------------------------------------------------
 /**

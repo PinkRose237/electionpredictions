@@ -9,7 +9,7 @@ import {
   CHAMBER_LABEL, DASH, query, loadJSON, raceHref, fmt, isNum, h, svgEl, ratingPill,
   initChrome, renderUpdated, renderFooterMeta, showError, responsiveChart, relativeTime, partyClass, DATA_BASE,
 } from './common.js';
-import { fetchLive, mergeResults, shares, isCalled, FEED_LABEL } from './live.js';
+import { fetchLive, mergeResults, applyConsensus, shares, isCalled, FEED_LABEL } from './live.js';
 
 const ET = 'America/New_York';
 const LOCAL = (Intl.DateTimeFormat().resolvedOptions().timeZone) || ET;
@@ -130,7 +130,7 @@ async function pull() {
 
 function remerge() {
   const base = feed || (snapshot ? { races: snapshot.races || {}, by: snapshot.by || {} } : { races: {}, by: {} });
-  results = { races: mergeResults(base.races, base.by, manual && manual.races) };
+  results = { races: mergeResults(applyConsensus(base.races, calls), base.by, manual && manual.races) };
 }
 
 // ---------------------------------------------------------------------------
@@ -147,7 +147,7 @@ function renderLiveBar() {
   pause.addEventListener('click', () => { paused = !paused; if (!paused) nextPull = Date.now(); renderLiveBar(); });
   const ok = !!feed && !feedError;
   let text;
-  if (ok) text = [h('b', {}, 'Live'), ` · votes and race calls from ${src}`, h('span', { class: 'muted' }, ` · checked `, h('span', { 'data-ago': feed.fetched_at }, relativeTime(feed.fetched_at)))];
+  if (ok) text = [h('b', {}, 'Live'), ` · votes from ${src}; a race counts as called once 3 of 5 news outlets agree`, h('span', { class: 'muted' }, ` · checked `, h('span', { 'data-ago': feed.fetched_at }, relativeTime(feed.fetched_at)))];
   else if (feed) text = [h('b', {}, 'Live feed unreachable'), ' · showing the results from the last check, ', h('span', { 'data-ago': feed.fetched_at }, relativeTime(feed.fetched_at)), '; retrying'];
   else if (snapshot && snapshot.updated_at) text = [h('b', {}, 'Saved results'), ` · the live feed is unreachable right now; showing the copy saved ${relativeTime(snapshot.updated_at)}`];
   else if (feedError) text = [h('b', {}, 'Live feed unavailable'), ' · results will appear here once it responds'];
@@ -357,6 +357,7 @@ function statusBadge(r, e) {
   const closed = Date.now() >= new Date(r.group.close_utc).getTime();
   if (!closed) return h('span', { class: 'rc-badge muted' }, 'Polls close in ', h('span', { 'data-close': r.group.close_utc, 'data-closed-text': 'now' }, ''));
   const sh = shares(e);
+  if (e && e.awaiting) return h('span', { class: 'rc-badge muted', title: 'A race counts as called once 3 of 5 news outlets agree' }, `${e.awaiting} of ${e.awaitingOf} called · awaiting`);
   return h('span', { class: 'rc-badge muted' }, sh ? 'Counting' : 'Awaiting results');
 }
 
@@ -569,7 +570,8 @@ export function resultLine(r, e) {
   const parts = [];
   if (sh) parts.push(`D ${sh.dem.toFixed(1)}% · R ${sh.rep.toFixed(1)}%${sh.other >= 0.05 ? ` · other ${sh.other.toFixed(1)}%` : ''}`);
   if (isNum(e.reporting) && (sh || e.reporting > 0)) parts.push(`${Math.round(e.reporting)}% in`);
-  const label = { pending: null, counting: sh ? null : 'Counting', called: 'Called', runoff: 'Runoff', recount: 'Recount', final: 'Final' }[e.status];
+  const label = e.awaiting && !isCalled(e) ? `Called by ${e.awaiting} of ${e.awaitingOf}, awaiting confirmation`
+    : { pending: null, counting: sh ? null : 'Counting', called: 'Called', runoff: 'Runoff', recount: 'Recount', final: 'Final' }[e.status];
   const winner = e.winner === 'dem' ? r.dem : e.winner === 'rep' ? r.rep : e.winner === 'other' ? 'another candidate' : null;
   if (!parts.length && !label) return null;
   return h('div', { class: 'result-line' },

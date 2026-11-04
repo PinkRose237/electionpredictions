@@ -15,7 +15,7 @@ import {
   tipContent, attachTooltip, partyVar, partyClass, partyName, ratingPill,
   initChrome, renderUpdated, renderFooterMeta, showError, DATA_BASE,
 } from './common.js';
-import { mergeResults, shares, isCalled } from './live.js';
+import { mergeResults, applyConsensus, shares, isCalled } from './live.js';
 
 const id = (query.get('id') || '').trim();
 
@@ -393,7 +393,8 @@ async function refreshLive(race, el) {
   const [auto, manual, calls] = await Promise.all([fetchFresh('results-auto.json'), fetchFresh('results.json'), fetchFresh('calls.json')]);
   const rid = race.race_id;
   const pick = (f) => (f && f.races && f.races[rid] ? { [rid]: f.races[rid] } : {});
-  const e = mergeResults(pick(auto), (auto && auto.by) || {}, pick(manual))[rid] || null;
+  const feed = applyConsensus(pick(auto), calls && { ...calls, races: calls.races && calls.races[rid] ? { [rid]: calls.races[rid] } : {} });
+  const e = mergeResults(feed[rid] ? { [rid]: feed[rid] } : {}, (auto && auto.by) || {}, pick(manual))[rid] || null;
   el.replaceChildren(...[resultsSection(race, e, calls, auto && auto.updated_at)].filter(Boolean));
 }
 
@@ -407,7 +408,8 @@ function resultsSection(race, e, calls, snapAt) {
   const sec = h('section', { class: 'card results live-race', 'aria-labelledby': 'h-results' },
     h('h2', { id: 'h-results' }, 'Live results'));
   const winner = isCalled(e) ? (e.winner === 'dem' ? race.dem : e.winner === 'rep' ? race.rep : null) : null;
-  const label = { pending: 'No votes counted yet', counting: 'Counting', called: 'Called', runoff: 'Headed to a runoff', recount: 'Recount', final: 'Final' }[e ? e.status : 'pending'];
+  const label = e && e.awaiting && !isCalled(e) ? `Counting · called by ${e.awaiting} of ${e.awaitingOf} news outlets, awaiting confirmation (3 needed)`
+    : { pending: 'No votes counted yet', counting: 'Counting', called: 'Called', runoff: 'Headed to a runoff', recount: 'Recount', final: 'Final' }[e ? e.status : 'pending'];
   sec.append(h('p', { class: 'card-sub' },
     h('b', {}, winner ? `${e.status === 'final' ? 'Final' : 'Called'}: ${winner.name} wins` : label),
     e && isNum(e.reporting) && (sh || e.reporting > 0) ? ` · ${Math.round(e.reporting)}% of expected vote in` : '',

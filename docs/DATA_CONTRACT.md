@@ -183,3 +183,7 @@ outlet has called (or sent to a runoff); a source missing from a race has not ca
 `rep` or `other` (sides as in `races.json`); `at` is the outlet's own call time when it publishes one
 (Bloomberg), otherwise when the call was first seen in a snapshot (within ~2 minutes while the watch runs). When a
 source's feed fails, its previous calls are kept and `ok` is false.
+
+The site and the Apple TV app treat a race as called only once 3 of the outlets agree on the same side
+(`applyConsensus` in `site/live.js`): until then a feed call is shown as counting, with how many outlets
+have called it so far. If calls.json can't be loaded, the AP feed's own calls are used.
