@@ -78,10 +78,11 @@ function renderLiveBar() {
   const el = document.getElementById('livebar');
   const ok = sourceList().filter((s) => s.ok).length;
   const total = Object.values(calls.races || {}).length;
+  const confirmed = Object.keys(calls.races || {}).filter((rid) => agreement(rid).confirmed).length;
   el.className = `card live-bar${ok === sourceList().length ? ' ok' : ' warn'}`;
   el.replaceChildren(
     h('span', { class: 'live-dot', 'aria-hidden': 'true' }),
-    h('span', { class: 'live-text' }, h('b', {}, `${total} race${total === 1 ? '' : 's'} called by at least one outlet`),
+    h('span', { class: 'live-text' }, h('b', {}, `${confirmed} race${confirmed === 1 ? '' : 's'} confirmed`), ` (${CONFIRM_AT}+ of ${sourceList().length} outlets agree) · ${total} called by at least one outlet`,
       ` · calls collected `, h('span', { 'data-ago': calls.updated_at }, relativeTime(calls.updated_at)),
       ok < sourceList().length ? ` · ${sourceList().length - ok} feed${sourceList().length - ok === 1 ? '' : 's'} not responding (showing their last calls)` : ''),
     h('span', { class: 'live-next muted' }, 'this page checks for new calls every minute'),
@@ -128,6 +129,21 @@ function renderTally() {
   const chambers = ['senate', 'house', 'governor'];
   const head = h('tr', {}, h('th', {}, 'Outlet'), ...chambers.map((ch) => h('th', { class: 'num' },
     `${CHAMBER_LABEL[ch]}${summary && summary.chambers[ch] ? ` (${summary.chambers[ch].needed} to win)` : ''}`)));
+  const confirmedRow = h('tr', { class: 'confirmed-row' },
+    h('td', {}, h('b', {}, 'Confirmed'), h('span', { class: 'muted small' }, ` (${CONFIRM_AT}+ of ${sourceList().length} agree)`)),
+    ...chambers.map((ch) => {
+      const info = summary && summary.chambers[ch];
+      let d = info ? info.not_up.D : 0, r = info ? info.not_up.R : 0;
+      for (const rid of Object.keys(calls.races || {})) {
+        const race = byId.get(rid);
+        if (!race || race.chamber !== ch) continue;
+        const w = agreement(rid).confirmed;
+        if (w === 'dem') d += 1; else if (w === 'rep') r += 1;
+      }
+      const need = info ? info.needed : Infinity;
+      return h('td', { class: 'num' },
+        h('span', { class: `dem-text${d >= need ? ' won' : ''}` }, `D ${d}`), ' – ', h('span', { class: `rep-text${r >= need ? ' won' : ''}` }, `R ${r}`));
+    }));
   const rows = sourceList().map((s) => h('tr', {},
     h('td', {}, s.name, ' ', leanBadge(s)),
     ...chambers.map((ch) => {
@@ -145,8 +161,8 @@ function renderTally() {
     })));
   el.replaceChildren(
     h('h2', { id: 'h-tally', style: { margin: '0 0 4px', fontSize: '17px' } }, 'Seats called, by outlet'),
-    h('p', { class: 'card-sub muted small', style: { margin: '0 0 10px' } }, 'Senate and governor totals include the seats not up this year. Bold means that outlet has called a majority.'),
-    h('div', { class: 'table-wrap' }, h('table', { class: 'data' }, h('thead', {}, head), h('tbody', {}, ...rows))),
+    h('p', { class: 'card-sub muted small', style: { margin: '0 0 10px' } }, `Senate and governor totals include the seats not up this year. A race is confirmed once ${CONFIRM_AT} of the ${sourceList().length} outlets have called it for the same candidate. Bold means a majority.`),
+    h('div', { class: 'table-wrap' }, h('table', { class: 'data' }, h('thead', {}, head), h('tbody', {}, confirmedRow, ...rows))),
   );
 }
 
@@ -160,6 +176,8 @@ function renderControls() {
   chamber.addEventListener('change', () => { state.chamber = chamber.value; renderTable(); });
   const show = h('select', { 'aria-label': 'Show' },
     h('option', { value: 'default' }, 'Called races + key races'),
+    h('option', { value: 'confirmed' }, `Confirmed (${CONFIRM_AT}+ outlets agree)`),
+    h('option', { value: 'unconfirmed' }, 'Called but not yet confirmed'),
     h('option', { value: 'called' }, 'Called by any outlet'),
     h('option', { value: 'split' }, 'Outlets disagree or are waiting'),
     h('option', { value: 'all' }, 'Every race'));
@@ -170,13 +188,21 @@ function renderControls() {
 }
 
 /** How the outlets stand on one race: called count, distinct winners, and whether any is still out. */
+/** A race is confirmed once this many outlets have called it for the same candidate. */
+const CONFIRM_AT = 3;
+
 function agreement(rid) {
   const c = callsFor(rid);
-  const winners = new Set(Object.values(c).filter((x) => x.status !== 'runoff').map((x) => x.winner));
+  const made = Object.values(c).filter((x) => x.status !== 'runoff');
+  const winners = new Set(made.map((x) => x.winner));
+  const votes = {};
+  for (const x of made) votes[x.winner] = (votes[x.winner] || 0) + 1;
+  const [top, topN] = Object.entries(votes).sort((a, b) => b[1] - a[1])[0] || [null, 0];
   const n = Object.keys(c).length;
   const live = sourceList().filter((s) => s.ok || c[s.id]).length;
   const runoff = n > 0 && Object.values(c).every((x) => x.status === 'runoff');
-  return { n, live, conflict: winners.size > 1, partial: n > 0 && n < live, runoff, winners };
+  return { n, live, conflict: winners.size > 1, partial: n > 0 && n < live, runoff, winners,
+    confirmed: topN >= CONFIRM_AT ? top : null, agreeing: topN };
 }
 
 const KEY = new Set(['Lean D', 'Tossup', 'Lean R']);
@@ -187,6 +213,8 @@ function visibleRaces() {
     const a = agreement(r.race_id);
     if (state.show === 'default' && !(a.n > 0 || KEY.has(r.label) || (r.chamber !== 'house' && r.label && r.label.startsWith('Likely')))) return false;
     if (state.show === 'called' && a.n === 0) return false;
+    if (state.show === 'confirmed' && !a.confirmed) return false;
+    if (state.show === 'unconfirmed' && (a.confirmed || a.n === 0 || a.runoff)) return false;
     if (state.show === 'split' && !(a.conflict || a.partial)) return false;
     if (q) {
       const hay = `${r.short} ${r.name} ${r.state_name} ${r.dem ? r.dem.name : ''} ${r.rep ? r.rep.name : ''}`.toLowerCase();
@@ -236,12 +264,16 @@ function renderTable() {
     const c = callsFor(r.race_id);
     const a = agreement(r.race_id);
     let status;
-    if (a.conflict) status = h('span', { class: 'agree conflict' }, 'Disagree');
+    if (a.confirmed) {
+      const party = sideParty(r, a.confirmed);
+      status = h('span', { class: `agree confirmed ${partyClass(party)}` }, `✓ Confirmed · ${a.agreeing} of ${a.live}`,
+        a.conflict ? h('span', { class: 'agree-note' }, ` · ${a.n - a.agreeing} outlet${a.n - a.agreeing === 1 ? '' : 's'} differ${a.n - a.agreeing === 1 ? 's' : ''}`) : null);
+    } else if (a.conflict) status = h('span', { class: 'agree conflict' }, 'Disagree');
     else if (a.n === 0) status = h('span', { class: 'agree muted' }, 'Not called');
     else if (a.runoff) status = h('span', { class: 'agree partial' }, 'Runoff');
-    else if (a.partial) status = h('span', { class: 'agree partial' }, `${a.n} of ${a.live}`);
+    else if (a.partial) status = h('span', { class: 'agree partial' }, `${a.n} of ${a.live} · not yet confirmed`);
     else status = h('span', { class: 'agree all' }, 'All agree');
-    return h('tr', { class: a.conflict ? 'conflict' : '' },
+    return h('tr', { class: a.confirmed ? `confirmed ${a.conflict ? 'conflict' : ''}` : a.conflict ? 'conflict' : '' },
       h('td', {}, h('a', { href: raceHref(r.race_id) }, r.short), h('div', { class: 'muted small' }, [r.dem && r.dem.name, r.rep && r.rep.name].filter(Boolean).join(' vs '))),
       h('td', {}, ratingPill(r.label)),
       ...srcs.map((s) => callCell(r, c[s.id], firstCallAt(r.race_id))),

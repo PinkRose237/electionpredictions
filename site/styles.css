@@ -670,6 +670,9 @@ details[open].more summary::before { content: '▾ '; }
 .lc-flip { font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: #fff; background: var(--ind); }
 .lc-flip.dem { background: var(--dem); } .lc-flip.rep { background: var(--rep); }
 .lc-who { font-size: 12px; margin-left: auto; }
+.lc-confirmed { font-size: 11.5px; font-weight: 700; color: #2e9d57; }
+.confirmed-line { font-weight: 700; font-size: 13.5px; margin: 12px 0 0; }
+.confirmed-line.dem { color: var(--dem); } .confirmed-line.rep { color: var(--rep); } .confirmed-line.ind { color: var(--ind); }
 .check-big { font-size: 15px; margin-bottom: 6px; }
 .check-big b { font-size: 22px; }
 .check-line { font-size: 13.5px; color: var(--ink-2); margin: 6px 0; }
@@ -790,6 +793,11 @@ details[open].more summary::before { content: '▾ '; }
 .agree.conflict { color: var(--ind); }
 .agree.partial { color: var(--ink-2); }
 .agree.all { color: var(--ink-2); font-weight: 500; }
+.agree.confirmed { font-weight: 700; }
+.agree.confirmed.dem { color: var(--dem); } .agree.confirmed.rep { color: var(--rep); } .agree.confirmed.ind { color: var(--ind); }
+.agree-note { color: var(--ind); font-weight: 600; }
+.calls-table tr.confirmed td:first-child { box-shadow: inset 3px 0 0 #2e9d57; }
+.confirmed-row td { background: color-mix(in srgb, #2e9d57 9%, transparent); }
 
 /* Admin page ---------------------------------------------------------------- */
 .btn { font: inherit; font-size: 14px; padding: 8px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface); color: var(--ink); cursor: pointer; }

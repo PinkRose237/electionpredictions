@@ -430,6 +430,15 @@ function resultsSection(race, e, calls, snapAt) {
     sec.append(h('p', { class: 'muted small', style: { marginTop: '8px' } }, bits.join(' · ')));
   }
   if (sources.length) {
+    // Confirmed once 3 of the outlets have called it for the same candidate (as on the Race Calls page).
+    const votes = {};
+    for (const c of Object.values(outletCalls)) if (c.status !== 'runoff') votes[c.winner] = (votes[c.winner] || 0) + 1;
+    const [cw, cn] = Object.entries(votes).sort((a, b) => b[1] - a[1])[0] || [null, 0];
+    if (cn >= 3) {
+      const cand = race[cw];
+      sec.append(h('p', { class: `confirmed-line ${partyClass(cand ? cand.party : 'O')}` },
+        `✓ Confirmed: ${cn} of ${sources.length} news organizations have called it for ${cand ? cand.name : 'another candidate'}`));
+    }
     sec.append(h('div', { class: 'outlet-calls' }, ...sources.map((s) => {
       const c = outletCalls[s.id];
       if (!c) return h('span', { class: 'outlet-call muted' }, h('b', {}, s.name), ' not called');

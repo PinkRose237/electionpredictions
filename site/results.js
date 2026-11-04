@@ -236,8 +236,9 @@ function latestCalls() {
     made.sort((a, b) => a[1].at.localeCompare(b[1].at));
     const first = made[0][1];
     const firsts = made.filter(([, c]) => c.at === first.at).map(([sid]) => names[sid] || sid);
+    const agree = made.filter(([, c]) => c.winner === first.winner).length;
     out.push({ race, at: first.at, winner: first.winner, firsts, n: made.length, total: (calls.sources || []).length,
-      split: new Set(made.map(([, c]) => c.winner)).size > 1 });
+      split: new Set(made.map(([, c]) => c.winner)).size > 1, confirmed: agree >= 3 });
   }
   return out.sort((a, b) => b.at.localeCompare(a.at));
 }
@@ -260,7 +261,8 @@ function renderLatest() {
         h('a', { class: 'lc-race', href: raceHref(c.race.race_id) }, c.race.short),
         h('span', { class: `lc-win ${partyClass(party)}` }, cand ? `${cand.name} (${party})` : 'Another candidate'),
         held && party !== held ? h('span', { class: `lc-flip ${partyClass(party)}` }, `Flip ${held}→${party}`) : null,
-        h('span', { class: 'lc-who muted' }, c.split ? 'outlets disagree' : `first: ${c.firsts.join(', ')} · ${c.n} of ${c.total}`));
+        c.confirmed ? h('span', { class: 'lc-confirmed' }, '✓ Confirmed') : null,
+        h('span', { class: 'lc-who muted' }, c.split && !c.confirmed ? 'outlets disagree' : `first: ${c.firsts.join(', ')} · ${c.n} of ${c.total}`));
     })),
   );
 }
