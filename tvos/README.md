@@ -13,7 +13,7 @@ A full-screen, always-on board of the 2026 Senate and House results (no governor
 - **Race-call alerts**: when a late race is called, a card slides down from the top.
 - A race counts as **called** once 2 of the 4 news outlets agree (the site's `calls.json`, same rule as the
   website); until then its card shows how many have called it.
-- Refreshes every 5 minutes; **Play/Pause** on the Siri Remote refreshes immediately. Keeps the screen awake.
+- Refreshes every minute; **Play/Pause** on the Siri Remote refreshes immediately. Keeps the screen awake.
 
 The data is the same as the website's (`site/live.js`): live votes and race calls from the AP via The New
 York Times' results feed (CNN as backup), with the results desk's manual overrides

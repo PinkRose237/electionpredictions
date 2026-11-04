@@ -10,7 +10,7 @@ import { loadJSON, isNum, DATA_BASE } from './common.js';
 import { fetchLive, mergeResults, applyConsensus, shares, isCalled } from './live.js';
 
 export { shares, isCalled };
-export const REFRESH_MS = 5 * 60e3;
+export const REFRESH_MS = 60e3;
 export const FORECAST_PUBLISHED = '2026-11-03T18:46:56Z';
 
 async function fresh(name) {

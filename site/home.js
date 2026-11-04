@@ -1,9 +1,9 @@
 /**
  * home.js — the results home page: control of each chamber, flips, races still counting, the latest
- * calls and how the forecast did. Data from results-data.js; refreshes every five minutes.
+ * calls and how the forecast did. Data from results-data.js; refreshes every minute.
  */
 import { CHAMBER_LABEL, fmt, isNum, h, raceHref, ratingPill, partyClass, lastName, initChrome, renderUpdated, renderFooterMeta, showError, relativeTime } from './common.js';
-import { loadResults, keepFresh, tally, latestCalls, scorecard, displayName, sideParty, REFRESH_MS } from './results-data.js';
+import { loadResults, keepFresh, tally, latestCalls, scorecard, displayName, sideParty } from './results-data.js';
 
 const CHAMBERS = ['senate', 'house', 'governor'];
 const PARTY_NAME = { dem: 'Democrats', rep: 'Republicans' };
@@ -55,7 +55,7 @@ function renderHeadline(tallies) {
 
 function renderFreshness(S) {
   const el = document.getElementById('freshness');
-  el.textContent = `${S.source === 'live' ? 'Live from the AP' : 'From the latest saved count'} · updated ${S.updatedAt ? relativeTime(S.updatedAt) : 'just now'} · refreshes every ${REFRESH_MS / 60e3} minutes`;
+  el.textContent = `${S.source === 'live' ? 'Live from the AP' : 'From the latest saved count'} · updated ${S.updatedAt ? relativeTime(S.updatedAt) : 'just now'} · refreshes every minute`;
 }
 
 function renderOutcomes(tallies) {

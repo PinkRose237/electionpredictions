@@ -85,7 +85,7 @@ correlated polling misses. The full write-up is in `site/methodology.html`; the 
 ## Results
 
 **Automatic.** The results pages pull vote counts straight from public results feeds in the visitor's
-browser every five minutes (`site/live.js`): The New York Times' results JSON (AP votes) first, CNN's
+browser every minute (`site/live.js`): The New York Times' results JSON (AP votes) first, CNN's
 results JSON for anything it is missing. Every race is matched to our Democratic/Republican sides by
 candidate name, so an independent standing in for a party (Nebraska Senate) lands on the right side. A
 race counts as called once 2 of the 4 news outlets in `calls.json` agree (see Race Calls below).
@@ -137,7 +137,7 @@ overrides up on their next refresh.
 
 **Apple TV.** `tvos/` holds an always-on Senate and House results board for Apple TV: maps and seat
 counts with control banners and flips, a strip cycling through the closest races still counting, flipped
-seats and the forecast's record, and alerts for late calls; refreshes every 5 minutes and keeps the screen
+seats and the forecast's record, and alerts for late calls; refreshes every minute and keeps the screen
 awake. It reads the same feeds and confirmed calls as the site. See `tvos/README.md` to install it.
 
 ## Keeping it updated

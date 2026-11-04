@@ -4,7 +4,7 @@
  * Geometry: geo/us-maps.json (built by tvos/tools/make_maps.py, shared with the Apple TV app).
  * Colour by live results (feeds pulled in the browser via live.js, the editor's overrides from
  * results.json on top, the saved snapshot as a fallback) or by the forecast. Outlets' calls come from
- * calls.json. Hover, focus or tap a shape for the detail panel; it refreshes every five minutes.
+ * calls.json. Hover, focus or tap a shape for the detail panel; it refreshes every minute.
  */
 import {
   CHAMBER_LABEL, DASH, loadJSON, raceHref, fmt, isNum, h, svgEl, ratingPill, probChip, probColor, probGradient,
@@ -12,7 +12,7 @@ import {
 } from './common.js';
 import { fetchLive, mergeResults, applyConsensus, shares, isCalled } from './live.js';
 
-const REFRESH_MS = 5 * 60e3;
+const REFRESH_MS = 60e3;
 const CHAMBERS = ['senate', 'house', 'governor'];
 const CALLOUTS = ['VT', 'NH', 'MA', 'RI', 'CT', 'NJ', 'DE', 'MD'];
 const TILE = 24;
@@ -157,7 +157,7 @@ function renderLiveStatus() {
   if (!el) return;
   if (state.mode !== 'live') { el.textContent = 'Model forecast from the final pre-election run'; return; }
   const at = lastPull || (snapshot && snapshot.updated_at);
-  el.textContent = at ? `Results · updated ${relativeTime(at)} · refreshes every 5 minutes` : 'Results appear after polls close';
+  el.textContent = at ? `Results · updated ${relativeTime(at)} · refreshes every minute` : 'Results appear after polls close';
 }
 
 function wireSearch() {

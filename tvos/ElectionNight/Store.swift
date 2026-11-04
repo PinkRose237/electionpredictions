@@ -6,8 +6,8 @@ import Observation
 /// top; if the feeds are unreachable it falls back to the site's saved snapshot (results-auto.json).
 @MainActor @Observable
 final class ResultsStore {
-    /// Results trickle in for days after election night: every five minutes is plenty.
-    static let interval: TimeInterval = 5 * 60
+    /// Refresh every minute.
+    static let interval: TimeInterval = 60
 
     private(set) var races: [String: Race] = [:]
     private(set) var summary: SiteSummary?
