@@ -37,7 +37,8 @@ jobs:
           git add site/data/results-auto.json site/data/calls.json
           if git diff --cached --quiet; then echo "changed=false" >> "$GITHUB_OUTPUT"; exit 0; fi
           git commit -m "Results snapshot $(date -u +%FT%H:%MZ)"
-          git pull --rebase origin main
+          # The local `results --watch --push` may have pushed meanwhile; these files are generated, newest wins.
+          git pull --rebase -X theirs origin main
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
       - if: steps.commit.outputs.changed == 'true'

@@ -17,7 +17,7 @@ from __future__ import annotations
 import csv
 import io
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Callable
 
@@ -142,6 +142,24 @@ def _bbg_race(key: str):
     return st, chamber, (rest or None)
 
 
+BBG_EPOCH = datetime(2026, 11, 3, tzinfo=timezone.utc)
+
+
+def _bbg_time(v: float) -> str:
+    """Bloomberg's callDateTime_epoch counts seconds from midnight UTC on election day (86400 = 7 pm ET)."""
+    if v > 1e12:          # milliseconds since 1970, should they switch
+        t = datetime.fromtimestamp(v / 1000, timezone.utc)
+    elif v > 1e9:         # seconds since 1970
+        t = datetime.fromtimestamp(v, timezone.utc)
+    else:
+        t = BBG_EPOCH + timedelta(seconds=v)
+    return t.isoformat(timespec="seconds")
+
+
+def _bbg_runoff(row) -> bool:
+    return (row.get("callType") or "").strip().lower() in ("r", "runoff")
+
+
 def fetch_bloomberg(col: Collector, errors: list):
     try:
         cand_rows = list(csv.DictReader(io.StringIO(_get(BBG_CANDS, text=True)), delimiter="\t"))
@@ -162,14 +180,14 @@ def fetch_bloomberg(col: Collector, errors: list):
         if not chamber:
             continue
         mine = calls.get(key, [])
-        winners = {c.get("winnerCandidateID") for c in mine if (c.get("callType") or "").lower() != "runoff"}
-        runoffs = {c.get("winnerCandidateID") for c in mine if (c.get("callType") or "").lower() == "runoff"}
+        winners = {c.get("winnerCandidateID") for c in mine if not _bbg_runoff(c)}
+        runoffs = {c.get("winnerCandidateID") for c in mine if _bbg_runoff(c)}
         cands = [dict(first=r.get("first") or "", last=r.get("last") or "", party=PARTY.get(r.get("partyCode"), r.get("partyCode") or ""),
                       votes=0, winner=r.get("candidateID") in winners, runoff=r.get("candidateID") in runoffs) for r in rows]
         at = None
         if mine and mine[0].get("callDateTime_epoch"):
             try:
-                at = datetime.fromtimestamp(float(mine[0]["callDateTime_epoch"]) / 1000, timezone.utc).isoformat(timespec="seconds")
+                at = _bbg_time(float(mine[0]["callDateTime_epoch"]))
             except ValueError:
                 at = None
         col.add(st, chamber, district, False, cands, at=at)  # the resolver falls back to the special when that's all a state has
@@ -257,6 +275,17 @@ def collect(races: list[dict]) -> dict:
     return {"updated_at": now, "ratings_source": ALLSIDES, "sources": sources, "races": merged}
 
 
+def stamp_call_times(payload: dict, old: dict):
+    """Give every call a time: the outlet's own when it publishes one (Bloomberg), otherwise when we first
+    saw that call, carried over from the previous file for as long as the call stays the same."""
+    for rid, calls in payload["races"].items():
+        for sid, call in calls.items():
+            prev = ((old.get("races") or {}).get(rid) or {}).get(sid)
+            same = prev and prev.get("winner") == call.get("winner") and prev.get("status") == call.get("status")
+            if not call.get("at"):
+                call["at"] = prev.get("at") if same and prev.get("at") else payload["updated_at"]
+
+
 def write_calls(out_path: Path = CALLS_PATH, verbose: bool = True) -> dict:
     races = json.loads((SITE_DATA_DIR / "races.json").read_text())
     payload = collect(races)
@@ -264,19 +293,21 @@ def write_calls(out_path: Path = CALLS_PATH, verbose: bool = True) -> dict:
         if verbose:
             print(f"[calls] no source responded; keeping {out_path.name} as it was")
         return dict(written=False)
-    # Keep a source's previous calls when only that source failed this time.
+    old = {}
     if out_path.exists():
         try:
             old = json.loads(out_path.read_text())
-            for s in payload["sources"]:
-                if not s["ok"]:
-                    for rid, calls in (old.get("races") or {}).items():
-                        if s["id"] in calls:
-                            payload["races"].setdefault(rid, {})[s["id"]] = calls[s["id"]]
-                    prev = next((p for p in old.get("sources", []) if p.get("id") == s["id"]), None)
-                    s["checked_at"] = prev.get("checked_at") if prev else None
         except (json.JSONDecodeError, OSError):
-            pass
+            old = {}
+    # Keep a source's previous calls when only that source failed this time.
+    for s in payload["sources"]:
+        if not s["ok"]:
+            for rid, calls in (old.get("races") or {}).items():
+                if s["id"] in calls:
+                    payload["races"].setdefault(rid, {})[s["id"]] = calls[s["id"]]
+            prev = next((p for p in old.get("sources", []) if p.get("id") == s["id"]), None)
+            s["checked_at"] = prev.get("checked_at") if prev else None
+    stamp_call_times(payload, old)
     out_path.write_text(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
     if verbose:
         print("[calls] " + ", ".join(f"{s['name']}: {s['calls']} calls/{s['races_seen']} races" + ("" if s["ok"] else " (FAILED)")

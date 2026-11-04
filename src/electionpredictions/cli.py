@@ -84,22 +84,41 @@ def results(watch: int = 0, push: bool = False):
     from .sources.race_calls import CALLS_PATH, write_calls
 
     rels = [str(p.relative_to(SITE_DIR.parent)) for p in (SNAPSHOT_PATH, CALLS_PATH)]
+    git = lambda *a: subprocess.run(["git", *a], cwd=SITE_DIR.parent, capture_output=True, text=True)  # noqa: E731
     while True:
-        res = snapshot()
-        calls = write_calls()
-        if push and (res.get("written") or calls.get("written")):
-            git = lambda *a: subprocess.run(["git", *a], cwd=SITE_DIR.parent, capture_output=True, text=True)  # noqa: E731
-            git("add", *rels)
-            if git("diff", "--cached", "--quiet", "--", *rels).returncode:
-                git("commit", "-m", f"Results snapshot {now_iso()}", "--", *rels)
-                pulled = git("pull", "--rebase", "--autostash", "origin", "main")
-                pushed = git("push")
-                print("[results] pushed" if pushed.returncode == 0 else f"[results] push failed: {(pulled.stderr + pushed.stderr).strip()}")
-            else:
-                print("[results] unchanged; nothing to push")
+        try:
+            res = snapshot()
+            calls = write_calls()
+            if push and (res.get("written") or calls.get("written")):
+                _push_snapshot(git, rels)
+        except Exception as e:  # noqa: BLE001 - a bad cycle must not stop an election-night watch
+            print(f"[results] cycle failed: {e!r}", file=sys.stderr)
+            res = {}
         if not watch:
             return res
         time.sleep(watch)
+
+
+def _push_snapshot(git, rels):
+    """Commit the snapshot files and push. Another writer (the scheduled workflow) may have pushed its own
+    snapshot meanwhile: on a conflict in these generated files ours is newer, so rebase with -X theirs
+    (in a rebase, "theirs" is the commit being replayed: ours). Anything else aborts cleanly."""
+    git_dir = SITE_DIR.parent / ".git"
+    if (git_dir / "rebase-merge").exists() or (git_dir / "rebase-apply").exists() or (git_dir / "MERGE_HEAD").exists():
+        print("[results] a rebase or merge is in progress in this checkout; not pushing until it's finished")
+        return
+    git("add", *rels)
+    if not git("diff", "--cached", "--quiet", "--", *rels).returncode:
+        print("[results] unchanged; nothing to push")
+        return
+    git("commit", "-m", f"Results snapshot {now_iso()}", "--", *rels)
+    pulled = git("pull", "--rebase", "-X", "theirs", "--autostash", "origin", "main")
+    if pulled.returncode != 0:
+        git("rebase", "--abort")
+        print(f"[results] pull failed, will retry next cycle: {pulled.stderr.strip()[:300]}")
+        return
+    pushed = git("push", "origin", "HEAD:main")
+    print("[results] pushed" if pushed.returncode == 0 else f"[results] push failed, will retry: {pushed.stderr.strip()[:300]}")
 
 
 class _NoCacheHandler(http.server.SimpleHTTPRequestHandler):
