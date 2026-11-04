@@ -135,10 +135,10 @@ overrides up on their next refresh.
   thing that actually protects the live site is the GitHub token, which never leaves your browser.
 - Export/Import JSON and "Load published" let you move drafts between devices.
 
-**Apple TV.** `tvos/` holds an always-on Senate and House results board for Apple TV (maps, seat
-counts, rotating key races, race-call alerts and flips; refreshes every minute, counts down to each poll
-closing, keeps the screen awake). It reads the same feeds and
-overrides as the site. See `tvos/README.md` to install it.
+**Apple TV.** `tvos/` holds an always-on Senate and House results board for Apple TV: maps and seat
+counts with control banners and flips, a strip cycling through the closest races still counting, flipped
+seats and the forecast's record, and alerts for late calls; refreshes every 5 minutes and keeps the screen
+awake. It reads the same feeds and confirmed calls as the site. See `tvos/README.md` to install it.
 
 ## Keeping it updated
 

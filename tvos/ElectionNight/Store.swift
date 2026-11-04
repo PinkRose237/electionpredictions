@@ -6,8 +6,8 @@ import Observation
 /// top; if the feeds are unreachable it falls back to the site's saved snapshot (results-auto.json).
 @MainActor @Observable
 final class ResultsStore {
-    /// Every minute, plus a refresh right as each set of polls closes.
-    static let interval: TimeInterval = 60
+    /// Results trickle in for days after election night: every five minutes is plenty.
+    static let interval: TimeInterval = 5 * 60
 
     private(set) var races: [String: Race] = [:]
     private(set) var summary: SiteSummary?
@@ -21,8 +21,6 @@ final class ResultsStore {
     private(set) var loading = true
 
     let demo = UserDefaults.standard.bool(forKey: "DemoMode") || ProcessInfo.processInfo.arguments.contains("-demo")
-    /// Launch with -previewPollClose to see the countdown banner now: the next closing is pretended to be 4½ minutes away.
-    private let previewClose: Date? = ProcessInfo.processInfo.arguments.contains("-previewPollClose") ? Date().addingTimeInterval(270) : nil
     private var demoStep = 0
     private var loop: Task<Void, Never>?
     private var siteLoadedAt: Date?
@@ -101,30 +99,9 @@ final class ResultsStore {
         }
     }
 
-    /// When to refresh next: a minute from now, or right as the next set of polls closes if that's sooner.
+    /// When to refresh next (demo data steps every minute so it visibly moves).
     private func nextRefresh(after now: Date) -> Date {
-        if demo { return now.addingTimeInterval(Self.interval) }
-        let next = closeTimes.values.filter { $0 > now }.min() ?? .distantFuture
-        return min(now.addingTimeInterval(Self.interval), next)
-    }
-
-    struct UpcomingClose {
-        let at: Date
-        let states: [String]
-        let senate: Int
-        let house: Int
-    }
-
-    /// The next moment polls close for any Senate or House race, with the states and races closing then.
-    func nextClose(after now: Date) -> UpcomingClose? {
-        let future = closeTimes.filter { $0.value > now && races[$0.key] != nil }
-        guard let t = future.values.min() else { return nil }
-        let ids = future.filter { $0.value == t }.map(\.key)
-        let list = ids.compactMap { races[$0] }
-        let states = Set(list.map { $0.stateName ?? $0.state }).sorted()
-        let at = previewClose.map { $0 > now ? $0 : t } ?? t
-        return UpcomingClose(at: at, states: states, senate: list.filter { $0.chamber == "senate" }.count,
-                             house: list.filter { $0.chamber == "house" }.count)
+        now.addingTimeInterval(demo ? 60 : Self.interval)
     }
 
     // MARK: Derived views
@@ -227,19 +204,43 @@ final class ResultsStore {
         return t
     }
 
-    /// Races worth a card: model-competitive ones, anything within 5 points with votes in, and flips.
-    func keyRaces() -> [Race] {
-        races.values.filter { r in
-            if r.isCompetitive { return true }
-            guard let e = results[r.raceId] else { return false }
-            if e.isCalled, let w = e.winnerSide, let held = r.heldBy, r.party(w) != held { return true }
-            if let sh = e.shares, (e.reporting ?? 0) >= 5, abs(sh.margin) < 5 { return true }
-            return false
+    /// Uncalled races, Senate first, then the closest House seats; races with no votes yet go last.
+    func stillCounting() -> [Race] {
+        races.values.filter { !(results[$0.raceId]?.isCalled ?? false) }
+            .sorted { a, b in
+                if a.chamber != b.chamber { return a.chamber == "senate" }
+                let ma = results[a.raceId]?.shares.map { abs($0.margin) } ?? 999
+                let mb = results[b.raceId]?.shares.map { abs($0.margin) } ?? 999
+                return ma < mb
+            }
+    }
+
+    /// Called seats that changed party, Senate first.
+    func flippedRaces() -> [Race] {
+        races.values.filter { isFlip($0.raceId) }
+            .sorted { ($0.chamber == "senate" ? 0 : 1, $0.raceId) < ($1.chamber == "senate" ? 0 : 1, $1.raceId) }
+    }
+
+    struct Score {
+        var n = 0, hits = 0
+        var brier: Double?
+        var upsets: [Race] = []
+    }
+
+    /// How the final forecast did on the Senate and House races called so far (same scoring as the website).
+    func score() -> Score {
+        var sc = Score()
+        var sq = 0.0
+        for r in races.values where r.uncontested != true {
+            guard let p = r.pDem, let e = results[r.raceId], e.isCalled, let w = e.winnerSide, w != .other else { continue }
+            let demWon = w == .dem
+            sc.n += 1
+            sq += (p - (demWon ? 1 : 0)) * (p - (demWon ? 1 : 0))
+            if (p >= 0.5) == demWon { sc.hits += 1 } else { sc.upsets.append(r) }
         }
-        .sorted { a, b in
-            if a.chamber != b.chamber { return a.chamber == "senate" }
-            return abs((a.pDem ?? 0.5) - 0.5) < abs((b.pDem ?? 0.5) - 0.5)
-        }
+        sc.brier = sc.n > 0 ? sq / Double(sc.n) : nil
+        sc.upsets.sort { abs(($0.pDem ?? 0.5) - 0.5) > abs(($1.pDem ?? 0.5) - 0.5) }
+        return sc
     }
 }
 
