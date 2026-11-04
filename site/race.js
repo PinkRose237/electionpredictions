@@ -4,14 +4,18 @@
  * Loads data/races/{id}.json (plus races.json for prev/next navigation) and renders:
  *   header, headline probability bar, candidates, polls (chart + table + other averages),
  *   expert ratings, markets, model breakdown, history sparkline, news, prev/next.
+ * On election night a live-results card leads the page: votes from the saved feed snapshot
+ * (results-auto.json) with the editor's corrections (results.json) on top, and each news outlet's call
+ * (calls.json). It re-checks every minute.
  */
 import {
   SITE_NAME, CHAMBER_SINGULAR, STATE_NAMES, DASH,
   query, loadJSON, raceHref, withData, fmt, isNum, clamp, parseDate, relativeTime,
   probColor, paintProb, h, svgEl, scaleLinear, niceTicks, dateTicks, responsiveChart,
   tipContent, attachTooltip, partyVar, partyClass, partyName, ratingPill,
-  initChrome, renderUpdated, renderFooterMeta, showError,
+  initChrome, renderUpdated, renderFooterMeta, showError, DATA_BASE,
 } from './common.js';
+import { mergeResults, shares, isCalled } from './live.js';
 
 const id = (query.get('id') || '').trim();
 
@@ -39,12 +43,11 @@ async function main() {
     showError(status, new Error('No race selected.'), 'Choose a race from the dashboard.');
     return;
   }
-  let race, all, published;
+  let race, all;
   try {
-    [race, all, published] = await Promise.all([
+    [race, all] = await Promise.all([
       loadJSON(`races/${encodeURIComponent(id)}.json`),
       loadJSON('races.json').catch(() => null),
-      loadJSON('results.json').catch(() => null),
     ]);
   } catch (err) {
     console.error(err);
@@ -61,15 +64,20 @@ async function main() {
   status.hidden = true;
   root.hidden = false;
   const back = race.chamber === 'president' ? 'president.html' : `index.html#${race.chamber || 'house'}`;
+  const live = h('div', { id: 'live-results' });
   root.append(
     h('a', { class: 'back-link', href: withData(back) }, race.chamber === 'president' ? '← Back to 2028 forecast' : '← Back to dashboard'),
     header(race),
     headline(race),
     h('div', { class: 'race-grid' },
-      h('div', { class: 'col' }, resultsSection(race, published), overviewSection(race), candidatesSection(race), pollsSection(race), modelSection(race), newsSection(race)),
+      h('div', { class: 'col' }, live, overviewSection(race), candidatesSection(race), pollsSection(race), modelSection(race), newsSection(race)),
       h('div', { class: 'col' }, ratingsSection(race), marketsSection(race), historySection(race))),
     pager(race, all),
   );
+  if (race.chamber !== 'president') {
+    refreshLive(race, live);
+    setInterval(() => { if (!document.hidden) refreshLive(race, live); }, 60e3);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -373,22 +381,67 @@ function marketsSection(race) {
 // Election results (entered on the admin page, published as data/results.json)
 // ---------------------------------------------------------------------------
 
-function resultsSection(race, published) {
-  const e = published && published.races ? published.races[race.race_id] : null;
-  if (!e) return null;
-  const sec = h('section', { class: 'card results', 'aria-labelledby': 'h-results' }, h('h2', { id: 'h-results' }, 'Election results'));
-  const d = e.votes && e.votes.dem || 0, r = e.votes && e.votes.rep || 0, o = e.votes && e.votes.other || 0, tot = d + r + o;
-  const label = { pending: 'Not started', counting: 'Counting', called: 'Called', runoff: 'Headed to a runoff', recount: 'Recount', final: 'Final' }[e.status] || e.status;
-  const winner = e.winner === 'dem' ? race.dem : e.winner === 'rep' ? race.rep : null;
-  sec.append(h('p', { class: 'card-sub' }, h('b', {}, winner && (e.status === 'called' || e.status === 'final') ? `${label} for ${winner.name}` : label),
-    isNum(e.reporting) ? ` · ${e.reporting}% reporting` : '', e.updated_at ? ` · updated ${relativeTime(e.updated_at)}` : ''));
-  if (tot > 0) {
-    const rows = [[race.dem, d], [race.rep, r]].filter(([c]) => c).map(([c, v]) => h('tr', {}, h('td', {}, c.name, ` (${c.party})`), h('td', { class: 'num' }, v.toLocaleString()), h('td', { class: 'num' }, `${(100 * v / tot).toFixed(1)}%`)));
-    if (o) rows.push(h('tr', {}, h('td', {}, 'Other'), h('td', { class: 'num' }, o.toLocaleString()), h('td', { class: 'num' }, `${(100 * o / tot).toFixed(1)}%`)));
-    sec.append(h('div', { class: 'table-wrap' }, h('table', { class: 'data' }, h('thead', {}, h('tr', {}, h('th', {}, 'Candidate'), h('th', { class: 'num' }, 'Votes'), h('th', { class: 'num' }, 'Share'))), h('tbody', {}, ...rows))));
+/** A data file that changes during the night: bypass the HTTP cache; null when absent. */
+async function fetchFresh(name) {
+  try {
+    const r = await fetch(`${DATA_BASE}/${name}?t=${Date.now()}`, { cache: 'no-store' });
+    return r.ok ? await r.json() : null;
+  } catch (e) { return null; }
+}
+
+async function refreshLive(race, el) {
+  const [auto, manual, calls] = await Promise.all([fetchFresh('results-auto.json'), fetchFresh('results.json'), fetchFresh('calls.json')]);
+  const rid = race.race_id;
+  const pick = (f) => (f && f.races && f.races[rid] ? { [rid]: f.races[rid] } : {});
+  const e = mergeResults(pick(auto), (auto && auto.by) || {}, pick(manual))[rid] || null;
+  el.replaceChildren(...[resultsSection(race, e, calls, auto && auto.updated_at)].filter(Boolean));
+}
+
+const timeOf = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+function resultsSection(race, e, calls, snapAt) {
+  const outletCalls = (calls && calls.races && calls.races[race.race_id]) || {};
+  const sources = (calls && calls.sources) || [];
+  if ((!e || (e.status === 'pending' && !shares(e))) && !Object.keys(outletCalls).length) return null;
+  const sh = shares(e);
+  const sec = h('section', { class: 'card results live-race', 'aria-labelledby': 'h-results' },
+    h('h2', { id: 'h-results' }, 'Live results'));
+  const winner = isCalled(e) ? (e.winner === 'dem' ? race.dem : e.winner === 'rep' ? race.rep : null) : null;
+  const label = { pending: 'No votes counted yet', counting: 'Counting', called: 'Called', runoff: 'Headed to a runoff', recount: 'Recount', final: 'Final' }[e ? e.status : 'pending'];
+  sec.append(h('p', { class: 'card-sub' },
+    h('b', {}, winner ? `${e.status === 'final' ? 'Final' : 'Called'}: ${winner.name} wins` : label),
+    e && isNum(e.reporting) && (sh || e.reporting > 0) ? ` · ${Math.round(e.reporting)}% of expected vote in` : '',
+    snapAt ? ` · updated ${relativeTime(snapAt)}` : ''));
+  if (sh) {
+    for (const side of ['dem', 'rep']) {
+      const c = race[side];
+      if (!c) continue;
+      const won = isCalled(e) && e.winner === side;
+      sec.append(h('div', { class: `rc-cand${won ? ' won' : ''}` },
+        h('span', { class: 'rc-name' }, h('span', { class: `party-dot ${partyClass(c.party)}`, 'aria-hidden': 'true' }), c.name, ` (${c.party})`, won ? ' ✓' : ''),
+        h('span', { class: 'rc-pct num' }, `${sh[side].toFixed(1)}%`),
+        h('span', { class: 'rc-votes num muted' }, (e.votes[side] || 0).toLocaleString()),
+        h('span', { class: 'rc-bar' }, h('span', { class: `rc-fill ${partyClass(c.party)}`, style: { width: `${sh[side]}%` } }))));
+    }
+    const bits = [];
+    if (sh.other >= 0.05) bits.push(`others ${sh.other.toFixed(1)}%`);
+    bits.push(`${sh.total.toLocaleString()} votes counted`);
+    if (isNum(race.margin)) bits.push(`model ${fmt.margin(race.margin)}, now ${fmt.margin(sh.margin)}`);
+    sec.append(h('p', { class: 'muted small', style: { marginTop: '8px' } }, bits.join(' · ')));
   }
-  if (e.note) sec.append(h('p', { class: 'muted small' }, e.note));
-  sec.append(h('p', { class: 'muted small' }, 'Unofficial results entered by the site editor; official results come from the state.'));
+  if (sources.length) {
+    sec.append(h('div', { class: 'outlet-calls' }, ...sources.map((s) => {
+      const c = outletCalls[s.id];
+      if (!c) return h('span', { class: 'outlet-call muted' }, h('b', {}, s.name), ' not called');
+      if (c.status === 'runoff') return h('span', { class: 'outlet-call' }, h('b', {}, s.name), ' runoff');
+      const cand = race[c.winner];
+      return h('span', { class: `outlet-call ${partyClass(cand ? cand.party : 'O')}` }, h('b', {}, s.name), ` ✓ ${cand ? cand.name.split(' ').slice(-1)[0] : 'other'}`,
+        c.at ? h('span', { class: 'muted' }, ` ${timeOf(c.at)}`) : null);
+    })));
+  }
+  if (e && e.note) sec.append(h('p', { class: 'muted small' }, e.note));
+  sec.append(h('p', { class: 'muted small' }, 'Unofficial: votes and calls from the AP and other news organizations; states certify results later. ',
+    h('a', { href: withData('results.html') }, 'All results'), ' · ', h('a', { href: withData('calls.html') }, 'Race calls')));
   return sec;
 }
 

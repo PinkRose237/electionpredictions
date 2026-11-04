@@ -92,6 +92,17 @@ function leanBadge(s) {
   return h('a', { class: `lean ${LEAN_CLASS[s.lean] || 'center'}`, href: s.rating_url || calls.ratings_source, target: '_blank', rel: 'noopener', title: 'AllSides Media Bias Rating' }, s.lean);
 }
 
+/** Races this outlet called before (or at the same moment as) every other outlet that has called them. */
+function firstCount(sid) {
+  let n = 0;
+  for (const [rid, byOutlet] of Object.entries(calls.races || {})) {
+    const mine = byOutlet[sid];
+    if (!mine || mine.status === 'runoff' || !mine.at || Object.keys(byOutlet).length < 2) continue;
+    if (mine.at === firstCallAt(rid)) n += 1;
+  }
+  return n;
+}
+
 function renderSources() {
   const el = document.getElementById('sources');
   el.replaceChildren(...sourceList().map((s) => {
@@ -103,6 +114,7 @@ function renderSources() {
       h('div', { class: 'source-desk' }, s.wire ? `Wire service · ${s.desk}` : s.desk),
       h('div', { class: 'source-count' }, h('b', {}, String(s.calls ?? mine.length)), ' calls',
         mine.length ? [' · ', h('span', { class: 'dem-text' }, `${d} D`), ' / ', h('span', { class: 'rep-text' }, `${r} R`)] : null),
+      firstCount(s.id) ? h('div', { class: 'source-first small' }, `First to call ${firstCount(s.id)} race${firstCount(s.id) === 1 ? '' : 's'}`) : null,
       h('div', { class: 'source-status muted small' }, s.ok ? `Covers ${s.races_seen} races` : `Feed not responding${s.checked_at ? `; last read ${relativeTime(s.checked_at)}` : ''}`),
     );
   }));
@@ -189,12 +201,22 @@ function visibleRaces() {
   });
 }
 
-function callCell(race, call) {
+const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+/** Earliest time any outlet called this race (runoff projections aside), or null. */
+function firstCallAt(rid) {
+  const ats = Object.values(callsFor(rid)).filter((c) => c.status !== 'runoff' && c.at).map((c) => c.at).sort();
+  return ats[0] || null;
+}
+
+function callCell(race, call, first) {
   if (!call) return h('td', { class: 'call-cell muted' }, DASH);
   if (call.status === 'runoff') return h('td', { class: 'call-cell' }, h('span', { class: 'call-chip runoff' }, 'Runoff'));
   const party = sideParty(race, call.winner);
+  const isFirst = first && call.at === first && Object.keys(callsFor(race.race_id)).length > 1;
   return h('td', { class: 'call-cell', title: call.at ? `Called ${new Date(call.at).toLocaleString()}` : '' },
-    h('span', { class: `call-chip ${partyClass(party)}` }, `✓ ${sideName(race, call.winner)} (${party})`));
+    h('span', { class: `call-chip ${partyClass(party)}` }, `✓ ${sideName(race, call.winner)} (${party})`),
+    call.at ? h('div', { class: 'call-time' }, clock(call.at), isFirst ? h('b', { class: 'first-mark' }, ' · first') : null) : null);
 }
 
 function renderTable() {
@@ -216,7 +238,7 @@ function renderTable() {
     return h('tr', { class: a.conflict ? 'conflict' : '' },
       h('td', {}, h('a', { href: raceHref(r.race_id) }, r.short), h('div', { class: 'muted small' }, [r.dem && r.dem.name, r.rep && r.rep.name].filter(Boolean).join(' vs '))),
       h('td', {}, ratingPill(r.label)),
-      ...srcs.map((s) => callCell(r, c[s.id])),
+      ...srcs.map((s) => callCell(r, c[s.id], firstCallAt(r.race_id))),
       h('td', {}, status));
   });
   const anyCalls = Object.keys(calls.races || {}).length > 0;

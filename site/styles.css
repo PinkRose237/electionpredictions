@@ -629,6 +629,48 @@ details[open].more summary::before { content: '▾ '; }
 .mini-bar .d { background: var(--dem); } .mini-bar .r { background: var(--rep); }
 @media (max-width: 640px) { .board-tabs { margin-left: 0; } .sb-big { font-size: 26px; } }
 
+/* Dashboard election-night banner */
+.night-banner { padding: var(--s4) var(--s5); margin-bottom: var(--s5); display: flex; flex-direction: column; gap: 10px; border-left: 4px solid #2e9d57; }
+.nb-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 15px; }
+.nb-head .live-dot { background: #2e9d57; }
+.nb-seats { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 15px; }
+.nb-ch { color: var(--ink-3); margin-right: 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; }
+.nb-links { display: flex; gap: 8px; flex-wrap: wrap; }
+.nb-links .btn { text-decoration: none; }
+
+/* Results page: latest calls + forecast check */
+.results-row { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: var(--s4); margin-bottom: var(--s5); }
+.results-row > [hidden] { display: none; }
+@media (max-width: 900px) { .results-row { grid-template-columns: 1fr; } }
+.latest-card, .check-card { padding: var(--s4) var(--s5); }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 8px; }
+.card-head h2 { margin: 0; font-size: 17px; }
+.latest-list { list-style: none; margin: 0; padding: 0; }
+.latest-list li { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+.latest-list li:first-child { border-top: 0; }
+.lc-time { color: var(--ink-3); min-width: 62px; }
+.lc-race { font-weight: 700; min-width: 64px; }
+.lc-win { font-weight: 600; }
+.lc-win.dem { color: var(--dem); } .lc-win.rep { color: var(--rep); } .lc-win.ind { color: var(--ind); }
+.lc-flip { font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: #fff; background: var(--ind); }
+.lc-flip.dem { background: var(--dem); } .lc-flip.rep { background: var(--rep); }
+.lc-who { font-size: 12px; margin-left: auto; }
+.check-big { font-size: 15px; margin-bottom: 6px; }
+.check-big b { font-size: 22px; }
+.check-line { font-size: 13.5px; color: var(--ink-2); margin: 6px 0; }
+.check-list { margin: 4px 0 8px; padding-left: 18px; font-size: 13.5px; }
+.check-list li { margin-bottom: 5px; }
+.check-list .pill { font-size: 11px; }
+
+/* Race page live results */
+.live-race .rc-cand { margin-top: 10px; font-size: 15px; }
+.live-race .rc-bar { height: 7px; }
+.outlet-calls { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.outlet-call { font-size: 12.5px; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--border); }
+.outlet-call.dem { background: var(--dem-soft); color: var(--dem); border-color: transparent; }
+.outlet-call.rep { background: var(--rep-soft); color: var(--rep); border-color: transparent; }
+.outlet-call.ind { background: var(--ind-soft); color: var(--ind); border-color: transparent; }
+
 /* Race Calls page */
 .source-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--s3); margin-bottom: var(--s4); }
 .source-card { padding: 12px 14px; display: flex; flex-direction: column; gap: 5px; }
@@ -652,6 +694,9 @@ details[open].more summary::before { content: '▾ '; }
 .call-chip.rep { background: var(--rep); color: #fff; }
 .call-chip.ind { background: var(--ind); color: #fff; }
 .call-chip.runoff { background: var(--ind-soft); color: var(--ind); }
+.call-time { font-size: 11px; color: var(--ink-3); margin-top: 2px; }
+.first-mark { color: var(--ink); }
+.source-first { color: var(--ink); font-weight: 600; }
 .calls-table tr.conflict td { background: color-mix(in srgb, var(--ind-soft) 55%, transparent); }
 .agree { font-size: 12.5px; font-weight: 600; }
 .agree.conflict { color: var(--ind); }

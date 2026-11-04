@@ -52,6 +52,7 @@ let summary = null;
 let raceInfo = new Map(); // race_id -> races.json entry (holder party, model margin, candidate parties)
 let manual = null; // data/results.json (overrides entered on the admin page)
 let snapshot = null; // data/results-auto.json (feed snapshot saved by the pipeline)
+let calls = null; // data/calls.json (each news outlet's calls, with times)
 let feed = null; // last successful in-browser pull: { races, by, sources, fetched_at }
 let feedError = null;
 let results = { races: {} }; // merged view used everywhere below
@@ -68,6 +69,7 @@ async function main() {
     [schedule, races, summary, manual, snapshot] = await Promise.all([
       loadJSON('schedule.json'), loadJSON('races.json').catch(() => []), loadJSON('summary.json').catch(() => null),
       fetchFresh('results.json'), fetchFresh('results-auto.json')]);
+    calls = await fetchFresh('calls.json');
   } catch (err) {
     console.error(err);
     showError(status, err, 'The schedule is written by the pipeline’s export step (data/schedule.json).');
@@ -80,6 +82,8 @@ async function main() {
   root.hidden = false;
   renderLiveBar();
   renderScoreboard();
+  renderLatest();
+  renderCheck();
   renderBoard();
   renderHero();
   renderTimeline();
@@ -106,16 +110,20 @@ async function pull() {
   nextPull = Infinity;
   renderLiveBar();
   const scheduleRaces = schedule.groups.flatMap((g) => g.races);
-  const [live, man] = await Promise.all([
+  const [live, man, cl] = await Promise.all([
     fetchLive(scheduleRaces).catch((e) => ({ races: {}, by: {}, sources: [], errors: [e.message] })),
     fetchFresh('results.json'),
+    fetchFresh('calls.json'),
   ]);
   if (man) manual = man;
+  if (cl) calls = cl;
   if (Object.keys(live.races).length) { feed = live; feedError = null; } else { feedError = live.errors.join('; ') || 'no data'; }
   remerge();
   nextPull = Date.now() + REFRESH_MS;
   renderLiveBar();
   renderScoreboard();
+  renderLatest();
+  renderCheck();
   renderBoard();
   renderBlocks();
 }
@@ -209,6 +217,98 @@ function renderScoreboard() {
           t.flips.length > 8 ? ` and ${t.flips.length - 8} more` : '') : null),
     );
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Latest calls (from the news outlets' calls, with the time each was first made)
+// ---------------------------------------------------------------------------
+const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+function latestCalls() {
+  if (!calls || !calls.races) return [];
+  const names = Object.fromEntries((calls.sources || []).map((s) => [s.id, s.name]));
+  const out = [];
+  for (const [rid, byOutlet] of Object.entries(calls.races)) {
+    const race = raceInfo.get(rid);
+    if (!race) continue;
+    const made = Object.entries(byOutlet).filter(([, c]) => c.status !== 'runoff' && c.at);
+    if (!made.length) continue;
+    made.sort((a, b) => a[1].at.localeCompare(b[1].at));
+    const first = made[0][1];
+    const firsts = made.filter(([, c]) => c.at === first.at).map(([sid]) => names[sid] || sid);
+    out.push({ race, at: first.at, winner: first.winner, firsts, n: made.length, total: (calls.sources || []).length,
+      split: new Set(made.map(([, c]) => c.winner)).size > 1 });
+  }
+  return out.sort((a, b) => b.at.localeCompare(a.at));
+}
+
+function renderLatest() {
+  const el = document.getElementById('latest');
+  if (!el) return;
+  const list = latestCalls();
+  if (!list.length) { el.hidden = true; return; }
+  el.hidden = false;
+  el.replaceChildren(
+    h('div', { class: 'card-head' }, h('h2', { id: 'h-latest' }, 'Latest calls'),
+      h('a', { class: 'small', href: 'calls.html' }, 'Compare outlets →')),
+    h('ol', { class: 'latest-list' }, ...list.slice(0, 10).map((c) => {
+      const cand = c.race[c.winner];
+      const party = cand ? cand.party : 'O';
+      const held = c.race.holder_party || c.race.incumbent_party;
+      return h('li', {},
+        h('span', { class: 'lc-time num' }, clock(c.at)),
+        h('a', { class: 'lc-race', href: raceHref(c.race.race_id) }, c.race.short),
+        h('span', { class: `lc-win ${partyClass(party)}` }, cand ? `${cand.name} (${party})` : 'Another candidate'),
+        held && party !== held ? h('span', { class: `lc-flip ${partyClass(party)}` }, `Flip ${held}→${party}`) : null,
+        h('span', { class: 'lc-who muted' }, c.split ? 'outlets disagree' : `first: ${c.firsts.join(', ')} · ${c.n} of ${c.total}`));
+    })),
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Forecast check: how the model's favorites are doing
+// ---------------------------------------------------------------------------
+function renderCheck() {
+  const el = document.getElementById('check');
+  if (!el) return;
+  const called = [], against = [], swings = [];
+  for (const [rid, e] of Object.entries(results.races)) {
+    const race = raceInfo.get(rid);
+    if (!race || !isNum(race.p_dem) || race.uncontested) continue;
+    const fav = race.p_dem >= 0.5 ? 'dem' : 'rep';
+    const conf = Math.max(race.p_dem, 1 - race.p_dem);
+    const sh = shares(e);
+    if (isCalled(e) && (e.winner === 'dem' || e.winner === 'rep')) called.push({ race, hit: e.winner === fav, conf, winner: e.winner });
+    else if (sh && isNum(e.reporting) && e.reporting >= 50 && sh.margin !== 0 && (sh.margin > 0 ? 'dem' : 'rep') !== fav) against.push({ race, conf, e, sh });
+    if (sh && isNum(e.reporting) && e.reporting >= 50 && isNum(race.margin)) swings.push(sh.margin - race.margin);
+  }
+  if (!called.length && !against.length) { el.hidden = true; return; }
+  el.hidden = false;
+  const hits = called.filter((c) => c.hit).length;
+  const upsets = called.filter((c) => !c.hit).sort((a, b) => b.conf - a.conf);
+  against.sort((a, b) => b.conf - a.conf);
+  swings.sort((a, b) => a - b);
+  const median = swings.length ? swings[Math.floor(swings.length / 2)] : null;
+  const name = (race, side) => (race[side] ? race[side].name.split(' ').slice(-1)[0] : side === 'dem' ? 'Dem.' : 'Rep.');
+  el.replaceChildren(
+    h('div', { class: 'card-head' }, h('h2', { id: 'h-check' }, 'Forecast check')),
+    h('div', { class: 'check-big' }, h('b', {}, `${hits} of ${called.length}`), ' called races went to the model’s favorite',
+      called.length ? h('span', { class: 'muted' }, ` (${Math.round((100 * hits) / called.length)}%)`) : null),
+    median !== null && swings.length >= 5 ? h('p', { class: 'check-line' },
+      `In the ${swings.length} races with at least half the expected vote in, the typical result is running `,
+      h('b', { class: median > 0 ? 'dem-text' : 'rep-text' }, `${Math.abs(median).toFixed(1)} points ${median > 0 ? 'more Democratic' : 'more Republican'}`),
+      ' than the model’s margin.') : null,
+    h('h3', { class: 'sub-h' }, 'Upsets so far'),
+    upsets.length ? h('ul', { class: 'check-list' }, ...upsets.slice(0, 6).map((u) => h('li', {},
+      h('a', { href: raceHref(u.race.race_id) }, u.race.short), ' ', ratingPill(u.race.label), ` won by ${name(u.race, u.winner)}; model had the other side at ${Math.round(u.conf * 100)}%`)))
+      : h('p', { class: 'muted small' }, 'None: every called race has gone to the favorite.'),
+    h('h3', { class: 'sub-h' }, 'Leading against the model'),
+    against.length ? h('ul', { class: 'check-list' }, ...against.slice(0, 6).map((a) => h('li', {},
+      h('a', { href: raceHref(a.race.race_id) }, a.race.short), ' ', ratingPill(a.race.label),
+      ` ${name(a.race, a.sh.margin > 0 ? 'dem' : 'rep')} up ${Math.abs(a.sh.margin).toFixed(1)} with ${Math.round(a.e.reporting)}% in`)))
+      : h('p', { class: 'muted small' }, 'No uncalled race with half the vote in has the model’s underdog ahead.'),
+    h('p', { class: 'muted small' }, 'Early counts can lean one way depending on which ballots a state counts first (mail, early in-person or election-day votes), so margins move as the count goes on.'),
+  );
 }
 
 // ---------------------------------------------------------------------------

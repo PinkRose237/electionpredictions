@@ -3,8 +3,8 @@
   "configurations": [
     {
       "name": "site",
-      "runtimeExecutable": "python3",
-      "runtimeArgs": ["-m", "http.server", "8000", "--directory", "/Users/jamesgriffis/electionpredictions/site"],
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "electionpredictions", "serve", "--port", "8000"],
       "port": 8000
     }
   ]
