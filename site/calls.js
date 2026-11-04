@@ -194,11 +194,17 @@ function visibleRaces() {
     }
     return true;
   }).sort((a, b) => {
-    const A = agreement(a.race_id), B = agreement(b.race_id);
-    // Disagreements first, then races some outlets have called and others haven't, then the rest.
-    const rank = (x) => (x.conflict ? 0 : x.partial ? 1 : x.n ? 2 : 3);
-    return rank(A) - rank(B) || CH_ORDER[a.chamber] - CH_ORDER[b.chamber] || a.race_id.localeCompare(b.race_id);
+    // Most recent call first (any outlet's latest call on the race); races nobody has called go last.
+    const A = lastCallAt(a.race_id), B = lastCallAt(b.race_id);
+    if (A !== B) return !A ? 1 : !B ? -1 : B.localeCompare(A);
+    return CH_ORDER[a.chamber] - CH_ORDER[b.chamber] || a.race_id.localeCompare(b.race_id);
   });
+}
+
+/** Latest time any outlet called (or sent to a runoff) this race, or null. */
+function lastCallAt(rid) {
+  const ats = Object.values(callsFor(rid)).map((c) => c.at).filter(Boolean).sort();
+  return ats.length ? ats[ats.length - 1] : null;
 }
 
 const clock = (iso) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });

@@ -99,8 +99,8 @@ district or candidate. Geometry is `site/geo/us-maps.json`, the same file the Ap
 **Race Calls page.** `site/calls.html` lines up the calls for every race from five news organizations:
 CNN and NBC News (AllSides: Lean Left; each runs its own decision desk), Bloomberg (Center; publishes the
 AP's calls), Fox News (Right; its own decision desk), and the AP itself as a wire column (Lean Left), read
-from each outlet's own results feed. Disagreements and races only some outlets have called sort to the
-top, with a seats-called tally per outlet. The same `results` command and workflow collect them into
+from each outlet's own results feed. The most recent calls are listed first, with disagreements
+highlighted and a seats-called tally per outlet. The same `results` command and workflow collect them into
 `site/data/calls.json`. Reuters, NewsNation, the Wall Street Journal and Decision Desk HQ block automated
 access, so they aren't included.
 
