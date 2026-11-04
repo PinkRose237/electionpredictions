@@ -66,6 +66,7 @@ struct DashboardView: View {
                     }
                     .animation(.spring(response: 0.8, dampingFraction: 0.86), value: show)
                 }
+                CallAlertView()
             }
         }
         .ignoresSafeArea()
@@ -134,6 +135,89 @@ struct PollClosePanel: View {
         .background(Theme.panel)
         .overlay(alignment: .leading) { Rectangle().fill(accent).frame(width: 6) }
         .animation(.easeInOut(duration: 0.4), value: urgent)
+    }
+}
+
+// MARK: - Called-race alert
+
+/// Slides down from the top when races are called: one card per notable race, or a summary card.
+struct CallAlertView: View {
+    @Environment(ResultsStore.self) private var store
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            if let a = store.alert {
+                Group {
+                    if a.raceIds.count == 1, let race = store.races[a.raceIds[0]] { single(race) } else { batch(a.raceIds) }
+                }
+                .padding(.top, 22)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .id(a.id)
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .animation(.spring(response: 0.6, dampingFraction: 0.84), value: store.alert?.id)
+        .allowsHitTesting(false)
+    }
+
+    private func single(_ race: Race) -> some View {
+        let e = store.results[race.raceId]
+        let side = e?.winnerSide ?? .other
+        let party = race.party(side)
+        let color = Theme.party(party)
+        let name = race.candidate(side)?.name ?? "Another candidate"
+        let flip = store.isFlip(race.raceId)
+        var detail: [String] = []
+        if let sh = e?.shares { detail.append(String(format: "%.1f%% – %.1f%%", max(sh.dem, sh.rep), min(sh.dem, sh.rep))) }
+        if let r = e?.reporting, r > 0 { detail.append("\(Int(r.rounded()))% in") }
+        if let l = race.label { detail.append("Rated \(l)") }
+        return VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 14) {
+                    Text("RACE CALL").font(.system(size: 20, weight: .heavy)).tracking(2).foregroundStyle(Theme.ink3)
+                    if flip, let held = race.heldBy {
+                        Text("FLIP \(held) → \(party)").font(.system(size: 18, weight: .heavy)).tracking(1)
+                            .padding(.horizontal, 10).padding(.vertical, 3).background(Theme.ind, in: Capsule()).foregroundStyle(.black)
+                    }
+                }
+                Text(displayName(race)).font(.system(size: 30, weight: .semibold)).foregroundStyle(Theme.ink2)
+                Text("\(name) (\(party)) wins").font(.system(size: 46, weight: .bold)).foregroundStyle(color).lineLimit(1)
+                if !detail.isEmpty { Text(detail.joined(separator: " · ")).font(.system(size: 22).monospacedDigit()).foregroundStyle(Theme.ink3) }
+        }
+        .padding(.leading, 46).padding(.trailing, 40).padding(.vertical, 22)
+        .frame(minWidth: 760, alignment: .leading)
+        .background(Theme.panel)
+        .overlay(alignment: .leading) { Rectangle().fill(color).frame(width: 12) }
+        .clipShape(RoundedRectangle(cornerRadius: 22))
+        .fixedSize()
+        .overlay(RoundedRectangle(cornerRadius: 22).stroke(flip ? Theme.ind : color, lineWidth: 3))
+        .shadow(color: .black.opacity(0.6), radius: 28, y: 12)
+    }
+
+    private func batch(_ ids: [String]) -> some View {
+        let list = ids.compactMap { store.races[$0] }
+        let d = list.filter { store.results[$0.raceId]?.winnerSide == .dem }.count
+        let r = list.filter { store.results[$0.raceId]?.winnerSide == .rep }.count
+        let shown = list.prefix(12)
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 18) {
+                Text("\(list.count) RACES CALLED").font(.system(size: 22, weight: .heavy)).tracking(2).foregroundStyle(Theme.ink2)
+                Text("D \(d)").font(.system(size: 26, weight: .bold)).foregroundStyle(Theme.dem)
+                Text("R \(r)").font(.system(size: 26, weight: .bold)).foregroundStyle(Theme.rep)
+            }
+            HStack(spacing: 10) {
+                ForEach(shown, id: \.raceId) { race in
+                    let side = store.results[race.raceId]?.winnerSide ?? .other
+                    Text(race.short).font(.system(size: 20, weight: .bold)).lineLimit(1).fixedSize().padding(.horizontal, 10).padding(.vertical, 5)
+                        .background(Theme.party(race.party(side)), in: RoundedRectangle(cornerRadius: 6)).foregroundStyle(.white)
+                }
+                if list.count > shown.count { Text("+\(list.count - shown.count) more").font(.system(size: 20)).foregroundStyle(Theme.ink3) }
+            }
+        }
+        .padding(.horizontal, 34).padding(.vertical, 22)
+        .background(Theme.panel, in: RoundedRectangle(cornerRadius: 22))
+        .overlay(RoundedRectangle(cornerRadius: 22).stroke(Theme.line, lineWidth: 2))
+        .fixedSize()
+        .shadow(color: .black.opacity(0.6), radius: 28, y: 12)
     }
 }
 
@@ -213,6 +297,14 @@ struct ChamberPanel: View {
         let flips = t.flips.prefix(6).map { "\($0.race.short) \($0.from)→\($0.to)" }.joined(separator: ", ")
         return VStack(alignment: .leading, spacing: 4) {
             Text(parts.joined(separator: " · ")).font(.system(size: 20)).foregroundStyle(Theme.ink3)
+            if t.controller == nil && t.called > 0 {
+                (Text("To win: ").foregroundStyle(Theme.ink3)
+                 + Text("D need \(t.dNeed)").foregroundStyle(Theme.dem).bold()
+                 + Text(" · ").foregroundStyle(Theme.ink3)
+                 + Text("R need \(t.rNeed)").foregroundStyle(Theme.rep).bold()
+                 + Text(" of \(t.uncalled) uncalled").foregroundStyle(Theme.ink3))
+                    .font(.system(size: 20)).lineLimit(1)
+            }
             if !t.flips.isEmpty {
                 Text("\(t.flips.count) flip\(t.flips.count == 1 ? "" : "s"): \(flips)\(t.flips.count > 6 ? " +\(t.flips.count - 6) more" : "")")
                     .font(.system(size: 20, weight: .medium)).foregroundStyle(Theme.ink2).lineLimit(1)
@@ -299,6 +391,10 @@ struct SenateMap: View {
                 ctx.fill(p, with: .color(fills[st] ?? Theme.noRace))
                 ctx.stroke(p, with: .color(Theme.panel), lineWidth: 1.2)
             }
+            // Flipped seats get a gold outline, drawn last so neighbours don't cover it.
+            for (st, race) in byState where store.isFlip(race.raceId) {
+                if let path = map.statePaths[st] { ctx.stroke(path.applying(xf), with: .color(Theme.ind), lineWidth: 4) }
+            }
             for (st, c) in map.centers where byState[st] != nil && !Self.callouts.contains(st) {
                 let nudge = Self.nudges[st] ?? .zero
                 let pt = CGPoint(x: ox + c[0] * s + nudge.x, y: oy + c[1] * s + nudge.y)
@@ -346,6 +442,10 @@ struct HouseMap: View {
                 if t.edges.contains("b") { e.move(to: CGPoint(x: r.minX, y: r.maxY)); e.addLine(to: CGPoint(x: r.maxX, y: r.maxY)) }
                 if t.edges.contains("l") { e.move(to: CGPoint(x: r.minX, y: r.minY)); e.addLine(to: CGPoint(x: r.minX, y: r.maxY)) }
                 ctx.stroke(e, with: .color(Theme.ink.opacity(0.85)), lineWidth: 2)
+            }
+            for t in h.tiles where store.isFlip(t.id) {
+                let r = CGRect(x: ox + Double(t.x) * side, y: oy + Double(t.y) * side, width: side, height: side)
+                ctx.stroke(Path(roundedRect: r.insetBy(dx: 2.5, dy: 2.5), cornerRadius: side * 0.12), with: .color(Theme.ind), lineWidth: 3)
             }
             for (st, c) in h.labels {
                 let pt = CGPoint(x: ox + c[0] * side, y: oy + c[1] * side)
@@ -395,6 +495,10 @@ struct Legend: View {
             item(Theme.dem, "Won D"); item(Theme.lean(Theme.dem), "Leading D")
             item(Theme.lean(Theme.rep), "Leading R"); item(Theme.rep, "Won R")
             item(Theme.awaiting, "Polls closed"); item(Theme.pollsOpen, "Polls open")
+            HStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 3).stroke(Theme.ind, lineWidth: 3).frame(width: 16, height: 16)
+                Text("Flip").font(.system(size: 18)).foregroundStyle(Theme.ink3)
+            }
         }
     }
     private func item(_ c: Color, _ s: String) -> some View {
@@ -481,6 +585,15 @@ struct RaceCard: View {
         if let sh { parts.append("Now \(fmtMargin(sh.margin))") }
         return parts.isEmpty ? " " : parts.joined(separator: " · ")
     }
+}
+
+/// "Georgia Senate" as the data has it; House seats spelled out ("Florida 14th District", "Alaska At-Large").
+func displayName(_ race: Race) -> String {
+    guard race.chamber == "house", let d = race.district else { return race.name }
+    let state = race.stateName ?? race.state
+    if d == 0 { return "\(state) At-Large" }
+    let suffix = (11...13).contains(d % 100) ? "th" : ["th", "st", "nd", "rd"][min(d % 10, 4) < 4 ? d % 10 : 0]
+    return "\(state) \(d)\(suffix) District"
 }
 
 func fmtMargin(_ m: Double) -> String {

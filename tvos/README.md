@@ -15,6 +15,10 @@ A full-screen, always-on results board for the 2026 Senate and House races (no g
   the right (the board narrows to make room) with a countdown, the closing time, and the states and races
   closing. It slides back out the moment they close, and the board refreshes right then. Launch with
   `-previewPollClose` to see it now.
+- **Race-call alerts**: when races are called, a card slides down from the top: one per Senate race,
+  competitive House race or flip (up to four per refresh), and a summary card for the rest.
+- **Flips** are outlined in gold on both maps, and each scoreboard shows what each party still needs
+  ("D need 13 · R need 19 of 30 uncalled").
 - Keeps the screen awake (the Apple TV won't dim or start its screen saver while the app is open).
 
 The data is the same as the website's (`site/live.js`): live votes and race calls from the AP via The New

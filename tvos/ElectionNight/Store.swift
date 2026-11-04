@@ -72,6 +72,7 @@ final class ResultsStore {
         if !base.isEmpty || results.isEmpty {
             results = mergeResults(feed: base, manual: manual?.races ?? [:])
             lastUpdate = Date()
+            noteNewCalls()
         }
         nextUpdate = nextRefresh(after: Date())
         loading = false
@@ -135,6 +136,66 @@ final class ResultsStore {
         var total = 0, needed = 0, model: Double?
         var flips: [(race: Race, from: String, to: String)] = []
         var controller: Side? { dWon >= needed ? .dem : rWon >= needed ? .rep : nil }
+        var uncalled: Int { up - called }
+        var dNeed: Int { max(0, needed - dWon) }
+        var rNeed: Int { max(0, needed - rWon) }
+    }
+
+    func isFlip(_ id: String) -> Bool {
+        guard let e = results[id], e.isCalled, let w = e.winnerSide, let r = races[id], let held = r.heldBy else { return false }
+        return r.party(w) != held
+    }
+
+    // MARK: Called-race alerts
+
+    /// One alert card: a single race, or several called at once.
+    struct CallAlert: Identifiable, Equatable {
+        let id = UUID()
+        let raceIds: [String]
+    }
+
+    private(set) var alert: CallAlert?
+    private var alertQueue: [CallAlert] = []
+    private var knownCalled: Set<String>?
+    private var alertTask: Task<Void, Never>?
+
+    /// Queue alerts for races called since the last refresh: Senate races, competitive House races and
+    /// flips get a card each (up to four per refresh); the rest share one summary card.
+    private func noteNewCalls() {
+        let now = Set(results.compactMap { id, e in e.isCalled && races[id] != nil ? id : nil })
+        defer { knownCalled = now }
+        guard let before = knownCalled else { return }  // first load: what's already called is old news
+        let fresh = now.subtracting(before)
+        guard !fresh.isEmpty else { return }
+        let rank: (String) -> Int = { id in
+            guard let r = self.races[id] else { return 9 }
+            return self.isFlip(id) ? 0 : r.chamber == "senate" ? 1 : r.isCompetitive ? 2 : 3
+        }
+        let ordered = fresh.sorted { (rank($0), $0) < (rank($1), $1) }
+        let headline = ordered.filter { rank($0) < 3 }.prefix(4)
+        for id in headline { alertQueue.append(CallAlert(raceIds: [id])) }
+        let rest = ordered.filter { !headline.contains($0) }
+        if !rest.isEmpty { alertQueue.append(CallAlert(raceIds: rest)) }
+        if alertQueue.count > 6 {  // fell behind: fold the backlog into one summary
+            let ids = alertQueue.flatMap(\.raceIds)
+            alertQueue = [CallAlert(raceIds: ids)]
+        }
+        runAlerts()
+    }
+
+    private func runAlerts() {
+        guard alertTask == nil else { return }
+        alertTask = Task { @MainActor [weak self] in
+            while true {
+                guard let self, !self.alertQueue.isEmpty else { break }
+                let next = self.alertQueue.removeFirst()
+                self.alert = next
+                try? await Task.sleep(for: .seconds(next.raceIds.count > 1 ? 9 : 7))
+                self.alert = nil
+                try? await Task.sleep(for: .milliseconds(900))
+            }
+            self?.alertTask = nil
+        }
     }
 
     func tally(_ chamber: String) -> Tally {
