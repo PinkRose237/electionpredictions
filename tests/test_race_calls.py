@@ -14,16 +14,6 @@ def collector():
     return rc.Collector(BY_ID, lr.make_resolver(BY_ID))
 
 
-def test_fox_senate_call_lands_on_independent_side(monkeypatch):
-    senate = [{"stateCode": "NE", "raceType": "General", "isRunoff": False, "results": [
-        {"candidate": {"firstName": "Pete", "lastName": "Ricketts"}, "partyCode": "R", "isWinner": False, "votes": {"count": 10}},
-        {"candidate": {"firstName": "Dan", "lastName": "Osborn"}, "partyCode": "I", "isWinner": True, "votes": {"count": 12}}]}]
-    monkeypatch.setattr(rc, "_get", lambda url, text=False: senate if "Senate" in url else ([] if "Governor" in url else {"races": []}))
-    col, errors = collector(), []
-    rc.fetch_fox(col, errors)
-    assert col.calls == {"NE-SEN": {"winner": "dem", "status": "called", "at": None}}
-
-
 def test_nbc_house_key_and_duplicate_special(monkeypatch):
     def tip(names, winner):
         return {"tooltip": {"candidates": [{"firstName": f, "lastName": l, "party": p, "isWinner": l == winner, "votes": 1}
@@ -60,14 +50,14 @@ def test_bbg_race_keys():
 
 
 def test_call_times_carry_over_and_reset_when_the_call_changes():
-    old = {"races": {"GA-SEN": {"fox": {"winner": "dem", "status": "called", "at": "2026-11-04T00:10:00+00:00"},
+    old = {"races": {"GA-SEN": {"cnn2": {"winner": "dem", "status": "called", "at": "2026-11-04T00:10:00+00:00"},
                                 "cnn": {"winner": "rep", "status": "called", "at": "2026-11-04T00:12:00+00:00"}}}}
     payload = {"updated_at": "2026-11-04T01:00:00+00:00", "races": {"GA-SEN": {
-        "fox": {"winner": "dem", "status": "called", "at": None},            # unchanged -> keeps its first-seen time
+        "cnn2": {"winner": "dem", "status": "called", "at": None},            # unchanged -> keeps its first-seen time
         "cnn": {"winner": "dem", "status": "called", "at": None},            # changed its call -> new time
         "nbc": {"winner": "dem", "status": "called", "at": None},            # new call -> now
         "bloomberg": {"winner": "dem", "status": "called", "at": "2026-11-04T00:05:00+00:00"}}}}  # outlet's own time
     rc.stamp_call_times(payload, old)
     got = {k: v["at"] for k, v in payload["races"]["GA-SEN"].items()}
-    assert got == {"fox": "2026-11-04T00:10:00+00:00", "cnn": "2026-11-04T01:00:00+00:00",
+    assert got == {"cnn2": "2026-11-04T00:10:00+00:00", "cnn": "2026-11-04T01:00:00+00:00",
                    "nbc": "2026-11-04T01:00:00+00:00", "bloomberg": "2026-11-04T00:05:00+00:00"}

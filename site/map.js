@@ -415,7 +415,7 @@ function renderDetail() {
       isFlip(race) ? h('span', { class: 'md-flip' }, `Flip ${held(race)}→${party}`) : null);
   } else if (e && e.status === 'runoff') statusLine = h('div', { class: 'md-status' }, 'Headed to a runoff');
   else if (!pollsClosed(id)) statusLine = h('div', { class: 'md-status muted' }, `Polls close at ${clock(closeAt.get(id))}`);
-  else if (e && e.awaiting) statusLine = h('div', { class: 'md-status muted' }, `Called by ${e.awaiting} of ${e.awaitingOf} outlets · awaiting confirmation (3 needed)`);
+  else if (e && e.awaiting) statusLine = h('div', { class: 'md-status muted' }, `Called by ${e.awaiting} of ${e.awaitingOf} outlets · awaiting confirmation (2 needed)`);
   else statusLine = h('div', { class: 'md-status muted' }, sh ? 'Counting' : 'Polls closed · awaiting votes');
   parts.push(h('div', { class: 'md-head' }, h('h2', {}, displayName(race)), ratingPill(race.label)), statusLine);
 

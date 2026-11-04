@@ -96,15 +96,16 @@ polls closed, polls open, flips outlined) or by the forecast. Hover, focus or ta
 the vote, share counted, model vs actual margin and every outlet's call; search finds a race by state,
 district or candidate. Geometry is `site/geo/us-maps.json`, the same file the Apple TV app uses.
 
-**Race Calls page.** `site/calls.html` lines up the calls for every race from five news organizations:
+**Race Calls page.** `site/calls.html` lines up the calls for every race from four news organizations:
 CNN and NBC News (AllSides: Lean Left; each runs its own decision desk), Bloomberg (Center; publishes the
-AP's calls), Fox News (Right; its own decision desk), and the AP itself as a wire column (Lean Left), read
-from each outlet's own results feed. The most recent calls are listed first, with disagreements
-highlighted and a seats-called tally per outlet. A race is **Confirmed** once 3 of the 5 outlets have
-called it for the same candidate. The whole site (Results page, Map, race pages, dashboard) and the
-Apple TV app count a race as called only once it's confirmed; before that it shows as awaiting confirmation. The same `results` command and workflow collect them into
-`site/data/calls.json`. Reuters, NewsNation, the Wall Street Journal and Decision Desk HQ block automated
-access, so they aren't included.
+AP's calls), and the AP itself as a wire column (Lean Left), read from each outlet's own results feed
+(Fox News was dropped on election night). The most recent calls are listed first, with disagreements
+highlighted and a seats-called tally per outlet. A race is **Confirmed** once 2 of the 4 outlets have
+called it for the same candidate and no other candidate has as many (a 2–2 split stays unconfirmed). The
+whole site (Results page, Map, race pages, dashboard) and the Apple TV app count a race as called only
+once it's confirmed; before that it shows as awaiting confirmation. The same `results` command and
+workflow collect them into `site/data/calls.json`. Reuters, NewsNation, the Wall Street Journal and
+Decision Desk HQ block automated access, so they aren't included.
 
 **Corrections (admin page).** `site/admin.html` is a password-gated results desk for every race,
 grouped by state with each state's official results link and a poll-closing countdown. The feed's
@@ -219,7 +220,7 @@ src/electionpredictions/
     forecast.py        combination, Monte Carlo simulation, chamber math
   schedule.py          poll-closing times per race + expected AP call windows (Election Results page)
   sources/live_results.py  election-night results feed snapshot (results-auto.json; mirrors site/live.js)
-  sources/race_calls.py    race calls from CNN, NBC, Bloomberg, Fox News and the AP (calls.json)
+  sources/race_calls.py    race calls from CNN, NBC, Bloomberg and the AP (calls.json)
   export.py            site/data JSON (schema in docs/DATA_CONTRACT.md)
   cli.py               command-line interface
 site/                  the website (index.html, results.html, admin.html, race.html, methodology.html, *.js, styles.css, data/)

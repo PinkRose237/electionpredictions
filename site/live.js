@@ -254,27 +254,32 @@ export function shares(e) {
 export const isCalled = (e) => !!e && (e.status === 'called' || e.status === 'final') && !!e.winner;
 
 // ---------------------------------------------------------------------------
-// Confirmation: a race counts as called once 3 of the 5 news outlets agree (calls.json)
+// Confirmation: a race counts as called once 2 of the 4 news outlets agree (calls.json)
 // ---------------------------------------------------------------------------
-export const CONFIRM_AT = 3;
+export const CONFIRM_AT = 2;
 
-/** The candidate side at least CONFIRM_AT outlets have called a race for, and how many: { winner, n, of } or null. */
-export function confirmation(byOutlet, of = 5) {
+/**
+ * The side at least CONFIRM_AT outlets have called a race for, and how many: { winner, n, of } or null.
+ * It must also lead every other side, so a 2–2 split between outlets stays unconfirmed.
+ */
+export function confirmation(byOutlet, of = 4) {
   const votes = {};
   for (const c of Object.values(byOutlet || {})) if (c && c.status !== 'runoff' && c.winner) votes[c.winner] = (votes[c.winner] || 0) + 1;
-  const [winner, n] = Object.entries(votes).sort((a, b) => b[1] - a[1])[0] || [null, 0];
-  return n >= CONFIRM_AT ? { winner, n, of } : null;
+  const ranked = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+  const [winner, n] = ranked[0] || [null, 0];
+  const next = ranked[1] ? ranked[1][1] : 0;
+  return n >= CONFIRM_AT && n > next ? { winner, n, of } : null;
 }
 
 /**
- * Apply the 3-of-5 rule to feed entries: a race is called (for the confirmed side) only once enough
+ * Apply the 2-of-4 rule to feed entries: a race is called (for the confirmed side) only once enough
  * outlets agree; a race the feed calls before that goes back to counting, marked `awaiting` with how
  * many outlets have called it. Without calls.json the feed's own calls stand. Manual overrides are laid
  * on afterwards by mergeResults, so the editor can still call a race by hand.
  */
 export function applyConsensus(feed, calls) {
   if (!calls || !calls.races) return feed;
-  const of = (calls.sources || []).length || 5;
+  const of = (calls.sources || []).length || 4;
   const out = {};
   const ids = new Set([...Object.keys(feed || {}), ...Object.keys(calls.races)]);
   for (const id of ids) {

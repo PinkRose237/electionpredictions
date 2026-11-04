@@ -17,7 +17,7 @@ A full-screen, always-on results board for the 2026 Senate and House races (no g
   `-previewPollClose` to see it now.
 - **Race-call alerts**: when races are called, a card slides down from the top: one per Senate race,
   competitive House race or flip (up to four per refresh), and a summary card for the rest.
-- A race counts as **called** once 3 of the 5 news outlets agree (the site's `calls.json`, same rule as the
+- A race counts as **called** once 2 of the 4 news outlets agree (a 2–2 split stays unconfirmed) (the site's `calls.json`, same rule as the
   website); until then its card shows how many have called it.
 - **Flips** are outlined in gold on both maps, and each scoreboard shows what each party still needs
   ("D need 13 · R need 19 of 30 uncalled").

@@ -71,7 +71,7 @@ final class ResultsStore {
             problem = "Live feed unreachable (\(live.errors.first ?? "no data")); retrying"
         }
         if !base.isEmpty || results.isEmpty {
-            // Calls count once 3 of the 5 news outlets agree (calls.json); demo data keeps its own calls.
+            // Calls count once 2 of the 4 news outlets agree (calls.json); demo data keeps its own calls.
             let confirmedBase = demo ? base : applyConsensus(base, calls: outletCalls)
             results = mergeResults(feed: confirmedBase, manual: manual?.races ?? [:])
             lastUpdate = Date()

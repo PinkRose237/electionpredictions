@@ -120,7 +120,7 @@ async function renderNightBanner() {
   el.hidden = false;
   el.replaceChildren(
     h('div', { class: 'nb-head' }, h('span', { class: 'live-dot' }), h('b', {}, 'Results are coming in'),
-      h('span', { class: 'muted' }, ` · ${called} of ${S.races.length} races called (confirmed by 3 of 5 news outlets) · updated ${relativeTime(auto.updated_at)}`)),
+      h('span', { class: 'muted' }, ` · ${called} of ${S.races.length} races called (confirmed by 2 of 4 news outlets) · updated ${relativeTime(auto.updated_at)}`)),
     h('div', { class: 'nb-seats' }, seat('senate', 'Senate'), seat('house', 'House'), seat('governor', 'Governors')),
     h('div', { class: 'nb-links' }, h('a', { class: 'btn primary', href: withData('results.html') }, 'Live results'),
       h('a', { class: 'btn', href: withData('map.html') }, 'Map'),

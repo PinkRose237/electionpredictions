@@ -78,6 +78,7 @@ struct ResultEntry: Codable, Sendable {
     /// Set by applyConsensus: how many news outlets confirmed the call, or have called it so far.
     var confirmed: Int?
     var awaiting: Int?
+    var outlets: Int?
 
     var winnerSide: Side? { winner.flatMap(Side.init(rawValue:)) }
     var isCalled: Bool { (status == "called" || status == "final") && winner != nil }
@@ -112,14 +113,15 @@ struct CallsFile: Decodable, Sendable {
     struct OutletCall: Decodable, Sendable { let winner: String?; let status: String? }
 }
 
-/// A race counts as called once this many of the outlets agree (same rule as the website).
-let confirmAt = 3
+/// A race counts as called once this many of the outlets agree, and no other side has as many (same rule as the website).
+let confirmAt = 2
 
-/// Apply the 3-of-5 rule to feed entries (same as site/live.js applyConsensus): called only once enough
+/// Apply the 2-of-4 rule to feed entries (same as site/live.js applyConsensus): called only once enough
 /// outlets agree on a side; a race the feed calls earlier goes back to counting, marked `awaiting`.
 /// Without calls.json the feed's own calls stand.
 func applyConsensus(_ feed: [String: ResultEntry], calls: CallsFile?) -> [String: ResultEntry] {
     guard let byRace = calls?.races else { return feed }
+    let outletCount = calls?.sources?.count ?? 4
     var out = feed
     for id in Set(feed.keys).union(byRace.keys) {
         var e = out[id] ?? ResultEntry(status: "pending", reporting: nil, votes: Votes(), winner: nil)
@@ -127,11 +129,14 @@ func applyConsensus(_ feed: [String: ResultEntry], calls: CallsFile?) -> [String
         let made = outlets.filter { $0.status != "runoff" && $0.winner != nil }
         var tally: [String: Int] = [:]
         for c in made { tally[c.winner!, default: 0] += 1 }
-        let top = tally.max { $0.value < $1.value }
+        let ranked = tally.sorted { $0.value > $1.value }
+        let top = ranked.first
+        let runnerUp = ranked.count > 1 ? ranked[1].value : 0
         let runoffs = outlets.filter { $0.status == "runoff" }.count
         e.confirmed = nil
         e.awaiting = nil
-        if let top, top.value >= confirmAt {
+        e.outlets = outletCount
+        if let top, top.value >= confirmAt, top.value > runnerUp {  // a 2–2 split stays unconfirmed
             e.status = e.status == "final" && e.winner == top.key ? "final" : "called"
             e.winner = top.key
             e.confirmed = top.value

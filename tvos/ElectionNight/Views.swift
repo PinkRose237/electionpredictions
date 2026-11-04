@@ -170,7 +170,7 @@ struct CallAlertView: View {
         var detail: [String] = []
         if let sh = e?.shares { detail.append(String(format: "%.1f%% – %.1f%%", max(sh.dem, sh.rep), min(sh.dem, sh.rep))) }
         if let r = e?.reporting, r > 0 { detail.append("\(Int(r.rounded()))% in") }
-        if let n = e?.confirmed { detail.append("Confirmed by \(n) of 5 outlets") }
+        if let n = e?.confirmed { detail.append("Confirmed by \(n) of \(e?.outlets ?? 4) outlets") }
         if let l = race.label { detail.append("Rated \(l)") }
         return VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 14) {
@@ -550,7 +550,7 @@ struct RaceCard: View {
         } else if e?.status == "runoff" {
             Text("Runoff").font(.system(size: 18, weight: .semibold)).foregroundStyle(Theme.ind)
         } else {
-            Text(e?.awaiting.map { "\($0) of 5 called" } ?? (e?.shares == nil ? "Awaiting votes" : "Counting")).font(.system(size: 18)).foregroundStyle(Theme.ink3)
+            Text(e?.awaiting.map { "\($0) of \(e?.outlets ?? 4) called" } ?? (e?.shares == nil ? "Awaiting votes" : "Counting")).font(.system(size: 18)).foregroundStyle(Theme.ink3)
         }
     }
 

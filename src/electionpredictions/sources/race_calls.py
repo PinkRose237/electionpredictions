@@ -8,7 +8,6 @@ Sources, with AllSides Media Bias Ratings (online news; checked 2026-11-03) and 
   CNN          Lean Left   CNN Decision Desk          politics.api.cnn.io national-races JSON
   NBC News     Lean Left   NBC News Decision Desk     nbcnews.com firecracker national-results JSON
   Bloomberg    Center      AP (its `network` column)  bloomberg.com election-data calls.tsv + candidates.tsv
-  Fox News     Right       Fox News Decision Desk     feeds-elections.foxnews.com national/state results
   AP (wire)    Lean Left   AP                         The New York Times' results JSON, which carries AP calls
 All are public, undocumented endpoints the outlets use for their own pages; any of them can change.
 """
@@ -36,8 +35,6 @@ SOURCES = [
          url="https://www.nbcnews.com/politics/2026-elections/senate-results", rating_url="https://www.allsides.com/news-sources/nbc-news-media-bias"),
     dict(id="bloomberg", name="Bloomberg", lean="Center", desk="AP (as published by Bloomberg)",
          url="https://www.bloomberg.com/graphics/2026-us-election-results/", rating_url="https://www.allsides.com/news-sources/bloomberg-media-bias"),
-    dict(id="fox", name="Fox News", lean="Right", desk="Fox News Decision Desk",
-         url="https://www.foxnews.com/elections/2026/midterm-results", rating_url="https://www.allsides.com/news-sources/fox-news-media-bias"),
     dict(id="ap", name="AP", lean="Lean Left", desk="The Associated Press (wire; via The New York Times)", wire=True,
          url="https://www.nytimes.com/interactive/2026/11/03/us/elections/results-senate.html", rating_url="https://www.allsides.com/news-sources/associated-press-media-bias"),
 ]
@@ -193,40 +190,6 @@ def fetch_bloomberg(col: Collector, errors: list):
         col.add(st, chamber, district, False, cands, at=at)  # the resolver falls back to the special when that's all a state has
 
 
-# --- Fox News --------------------------------------------------------------------------------------
-FOX = "https://feeds-elections.foxnews.com/archive/politics/elections/2026/3/2026_Generals"
-
-
-def _fox_cands(results):
-    return [dict(first=(c.get("candidate") or {}).get("firstName") or "", last=(c.get("candidate") or {}).get("lastName") or "",
-                 party=PARTY.get(c.get("partyCode"), c.get("partyCode") or ""), votes=(c.get("votes") or {}).get("count") or 0,
-                 winner=bool(c.get("isWinner"))) for c in results or []]
-
-
-def fetch_fox(col: Collector, errors: list):
-    for office, chamber in (("Senate", "senate"), ("Governor", "governor")):
-        try:
-            data = _get(f"{FOX}/{office}/national_level_results/file.json")
-        except (requests.RequestException, ValueError) as e:
-            errors.append(f"{office}: {e}")
-            continue
-        for r in data or []:
-            cands = _fox_cands(r.get("results"))
-            if r.get("isRunoff"):
-                for c in cands:
-                    c["runoff"] = True
-            col.add(r.get("stateCode"), chamber, None, "special" in (r.get("raceType") or "").lower(), cands)
-    for st in sorted(set(FIPS.values())):
-        try:
-            data = _get(f"{FOX}/House/{st}/state_level_results/file.json")
-        except (requests.RequestException, ValueError) as e:
-            errors.append(f"House {st}: {e}")
-            continue
-        for r in (data or {}).get("races") or []:
-            cands = _fox_cands(r.get("results"))
-            col.add(st, "house", (r.get("district") or {}).get("districtNumber"), False, cands)
-
-
 # --- AP via the NYT --------------------------------------------------------------------------------
 def fetch_ap(col: Collector, errors: list):
     chamber_of = {"S": "senate", "H": "house", "G": "governor"}
@@ -254,7 +217,7 @@ def fetch_ap(col: Collector, errors: list):
             col.add(ru.get("state_postal"), chamber_of.get(race.get("office_id")), race.get("seat_number"), special, cands)
 
 
-FETCHERS = {"cnn": fetch_cnn, "nbc": fetch_nbc, "bloomberg": fetch_bloomberg, "fox": fetch_fox, "ap": fetch_ap}
+FETCHERS = {"cnn": fetch_cnn, "nbc": fetch_nbc, "bloomberg": fetch_bloomberg, "ap": fetch_ap}
 
 
 def collect(races: list[dict]) -> dict:

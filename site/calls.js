@@ -188,7 +188,7 @@ function renderControls() {
 
 /** How the outlets stand on one race: called count, distinct winners, and whether any is still out. */
 /** A race is confirmed once this many outlets have called it for the same candidate. */
-const CONFIRM_AT = 3;
+const CONFIRM_AT = 2;
 
 function agreement(rid) {
   const c = callsFor(rid);
@@ -196,12 +196,14 @@ function agreement(rid) {
   const winners = new Set(made.map((x) => x.winner));
   const votes = {};
   for (const x of made) votes[x.winner] = (votes[x.winner] || 0) + 1;
-  const [top, topN] = Object.entries(votes).sort((a, b) => b[1] - a[1])[0] || [null, 0];
+  const ranked = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+  const [top, topN] = ranked[0] || [null, 0];
+  const lead = topN > (ranked[1] ? ranked[1][1] : 0);  // a 2–2 split is not a confirmation
   const n = Object.keys(c).length;
   const live = sourceList().filter((s) => s.ok || c[s.id]).length;
   const runoff = n > 0 && Object.values(c).every((x) => x.status === 'runoff');
   return { n, live, conflict: winners.size > 1, partial: n > 0 && n < live, runoff, winners,
-    confirmed: topN >= CONFIRM_AT ? top : null, agreeing: topN };
+    confirmed: topN >= CONFIRM_AT && lead ? top : null, agreeing: topN };
 }
 
 const KEY = new Set(['Lean D', 'Tossup', 'Lean R']);

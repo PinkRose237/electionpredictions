@@ -408,7 +408,7 @@ function resultsSection(race, e, calls, snapAt) {
   const sec = h('section', { class: 'card results live-race', 'aria-labelledby': 'h-results' },
     h('h2', { id: 'h-results' }, 'Live results'));
   const winner = isCalled(e) ? (e.winner === 'dem' ? race.dem : e.winner === 'rep' ? race.rep : null) : null;
-  const label = e && e.awaiting && !isCalled(e) ? `Counting · called by ${e.awaiting} of ${e.awaitingOf} news outlets, awaiting confirmation (3 needed)`
+  const label = e && e.awaiting && !isCalled(e) ? `Counting · called by ${e.awaiting} of ${e.awaitingOf} news outlets, awaiting confirmation (2 needed)`
     : { pending: 'No votes counted yet', counting: 'Counting', called: 'Called', runoff: 'Headed to a runoff', recount: 'Recount', final: 'Final' }[e ? e.status : 'pending'];
   sec.append(h('p', { class: 'card-sub' },
     h('b', {}, winner ? `${e.status === 'final' ? 'Final' : 'Called'}: ${winner.name} wins` : label),
@@ -432,11 +432,12 @@ function resultsSection(race, e, calls, snapAt) {
     sec.append(h('p', { class: 'muted small', style: { marginTop: '8px' } }, bits.join(' · ')));
   }
   if (sources.length) {
-    // Confirmed once 3 of the outlets have called it for the same candidate (as on the Race Calls page).
+    // Confirmed once 2 of the outlets have called it for the same candidate and none outnumber them (as on the Race Calls page).
     const votes = {};
     for (const c of Object.values(outletCalls)) if (c.status !== 'runoff') votes[c.winner] = (votes[c.winner] || 0) + 1;
-    const [cw, cn] = Object.entries(votes).sort((a, b) => b[1] - a[1])[0] || [null, 0];
-    if (cn >= 3) {
+    const ranked = Object.entries(votes).sort((a, b) => b[1] - a[1]);
+    const [cw, cn] = ranked[0] || [null, 0];
+    if (cn >= 2 && cn > (ranked[1] ? ranked[1][1] : 0)) {
       const cand = race[cw];
       sec.append(h('p', { class: `confirmed-line ${partyClass(cand ? cand.party : 'O')}` },
         `✓ Confirmed: ${cn} of ${sources.length} news organizations have called it for ${cand ? cand.name : 'another candidate'}`));

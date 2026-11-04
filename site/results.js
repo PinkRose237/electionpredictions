@@ -147,7 +147,7 @@ function renderLiveBar() {
   pause.addEventListener('click', () => { paused = !paused; if (!paused) nextPull = Date.now(); renderLiveBar(); });
   const ok = !!feed && !feedError;
   let text;
-  if (ok) text = [h('b', {}, 'Live'), ` · votes from ${src}; a race counts as called once 3 of 5 news outlets agree`, h('span', { class: 'muted' }, ` · checked `, h('span', { 'data-ago': feed.fetched_at }, relativeTime(feed.fetched_at)))];
+  if (ok) text = [h('b', {}, 'Live'), ` · votes from ${src}; a race counts as called once 2 of 4 news outlets agree`, h('span', { class: 'muted' }, ` · checked `, h('span', { 'data-ago': feed.fetched_at }, relativeTime(feed.fetched_at)))];
   else if (feed) text = [h('b', {}, 'Live feed unreachable'), ' · showing the results from the last check, ', h('span', { 'data-ago': feed.fetched_at }, relativeTime(feed.fetched_at)), '; retrying'];
   else if (snapshot && snapshot.updated_at) text = [h('b', {}, 'Saved results'), ` · the live feed is unreachable right now; showing the copy saved ${relativeTime(snapshot.updated_at)}`];
   else if (feedError) text = [h('b', {}, 'Live feed unavailable'), ' · results will appear here once it responds'];
@@ -237,8 +237,9 @@ function latestCalls() {
     const first = made[0][1];
     const firsts = made.filter(([, c]) => c.at === first.at).map(([sid]) => names[sid] || sid);
     const agree = made.filter(([, c]) => c.winner === first.winner).length;
+    const against = made.length - agree;
     out.push({ race, at: first.at, winner: first.winner, firsts, n: made.length, total: (calls.sources || []).length,
-      split: new Set(made.map(([, c]) => c.winner)).size > 1, confirmed: agree >= 3 });
+      split: new Set(made.map(([, c]) => c.winner)).size > 1, confirmed: agree >= 2 && agree > against });
   }
   return out.sort((a, b) => b.at.localeCompare(a.at));
 }
@@ -357,7 +358,7 @@ function statusBadge(r, e) {
   const closed = Date.now() >= new Date(r.group.close_utc).getTime();
   if (!closed) return h('span', { class: 'rc-badge muted' }, 'Polls close in ', h('span', { 'data-close': r.group.close_utc, 'data-closed-text': 'now' }, ''));
   const sh = shares(e);
-  if (e && e.awaiting) return h('span', { class: 'rc-badge muted', title: 'A race counts as called once 3 of 5 news outlets agree' }, `${e.awaiting} of ${e.awaitingOf} called · awaiting`);
+  if (e && e.awaiting) return h('span', { class: 'rc-badge muted', title: 'A race counts as called once 2 of 4 news outlets agree' }, `${e.awaiting} of ${e.awaitingOf} called · awaiting`);
   return h('span', { class: 'rc-badge muted' }, sh ? 'Counting' : 'Awaiting results');
 }
 
