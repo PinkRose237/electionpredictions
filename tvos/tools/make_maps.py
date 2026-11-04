@@ -13,6 +13,7 @@ Output:
           approximate on purpose: several states redrew lines for 2026, so only the shape matters.
 
 Run: uv run --with pyshp python tvos/tools/make_maps.py STATES_DIR GAZETTEER.txt OUT.json
+The website's Map page uses the same file: copy it to site/geo/us-maps.json after regenerating.
 """
 from __future__ import annotations
 

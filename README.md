@@ -90,6 +90,12 @@ page falls back to this snapshot when a browser can't reach the feeds, and it ke
 the feeds go offline. Both are unofficial endpoints the outlets don't document, so they can change
 without notice; check the official state links if numbers look off.
 
+**Map page.** `site/map.html` shows Senate and governor races on a state map (small north-eastern states as
+labelled boxes) and House races on a one-square-per-district map, coloured by live results (won, leading,
+polls closed, polls open, flips outlined) or by the forecast. Hover, focus or tap a race for a panel with
+the vote, share counted, model vs actual margin and every outlet's call; search finds a race by state,
+district or candidate. Geometry is `site/geo/us-maps.json`, the same file the Apple TV app uses.
+
 **Race Calls page.** `site/calls.html` lines up the calls for every race from five news organizations:
 CNN and NBC News (AllSides: Lean Left; each runs its own decision desk), Bloomberg (Center; publishes the
 AP's calls), Fox News (Right; its own decision desk), and the AP itself as a wire column (Lean Left), read

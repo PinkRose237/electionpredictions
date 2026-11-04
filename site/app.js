@@ -123,6 +123,7 @@ async function renderNightBanner() {
       h('span', { class: 'muted' }, ` · ${called} of ${S.races.length} races called · updated ${relativeTime(auto.updated_at)}`)),
     h('div', { class: 'nb-seats' }, seat('senate', 'Senate'), seat('house', 'House'), seat('governor', 'Governors')),
     h('div', { class: 'nb-links' }, h('a', { class: 'btn primary', href: withData('results.html') }, 'Live results'),
+      h('a', { class: 'btn', href: withData('map.html') }, 'Map'),
       h('a', { class: 'btn', href: withData('calls.html') }, 'Race calls by outlet')),
   );
 }
