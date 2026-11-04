@@ -177,7 +177,6 @@ function renderControls() {
   const show = h('select', { 'aria-label': 'Show' },
     h('option', { value: 'default' }, 'Called races + key races'),
     h('option', { value: 'confirmed' }, `Confirmed (${CONFIRM_AT}+ outlets agree)`),
-    h('option', { value: 'unconfirmed' }, 'Called but not yet confirmed'),
     h('option', { value: 'called' }, 'Called by any outlet'),
     h('option', { value: 'split' }, 'Outlets disagree or are waiting'),
     h('option', { value: 'all' }, 'Every race'));
@@ -214,8 +213,8 @@ function visibleRaces() {
     if (state.show === 'default' && !(a.n > 0 || KEY.has(r.label) || (r.chamber !== 'house' && r.label && r.label.startsWith('Likely')))) return false;
     if (state.show === 'called' && a.n === 0) return false;
     if (state.show === 'confirmed' && !a.confirmed) return false;
-    if (state.show === 'unconfirmed' && (a.confirmed || a.n === 0 || a.runoff)) return false;
-    if (state.show === 'split' && !(a.conflict || a.partial)) return false;
+    // Called by at least one outlet but not yet confirmed (fewer than 3 agree, or they disagree).
+    if (state.show === 'split' && (a.confirmed || a.n === 0)) return false;
     if (q) {
       const hay = `${r.short} ${r.name} ${r.state_name} ${r.dem ? r.dem.name : ''} ${r.rep ? r.rep.name : ''}`.toLowerCase();
       if (!hay.includes(q)) return false;
