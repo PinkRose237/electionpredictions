@@ -176,9 +176,10 @@ Written by `uv run electionpredictions results` (`sources/race_calls.py`) for th
               "rating_url": "...", "wire": false, "races_seen": 506, "calls": 212, "ok": true, "errors": [],
               "checked_at": "2026-11-04T02:10:00+00:00"}],
  "races": {"GA-SEN": {"fox": {"winner": "dem", "status": "called", "at": null},
-                      "cnn": {"winner": null, "status": "runoff", "at": null}}}}
+                      "cnn": {"winner": null, "status": "runoff", "at": "2026-11-04T01:52:10+00:00"}}}}
 ```
 `sources` is in display order; `lean` is the outlet's AllSides rating. `races` lists only races at least one
 outlet has called (or sent to a runoff); a source missing from a race has not called it. `winner` is `dem`,
-`rep` or `other` (sides as in `races.json`); `at` is the call time when the outlet publishes it. When a
+`rep` or `other` (sides as in `races.json`); `at` is the outlet's own call time when it publishes one
+(Bloomberg), otherwise when the call was first seen in a snapshot (within ~2 minutes while the watch runs). When a
 source's feed fails, its previous calls are kept and `ok` is false.
