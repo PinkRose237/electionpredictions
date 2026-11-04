@@ -1,5 +1,5 @@
 /**
- * app.js — the dashboard (index.html).
+ * app.js — the archived final forecast (forecast.html).
  *
  * Loads summary.json + races.json, then renders:
  *   chamber cards (control odds, seat ranges, histograms, market lines)
@@ -14,9 +14,8 @@ import {
   h, svgEl, scaleLinear, niceTicks, dateTicks, responsiveChart,
   tooltip, tipContent, attachTooltip, delegateTooltip,
   ratingPill, probChip, matchupNode, holderNode,
-  initChrome, renderUpdated, renderFooterMeta, showError, relativeTime, withData, DATA_BASE,
+  initChrome, renderUpdated, renderFooterMeta, showError,
 } from './common.js';
-import { mergeResults, applyConsensus, isCalled } from './live.js';
 
 /** Categorical hues for the three chambers (validated for CVD separation in each mode). */
 const SERIES_LIGHT = { house: '#2a78d6', senate: '#1baf7a', governor: '#eb6834' };
@@ -52,7 +51,7 @@ function seatShare(ch) {
 }
 
 async function main() {
-  initChrome({ current: 'dashboard' });
+  initChrome({ current: 'forecast' });
   const status = document.getElementById('status');
   try {
     const [summary, races] = await Promise.all([loadJSON('summary.json'), loadJSON('races.json')]);
@@ -74,58 +73,10 @@ async function main() {
     initTabs();
     renderClosest();
     renderScatter();
-    renderNightBanner();
-    setInterval(() => { if (!document.hidden) renderNightBanner(); }, 120e3);
   } catch (err) {
     console.error(err);
     showError(status, err, 'Run the pipeline to generate site/data, or open ?data=_fixture to use the development fixture.');
   }
-}
-
-// ---------------------------------------------------------------------------
-// Election-night banner: seats called so far, linking to the live pages
-// ---------------------------------------------------------------------------
-
-async function freshJSON(name) {
-  try {
-    const r = await fetch(`${DATA_BASE}/${name}?t=${Date.now()}`, { cache: 'no-store' });
-    return r.ok ? await r.json() : null;
-  } catch (e) { return null; }
-}
-
-async function renderNightBanner() {
-  const el = document.getElementById('night-banner');
-  // From an hour before the first polls close (6 pm ET) until results are certified weeks later.
-  const now = Date.now(), start = Date.parse('2026-11-03T22:00:00Z'), end = Date.parse('2026-12-20T00:00:00Z');
-  if (!el || now < start || now > end) return;
-  const [auto, manual, calls] = await Promise.all([freshJSON('results-auto.json'), freshJSON('results.json'), freshJSON('calls.json')]);
-  if (!auto || !auto.races) return;
-  const merged = mergeResults(applyConsensus(auto.races, calls), auto.by || {}, manual && manual.races);
-  const chambers = S.summary.chambers || {};
-  const tally = {};
-  let called = 0;
-  for (const ch of ['senate', 'house', 'governor']) {
-    const c = chambers[ch];
-    tally[ch] = { d: c ? c.not_up.D : 0, r: c ? c.not_up.R : 0, need: c ? c.needed : null };
-  }
-  for (const [rid, e] of Object.entries(merged)) {
-    const race = S.byId.get(rid);
-    if (!race || !isCalled(e) || !tally[race.chamber]) continue;
-    called += 1;
-    if (e.winner === 'dem') tally[race.chamber].d += 1; else if (e.winner === 'rep') tally[race.chamber].r += 1;
-  }
-  const seat = (ch, label) => h('span', { class: 'nb-seat' }, h('span', { class: 'nb-ch' }, label),
-    h('b', { class: 'dem-text' }, `D ${tally[ch].d}`), ' – ', h('b', { class: 'rep-text' }, `R ${tally[ch].r}`),
-    tally[ch].need ? h('span', { class: 'muted' }, ` · ${tally[ch].need} to win`) : null);
-  el.hidden = false;
-  el.replaceChildren(
-    h('div', { class: 'nb-head' }, h('span', { class: 'live-dot' }), h('b', {}, 'Results are coming in'),
-      h('span', { class: 'muted' }, ` · ${called} of ${S.races.length} races called (confirmed by 2 of 4 news outlets) · updated ${relativeTime(auto.updated_at)}`)),
-    h('div', { class: 'nb-seats' }, seat('senate', 'Senate'), seat('house', 'House'), seat('governor', 'Governors')),
-    h('div', { class: 'nb-links' }, h('a', { class: 'btn primary', href: withData('results.html') }, 'Live results'),
-      h('a', { class: 'btn', href: withData('map.html') }, 'Map'),
-      h('a', { class: 'btn', href: withData('calls.html') }, 'Race calls by outlet')),
-  );
 }
 
 // ---------------------------------------------------------------------------

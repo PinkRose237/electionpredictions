@@ -680,6 +680,54 @@ details[open].more summary::before { content: '▾ '; }
 .check-list li { margin-bottom: 5px; }
 .check-list .pill { font-size: 11px; }
 
+/* Results home */
+.home-head h1 { margin-bottom: 6px; }
+.home-headline { font-size: 18px; color: var(--ink); max-width: 860px; line-height: 1.45; margin: 0 0 6px; }
+.outcomes { margin-bottom: var(--s5); }
+.verdict { font-size: 17px; font-weight: 700; color: var(--ink-2); }
+.verdict.dem { color: var(--dem); } .verdict.rep { color: var(--rep); }
+.home-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s4); margin-bottom: var(--s4); }
+@media (max-width: 900px) { .home-grid { grid-template-columns: 1fr; } }
+.home-card { padding: var(--s4) var(--s5); }
+.count-list { list-style: none; padding: 0; margin: 0 0 8px; }
+.count-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; padding: 7px 0; border-top: 1px solid var(--border); font-size: 13.5px; }
+.count-list li:first-child { border-top: 0; }
+.cl-race { font-weight: 700; min-width: 62px; }
+.cl-lead { font-weight: 600; }
+.cl-lead.dem { color: var(--dem); } .cl-lead.rep { color: var(--rep); } .cl-lead.ind { color: var(--ind); }
+.cl-in { margin-left: auto; font-size: 12.5px; }
+.cl-await { font-size: 12px; }
+.score-tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 6px 0 10px; }
+.tile { background: var(--surface-2); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 2px; }
+.tile b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.tile span { font-size: 12.5px; color: var(--ink-2); }
+.explore-list { list-style: none; padding: 0; margin: 0; }
+.explore-list li { padding: 8px 0; border-top: 1px solid var(--border); font-size: 14px; color: var(--ink-2); }
+.explore-list li:first-child { border-top: 0; }
+.explore-list a { margin-right: 6px; }
+
+/* All races */
+.races-table td { vertical-align: top; }
+.races-table tr.upset td { background: color-mix(in srgb, var(--ind-soft) 50%, transparent); }
+.lead-chip { display: inline-block; font-size: 12.5px; font-weight: 600; padding: 2px 8px; border-radius: 4px; }
+.lead-chip.dem { background: var(--dem-soft); color: var(--dem); } .lead-chip.rep { background: var(--rep-soft); color: var(--rep); } .lead-chip.ind { background: var(--ind-soft); color: var(--ind); }
+
+/* Scorecard */
+.score-tiles.big { margin-bottom: var(--s5); }
+.score-tiles.big .tile b { font-size: 30px; }
+.sc-wide { margin-bottom: var(--s4); }
+.sc-chart { width: 100%; height: auto; display: block; }
+.sc-chart .grid { stroke: var(--border); stroke-width: 1; }
+.sc-chart .grid.zero { stroke: var(--border-strong); }
+.sc-chart .diag { stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.sc-chart .tick { font-size: 11px; fill: var(--ink-3); }
+.sc-chart .axis-label { font-size: 12px; fill: var(--ink-2); }
+.sc-chart .cal-dot { fill: color-mix(in srgb, var(--ink) 70%, transparent); stroke: var(--surface); stroke-width: 1.5; }
+.sc-chart .m-dot { stroke: var(--surface); stroke-width: 0.8; opacity: 0.85; }
+.sc-chart .m-dot.dem { fill: var(--dem); } .sc-chart .m-dot.rep { fill: var(--rep); }
+
+.headline-tag { text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; margin-bottom: 6px; }
+
 /* Map page */
 .map-controls { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; margin-bottom: var(--s4); }
 .seg { display: inline-flex; border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px; background: var(--surface); }

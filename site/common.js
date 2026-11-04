@@ -710,7 +710,17 @@ export function renderUpdated(summary) {
   const el = document.querySelector('[data-updated]');
   if (!el || !summary) return;
   const electionDate = summary.election_date || ELECTION_DATE;
-  const days = isNum(summary.days_to_election) ? summary.days_to_election : daysUntil(electionDate);
+  const live = daysUntil(electionDate);
+  if (isNum(live) && live < 0) {
+    // After the election: the forecast is frozen, so say when it was made and when the election was.
+    el.replaceChildren(
+      h('span', { title: fmt.dateTime(summary.generated_at) }, `Final forecast ${fmt.dateShort(summary.generated_at)}`),
+      h('span', { class: 'sep', 'aria-hidden': 'true' }, '·'),
+      h('span', {}, `Election held ${fmt.date(electionDate)}`),
+    );
+    return;
+  }
+  const days = isNum(summary.days_to_election) ? summary.days_to_election : live;
   const dayText = !isNum(days) ? `Election ${fmt.date(electionDate)}`
     : days === 0 ? `Election Day is today`
     : days < 0 ? `${-days} days since ${fmt.date(electionDate)}`

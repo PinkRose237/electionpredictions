@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scorecard — Midterm Model 2026</title>
+  <meta name="description" content="How the final 2026 midterm forecast did: favorites' record, calibration, margin errors, seat totals and every upset.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Scorecard — Midterm Model 2026">
+  <meta property="og:description" content="How the final 2026 midterm forecast did: favorites' record, calibration, margin errors, seat totals and every upset.">
+  <meta property="og:url" content="https://pinkrose237.github.io/electionpredictions/scorecard.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='16' height='32' rx='4' fill='%232166ac'/%3E%3Crect x='16' width='16' height='32' rx='4' fill='%23b2182b'/%3E%3Crect x='10' width='12' height='32' fill='%232166ac'/%3E%3Crect x='16' width='6' height='32' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="visually-hidden" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html" data-nav="home"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Midterm Model 2026</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" data-nav="home">Results</a>
+        <a href="map.html" data-nav="map">Map</a>
+        <a href="results.html" data-nav="races">All races</a>
+        <a href="calls.html" data-nav="calls">Race calls</a>
+        <a href="scorecard.html" data-nav="scorecard">Scorecard</a>
+        <a href="forecast.html" data-nav="forecast">Final forecast</a>
+        <a href="president.html" data-nav="president">2028</a>
+      </nav>
+      <div class="topbar-meta" data-updated></div>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <div id="status" class="status" role="status">Scoring the forecast…</div>
+    <div id="scorecard" hidden>
+      <div class="page-head">
+        <h1>How the forecast did</h1>
+        <p>The final forecast, published on November 3 before any polls closed, checked against the results. Everything here updates as the last races are counted and called, so treat it as provisional until every race is in.</p>
+      </div>
+      <section id="tiles" class="score-tiles big" aria-label="Headline numbers"></section>
+      <div class="home-grid">
+        <section id="calibration" class="card home-card" aria-labelledby="h-cal"></section>
+        <section id="by-rating" class="card home-card" aria-labelledby="h-rating"></section>
+      </div>
+      <section id="margins" class="card home-card sc-wide" aria-labelledby="h-margins"></section>
+      <section id="seats" class="card home-card sc-wide" aria-labelledby="h-seats"></section>
+      <section id="upsets" class="card home-card sc-wide" aria-labelledby="h-upsets"></section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <h4>How this is scored</h4>
+        <ul>
+          <li>Only races called (two of four news organizations agree) count toward the record and Brier score.</li>
+          <li>Margin errors use races with at least 95% of the expected vote counted.</li>
+          <li>Uncontested races are left out.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li><a href="methodology.html" data-nav="methodology">How the model works</a></li>
+          <li data-generated></li>
+          <li><span data-site-name>Midterm Model 2026</span> · not affiliated with any campaign or party</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./scorecard.js"></script>
+</body>
+</html>

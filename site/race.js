@@ -36,7 +36,7 @@ function displayName(race) {
 }
 
 async function main() {
-  initChrome({ current: 'dashboard' });
+  initChrome({ current: 'races' });
   const status = document.getElementById('status');
   const root = document.getElementById('race');
   if (!/^[A-Za-z0-9][A-Za-z0-9\-]{2,24}$/.test(id)) {
@@ -63,10 +63,10 @@ async function main() {
   document.title = `${displayName(race)} — ${SITE_NAME}`;
   status.hidden = true;
   root.hidden = false;
-  const back = race.chamber === 'president' ? 'president.html' : `index.html#${race.chamber || 'house'}`;
+  const back = race.chamber === 'president' ? 'president.html' : 'results.html';
   const live = h('div', { id: 'live-results' });
   root.append(
-    h('a', { class: 'back-link', href: withData(back) }, race.chamber === 'president' ? '← Back to 2028 forecast' : '← Back to dashboard'),
+    h('a', { class: 'back-link', href: withData(back) }, race.chamber === 'president' ? '← Back to 2028 forecast' : '← All races'),
     header(race),
     headline(race),
     h('div', { class: 'race-grid' },
@@ -116,8 +116,9 @@ function headline(race) {
   const pR = isNum(pD) ? 1 - pD : null;
   const dParty = (race.dem && race.dem.party) || 'D';
   const rParty = (race.rep && race.rep.party) || 'R';
-  const sec = h('section', { class: 'card headline', 'aria-label': 'Forecast' });
+  const sec = h('section', { class: 'card headline', 'aria-label': 'Final forecast' });
   sec.append(
+    race.chamber !== 'president' ? h('div', { class: 'headline-tag muted small' }, 'Final forecast · November 3, 2026, before polls closed') : null,
     h('div', { class: 'headline-probs' },
       h('div', { class: 'side' },
         h('div', { class: 'who' }, candTitle(race.dem, 'No Democratic candidate')),
@@ -406,7 +407,7 @@ function resultsSection(race, e, calls, snapAt) {
   if ((!e || (e.status === 'pending' && !shares(e))) && !Object.keys(outletCalls).length) return null;
   const sh = shares(e);
   const sec = h('section', { class: 'card results live-race', 'aria-labelledby': 'h-results' },
-    h('h2', { id: 'h-results' }, 'Live results'));
+    h('h2', { id: 'h-results' }, 'Result'));
   const winner = isCalled(e) ? (e.winner === 'dem' ? race.dem : e.winner === 'rep' ? race.rep : null) : null;
   const label = e && e.awaiting && !isCalled(e) ? `Counting · called by ${e.awaiting} of ${e.awaitingOf} news outlets, awaiting confirmation (2 needed)`
     : { pending: 'No votes counted yet', counting: 'Counting', called: 'Called', runoff: 'Headed to a runoff', recount: 'Recount', final: 'Final' }[e ? e.status : 'pending'];

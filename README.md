@@ -1,9 +1,17 @@
 # Midterm Model 2026
 
-A self-updating forecast of **every 2026 U.S. midterm race**: all 435 House seats, the 35 Senate
-seats (including the Ohio and Florida specials) and the 36 governorships. A Python pipeline pulls
-polls, expert ratings, fundraising, prediction-market odds and news, runs a simulation-based
-forecast, and writes static JSON that a dependency-free website renders.
+Results and a scored forecast for **every 2026 U.S. midterm race**: all 435 House seats, the 35 Senate
+seats (including the Ohio and Florida specials) and the 36 governorships. Before the election a Python
+pipeline pulled polls, expert ratings, fundraising, prediction-market odds and news, ran a
+simulation-based forecast, and wrote static JSON that a dependency-free website renders. Since election
+day the site is a results site: the final forecast is frozen as it stood on November 3, and results,
+race calls and a forecast scorecard update as the last races are counted.
+
+**Site map (post-election):** `index.html` results home (control of each chamber, flips, still
+counting, latest calls, forecast summary) · `map.html` · `results.html` all races · `calls.html` race calls
+by outlet · `scorecard.html` how the forecast did · `forecast.html` the archived final forecast ·
+`race.html?id=…` race pages (result on top, final forecast below) · `president.html` 2028 ·
+`admin.html` corrections. Pages share `site/results-data.js` for results, confirmed calls and scoring.
 
 ```
 sources ──▶ SQLite (data/elections.db) ──▶ model ──▶ site/data/*.json ──▶ static site (site/)
@@ -74,14 +82,17 @@ race-specific error, which is what makes seat totals and control probabilities h
 correlated polling misses. The full write-up is in `site/methodology.html`; the implementation is
 `src/electionpredictions/model/`.
 
-## Election night results
+## Results
 
-**Automatic.** The Election Results page pulls vote counts and race calls straight from public results
-feeds in the visitor's browser every minute once polls start closing (`site/live.js`): The New York Times'
-results JSON (AP votes and AP calls) first, CNN's results JSON for anything it is missing. Every race is
-matched to our Democratic/Republican sides by candidate name, so an independent standing in for a party
-(Nebraska Senate) lands on the right side. Above the per-state countdowns the page now shows a seat
-scoreboard per chamber (won, leading, flips, majority line) and a board of the key races.
+**Automatic.** The results pages pull vote counts straight from public results feeds in the visitor's
+browser every five minutes (`site/live.js`): The New York Times' results JSON (AP votes) first, CNN's
+results JSON for anything it is missing. Every race is matched to our Democratic/Republican sides by
+candidate name, so an independent standing in for a party (Nebraska Senate) lands on the right side. A
+race counts as called once 2 of the 4 news outlets in `calls.json` agree (see Race Calls below).
+
+**Final forecast is frozen.** The 2026 forecast data in `site/data/` (races, summary, schedule) is the
+run published at 18:46 UTC on November 3, before polls closed; the daily workflow no longer re-runs the
+2026 pipeline. A run after polls close would let results leak in through its inputs.
 
 **Snapshot.** `uv run electionpredictions results` saves the same feeds to `site/data/results-auto.json`;
 add `--watch 120 --push` to keep it fresh from your own machine. `.github/workflows/results.yml` does
@@ -131,7 +142,8 @@ overrides as the site. See `tvos/README.md` to install it.
 
 ## Keeping it updated
 
-The forecast is meant to be re-run daily. Three options:
+Before the election the forecast was re-run daily (the 2026 run is now frozen; the 2028 run continues).
+Three options:
 
 **1. GitHub Actions (recommended).** `.github/workflows/update.yml` runs the pipeline every day,
 commits `site/data/` and deploys `site/` to GitHub Pages. Enable Pages (Settings → Pages → Source:
