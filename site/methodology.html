@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Methodology — Midterm Model 2026</title>
-  <meta name="description" content="How the 2026 midterm forecast model works: inputs, weighting, simulation and limitations.">
+  <title>Methodology — Presidential Model 2028</title>
+  <meta name="description" content="How the 2028 presidential forecast works: partisan lean, national environment, unknown nominees, correlated simulation, and a model that rebuilds itself as the campaign develops.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Methodology — Midterm Model 2026">
-  <meta property="og:description" content="How the 2026 midterm forecast model works: inputs, weighting, simulation and limitations.">
+  <meta property="og:title" content="Methodology — Presidential Model 2028">
+  <meta property="og:description" content="How the 2028 presidential forecast works: partisan lean, national environment, unknown nominees, correlated simulation, and a model that rebuilds itself as the campaign develops.">
   <meta property="og:url" content="https://pinkrose237.github.io/electionpredictions/methodology.html">
   <meta name="twitter:card" content="summary">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='16' height='32' rx='4' fill='%232166ac'/%3E%3Crect x='16' width='16' height='32' rx='4' fill='%23b2182b'/%3E%3Crect x='10' width='12' height='32' fill='%232166ac'/%3E%3Crect x='16' width='6' height='32' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231b1b1a'/%3E%3Crect x='5' y='9' width='10' height='14' rx='2' fill='%232166ac'/%3E%3Crect x='17' y='9' width='10' height='14' rx='2' fill='%23b2182b'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -21,114 +21,99 @@
   <a class="visually-hidden" href="#main">Skip to content</a>
   <header class="topbar">
     <div class="container topbar-inner">
-      <a class="brand" href="index.html" data-nav="home"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Midterm Model 2026</span></a>
+      <a class="brand" href="index.html" data-nav="brand"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Presidential Model 2028</span></a>
       <nav class="nav" aria-label="Primary">
-        <a href="index.html" data-nav="home">Results</a>
+        <a href="index.html" data-nav="home">Forecast</a>
         <a href="map.html" data-nav="map">Map</a>
-        <a href="results.html" data-nav="races">All races</a>
-        <a href="calls.html" data-nav="calls">Race calls</a>
-        <a href="scorecard.html" data-nav="scorecard">Scorecard</a>
-        <a href="forecast.html" data-nav="forecast">Final forecast</a>
-        <a href="president.html" data-nav="president">2028</a>
+        <a href="states.html" data-nav="states">States</a>
+        <a href="field.html" data-nav="field">The field</a>
+        <a href="polls.html" data-nav="polls">Polls</a>
+        <a href="model.html" data-nav="model">Model log</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
       </nav>
       <div class="topbar-meta" data-updated></div>
     </div>
   </header>
 
-  <main id="main" class="container prose">
-    <h1>How the model works</h1>
-    <p class="lede">A daily forecast of every 2026 U.S. House, Senate and gubernatorial race, built from public polls, race fundamentals and expert ratings, and turned into seat and control probabilities by simulation.</p>
+  <main id="main" class="container">
+    <article class="prose method">
+      <div class="page-head"><h1>How the model works</h1>
+        <p>A plain-language guide to the 2028 presidential forecast: what goes in, how it becomes a probability, and how the model rebuilds itself as the campaign develops.</p></div>
+      <nav class="toc card" aria-label="Contents"><ol>
+        <li><a href="#overview">The short version</a></li><li><a href="#contests">56 contests, 538 electors</a></li>
+        <li><a href="#lean">Partisan lean</a></li><li><a href="#environment">The national environment</a></li>
+        <li><a href="#nominees">Unknown nominees</a></li><li><a href="#state-polls">State polls</a></li>
+        <li><a href="#uncertainty">Uncertainty and correlation</a></li><li><a href="#outputs">What the simulation reports</a></li>
+        <li><a href="#rebuild">A model that rebuilds itself</a></li><li><a href="#guardrails">Guardrails</a></li>
+        <li><a href="#markets">Markets and news</a></li><li><a href="#limits">Known limitations</a></li></ol></nav>
 
-    <nav class="toc" aria-label="On this page">
-      <a href="#scope">Scope</a>
-      <a href="#inputs">Inputs</a>
-      <a href="#combination">Combining them</a>
-      <a href="#simulation">Uncertainty and simulation</a>
-      <a href="#markets">Markets and news</a>
-      <a href="#limitations">Limitations</a>
-      <a href="#updates">Updates</a>
-    </nav>
+      <h2 id="overview">The short version</h2>
+      <p>For every state and district the forecast estimates the Democratic-minus-Republican margin in November 2028 as the contest's partisan lean plus the national environment plus the effect of whoever the nominees turn out to be. It then runs 20,000 simulated elections in which the national result, regions, states and the nominees themselves all vary, and counts electoral votes in each. The share of simulations each party wins is its chance of winning the presidency.</p>
+      <p>What makes this forecast different is that its settings are not fixed. At every update the specification of the model, from the weight it puts on polls to the size of its uncertainty and the odds of each possible nominee, is re-derived from the data, reviewed against the latest polls, news and fundamentals, and revised when the evidence calls for it. Every revision is numbered and recorded in the <a href="model.html">model log</a>.</p>
 
-    <h2 id="scope">Scope</h2>
-    <p>The model covers every race decided on <strong>November 3, 2026</strong>:</p>
-    <ul>
-      <li>all <strong>435</strong> U.S. House seats;</li>
-      <li><strong>35</strong> U.S. Senate seats — the 33 regular Class 2 seats plus the special elections in Ohio and Florida;</li>
-      <li><strong>36</strong> governorships.</li>
-    </ul>
-    <p>For each race the model produces a projected Democratic-minus-Republican margin, an uncertainty around it, and a probability that the Democratic-side candidate wins. Where a major party has no nominee, an independent may stand in for that side (for example the Nebraska Senate race). Uncontested and same-party general elections are fixed at their known outcome.</p>
+      <h2 id="contests">56 contests, 538 electors</h2>
+      <p>Forty-eight states and the District of Columbia award all their electors to the statewide winner. Maine and Nebraska award two electors statewide and one to the winner of each congressional district, so the model treats Maine's two districts and Nebraska's three as contests of their own (they share the statewide error, plus a little of their own). 270 electoral votes wins; a 269–269 tie, which the House would decide, counts for neither party.</p>
 
-    <h2 id="inputs">Inputs</h2>
+      <h2 id="lean">Partisan lean</h2>
+      <p>Each contest's lean is how much more Democratic or Republican than the nation it voted, measured from the certified 2020 and 2024 results (2024 weighted more heavily). Lean is on the margin scale: Pennsylvania voted about 1 point more Republican than the country, Wyoming about 44 points. The model can also project part of each state's 2020-to-2024 movement forward, a setting it currently keeps at zero.</p>
 
-    <h3>1. Race polls</h3>
-    <p>Polls are scraped from each race’s Wikipedia article, which aggregates published polls. Each poll is weighted by:</p>
-    <ul>
-      <li><strong>Recency</strong> — an exponential decay with a half-life of roughly <strong>14 to 45 days</strong>, shorter as the election approaches;</li>
-      <li><strong>Sample size</strong>;</li>
-      <li><strong>Population</strong> — likely voters are trusted more than registered voters, which are trusted more than all adults (LV &gt; RV &gt; adults);</li>
-      <li><strong>Pollster quality</strong> — firms with strong track records (for example NYT/Siena, Marist, Quinnipiac, Marquette, Emerson) get a modest bonus; low-rated or partisan-aligned shops (for example Rasmussen, Trafalgar, InsiderAdvantage) a modest penalty; unknown firms are weighted neutrally;</li>
-      <li><strong>Sponsorship</strong> — polls sponsored by a partisan group or campaign are down-weighted and shifted <strong>1.5 points</strong> toward the other party;</li>
-      <li><strong>Pollster cap</strong> — each pollster’s total weight is capped so that one firm cannot dominate the average.</li>
-    </ul>
-    <p>Hypothetical matchups (polls of candidates who did not both end up as nominees) are ignored when real matchup polls exist. Each race page lists every poll with the weight the model gave it.</p>
+      <h2 id="environment">The national environment</h2>
+      <p>The environment is the expected national margin before candidate effects. It blends two estimates:</p>
+      <ul>
+        <li><strong>National trial heats.</strong> Every published poll of a named matchup (say, Newsom vs. Vance) enters a weighted regression that separates the overall environment from each candidate's own strength. Polls are weighted by recency, sample size, population (likely voters count most), the pollster's record, and sponsorship (partisan-sponsored polls are discounted and nudged toward the other party).</li>
+        <li><strong>Fundamentals.</strong> In an open-seat race the White House party is judged on the incumbent's record: presidential net approval and an economic index built from inflation, the unemployment trend and real wage growth translate into an expected margin for the incumbent party.</li>
+      </ul>
+      <p>Two years out, early trial heats say little about November, so fundamentals carry most of the weight. The weight on polls rises steadily toward Election Day (from about a quarter now to about 85% at the end), and the model can trust polls more or less than that default.</p>
 
-    <h3>2. Fundamentals</h3>
-    <p>A poll-free estimate of the margin, built from four terms:</p>
-    <table class="data">
-      <thead><tr><th scope="col">Term</th><th scope="col">Definition</th></tr></thead>
-      <tbody>
-        <tr><td>Partisan lean</td><td>The Cook Partisan Voting Index (PVI) of the state or district.</td></tr>
-        <tr><td>National environment</td><td>The generic-ballot average, weighted <strong>1.0</strong> for House races, <strong>0.9</strong> for Senate races and <strong>0.5</strong> for governors.</td></tr>
-        <tr><td>Incumbency</td><td><strong>+2</strong> points for a House incumbent, <strong>+3</strong> for a Senate incumbent and <strong>+4</strong> for a governor, in the incumbent’s direction.</td></tr>
-        <tr><td>Fundraising</td><td><strong>1.5 × log<sub>10</sub></strong> of the ratio of Democratic to Republican receipts, capped at <strong>±3</strong> points. Federal candidates use FEC totals; governors, who file with state agencies, use the state-filing figures compiled on each race's Wikipedia article where available.</td></tr>
-      </tbody>
-    </table>
+      <h2 id="nominees">Unknown nominees</h2>
+      <p>Neither party has a nominee, so the forecast does not pretend to know one. Each simulation draws a Democratic and a Republican nominee from the nomination odds on <a href="field.html">The field</a>, including a share for someone not yet listed. Nomination odds start from national primary polling (leaders are favoured, but far from the primaries much of the probability belongs to the field) and are reviewed against who has declared or ruled out a run. Each candidate carries a <em>strength</em>, the points of November margin they are worth relative to an average nominee, grounded in the trial-heat regression, plus a home-state advantage. The result is a forecast that already averages over the plausible matchups, and a conditional forecast for each one.</p>
 
-    <h3>3. Expert ratings</h3>
-    <p>Ratings are collected from Cook Political Report, Inside Elections, Sabato’s Crystal Ball, Decision Desk HQ, Silver Bulletin, Split Ticket, The Economist, FiftyPlusOne, Fox News and RealClearPolitics. Each rating is converted to an implied margin and the raters are averaged:</p>
-    <table class="data">
-      <thead><tr><th scope="col">Rating</th><th scope="col">Implied margin</th></tr></thead>
-      <tbody>
-        <tr><td>Tilt</td><td>2.5 points</td></tr>
-        <tr><td>Lean</td><td>5 points</td></tr>
-        <tr><td>Likely</td><td>9 points</td></tr>
-        <tr><td>Safe / Solid</td><td>16 points</td></tr>
-      </tbody>
-    </table>
-    <p>House seats that no rater lists are treated as safe for the party that holds them.</p>
+      <h2 id="state-polls">State polls</h2>
+      <p>A state poll is read <em>relative</em> to national polls of the same matchup. If a Nevada poll shows a race 5 points more Republican than national polls of the same pairing, that is evidence about Nevada's lean, whoever the nominees end up being. The lean is updated by Bayesian weighting: one early poll moves it a little, a run of consistent polling moves it more. Expert ratings, once raters publish them, pull a state's margin toward the raters' view.</p>
 
-    <h2 id="combination">Combining them</h2>
-    <p>Fundamentals and expert ratings are blended into a <strong>prior</strong>: 40% fundamentals and 60% ratings when ratings exist, and fundamentals alone otherwise.</p>
-    <p>The polling average is then combined with the prior by <strong>inverse-variance weighting</strong> — each estimate counts in proportion to how precise it is. The polling average’s variance shrinks as the effective number of polls grows and grows as the polls become stale, so a race with many fresh polls is driven mostly by its polls, while a race with one old poll leans on the prior. Every race page shows the two estimates, their weights and the resulting margin.</p>
+      <h2 id="uncertainty">Uncertainty and correlation</h2>
+      <p>States do not miss independently: if polls overrate one party in Wisconsin they probably do in Michigan too. Each simulation therefore adds</p>
+      <ul>
+        <li>a <strong>national</strong> error shared by every contest (fat-tailed, and much wider two years out than on Election Day),</li>
+        <li><strong>regional</strong> errors shared by states in the same Census region,</li>
+        <li>an error along the <strong>realignment axis</strong>: states that moved together between 2020 and 2024 move together again,</li>
+        <li>a <strong>state</strong> error, fat-tailed, and a small extra error for each congressional district.</li>
+      </ul>
+      <p>On top of that, the nominee draw itself varies from one simulation to the next. With these settings a typical swing state's 80% range today spans roughly 20 points of margin.</p>
 
-          <p>Each race is then reviewed against its full evidence file (polls, ratings, money and outside spending, markets, recent coverage) and its final margin and uncertainty are set in that review, within a bounded distance of the baseline. A national review likewise sets a shared environment adjustment and the scale of the national error term before the simulation runs.</p>
+      <h2 id="outputs">What the simulation reports</h2>
+      <p>Everything on the site comes from the same 20,000 simulations, so the numbers agree with one another: each contest's chance and margin range; the distribution of electoral votes; the national popular vote and the chance the popular vote and Electoral College split; the <em>tipping point</em> (in each simulation, the contest that delivers the 270th electoral vote once contests are ordered from the winner's strongest to weakest); and the same outcomes for each possible nominee and each likely matchup.</p>
 
-<h2 id="simulation">Uncertainty and simulation</h2>
-    <p>Probabilities come from <strong>20,000 Monte Carlo simulations</strong> of election night. Each simulation draws:</p>
-    <ul>
-      <li>a <strong>national swing</strong> shared by every race, with a standard deviation of about <strong>2.5 points</strong> six weeks out, shrinking toward <strong>1.5 points</strong> on election day;</li>
-      <li>a <strong>regional swing</strong> shared by races in the same Census region;</li>
-      <li>a <strong>state swing</strong> shared by races in the same state;</li>
-      <li>a fat-tailed (<strong>Student-t</strong>) race-specific error.</li>
-    </ul>
-    <p>Because the swings are shared, outcomes are <strong>correlated</strong>: a good night for one party tends to be a good night everywhere, which is what makes the chamber-control odds wider than the individual race odds would suggest. Seat totals and control probabilities are read directly off these simulations.</p>
-    <p>Senate control requires <strong>51 Democratic seats</strong>, because the Vice President breaks ties for the Republicans. Independents who do not caucus with a party (for example in Nebraska) count as neither, which is why the Senate card can show a small probability that neither party reaches control on its own.</p>
+      <h2 id="rebuild">A model that rebuilds itself</h2>
+      <p>Every update runs the same cycle:</p>
+      <ol>
+        <li><strong>Collect.</strong> Polls, primary polling and candidate fields, approval, the economy, expert ratings, fundraising and news are refreshed.</li>
+        <li><strong>Recalibrate.</strong> The data-driven parts of the specification are re-derived: nomination odds from primary polling (blended with the previous odds so one poll cannot reset the race), candidate strength from the trial-heat regression, and new candidates added as they appear in polls or declare.</li>
+        <li><strong>Review.</strong> The recalibrated model and its results are reviewed against the full body of evidence: polls, the state of each nomination contest, the news, fundamentals and the recent history of revisions. Any setting may be revised, and each revision states its reason.</li>
+        <li><strong>Check.</strong> Every revision passes the guardrails below; anything outside them is limited or rejected.</li>
+        <li><strong>Run and publish.</strong> The revised model runs 20,000 simulations; if its specification changed, it is stored as a new numbered version with a changelog.</li>
+      </ol>
+      <p>So the structure of the forecast tracks the campaign: as candidates enter or rule out runs, as polls of real matchups accumulate and as the economy and approval move, the model's own settings move with them, and you can see exactly how and why in the <a href="model.html">model log</a>.</p>
 
-    <h2 id="markets">Markets and news</h2>
-    <p>Prediction-market prices from <strong>Polymarket, PredictIt and Kalshi</strong>, and headlines from Google News, are shown on the dashboard and race pages for comparison and context. <strong>They are not model inputs.</strong></p>
+      <h2 id="guardrails">Guardrails</h2>
+      <ul>
+        <li>Every setting has a fixed allowed range and a largest change one revision may make, so no single update can swing the model wildly.</li>
+        <li>Candidate strength is limited to ±5 points; state adjustments to ±4 points, at most 12 at a time, each with a stated reason.</li>
+        <li>Nomination odds are re-normalised to 100% per party, with at most 12 named candidates plus a share for someone else.</li>
+        <li>If a revision cannot be made or is malformed, the recalibrated model stands.</li>
+      </ul>
 
-    <h2 id="limitations">Limitations</h2>
-    <ul>
-      <li>Wikipedia poll tables can lag behind new releases or contain transcription errors.</li>
-      <li>There is no pollster house-effect adjustment yet.</li>
-      <li>District-level polls are sparse, so most House races rest on fundamentals and ratings.</li>
-      <li>Mid-decade redistricting (Texas, California, Florida, Missouri, North Carolina, Ohio, Utah, Alabama and others) makes some PVIs and “last result” figures less comparable to the new lines.</li>
-      <li>Fundraising uses FEC summary data through the latest coverage date, which can be months old.</li>
-    </ul>
+      <h2 id="markets">Markets and news</h2>
+      <p>Prediction-market prices (Polymarket, Kalshi) are shown for comparison and are never used by the forecast or its reviews, so the comparison stays independent. News coverage informs the review of who is running and what is changing, but never enters the simulation directly.</p>
 
-    <h2 id="updates">Updates</h2>
-    <p>The pipeline re-runs daily: it refreshes polls, ratings, fundraising, markets and news, re-fits every race and re-runs the simulation. The time of the latest run is shown at the top of every page, and the trend charts accumulate one point per run.</p>
-    <p><a href="forecast.html" data-nav="forecast">← Back to the final forecast</a> · <a href="scorecard.html">How the forecast did</a></p>
+      <h2 id="limits">Known limitations</h2>
+      <ul>
+        <li>Two years out, polls of hypothetical matchups have a poor record; the forecast leans on fundamentals and keeps its ranges wide on purpose.</li>
+        <li>Third-party and independent candidates are folded into the two-party margin; polls that include them get less weight.</li>
+        <li>Home-state effects and candidate strength are rough, and early state polling is sparse.</li>
+        <li>Wikipedia's poll tables can lag publication or contain transcription errors.</li>
+      </ul>
+    </article>
   </main>
 
   <footer class="footer">
@@ -136,28 +121,26 @@
       <div>
         <h4>Data sources</h4>
         <ul>
-          <li>Polls, candidates and expert ratings: aggregated from each race’s Wikipedia article</li>
-          <li>Fundraising: FEC bulk data (campaign finance summaries)</li>
-          <li>Prediction markets: Polymarket, PredictIt, Kalshi (shown for comparison, not a model input)</li>
+          <li>Results 2020 and 2024: certified state and district returns</li>
+          <li>Polls, candidate fields, approval: Wikipedia, as published</li>
+          <li>Economy: U.S. Bureau of Labor Statistics</li>
+          <li>Fundraising: Federal Election Commission</li>
+          <li>Markets (comparison only, never an input): Polymarket, Kalshi</li>
           <li>News: Google News</li>
         </ul>
       </div>
       <div>
         <h4>About</h4>
         <ul>
-          <li><a href="methodology.html" data-nav="methodology">How the model works</a></li>
+          <li><a href="methodology.html">How the model works</a> · <a href="model.html">Model log</a></li>
           <li data-generated></li>
           <li><a href="admin.html">Admin</a></li>
-          <li><span data-site-name>Midterm Model 2026</span> · not affiliated with any campaign or party</li>
+          <li><span data-site-name>Presidential Model 2028</span> · independent, not affiliated with any campaign or party</li>
         </ul>
       </div>
     </div>
   </footer>
 
-  <script type="module">
-    import { initChrome, loadJSON, renderUpdated, renderFooterMeta } from './common.js';
-    initChrome({ current: 'methodology' });
-    loadJSON('summary.json').then((s) => { renderUpdated(s); renderFooterMeta(s); }).catch(() => {});
-  </script>
+  <script type="module" src="./methodology.js"></script>
 </body>
 </html>

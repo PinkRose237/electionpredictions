@@ -12,6 +12,10 @@ def test_pbkdf2_matches_webcrypto_parameters():
 
 def test_write_config(tmp_path, monkeypatch):
     monkeypatch.setattr(admin, "CONFIG_PATH", tmp_path / "admin-config.json")
+    (tmp_path / "archive").mkdir()
+    monkeypatch.setattr(admin, "ARCHIVE_CONFIG_PATH", tmp_path / "archive" / "admin-config.json")
     cfg = admin.write_config("a-long-passphrase", repo="owner/name")
     assert cfg["repo"] == "owner/name" and cfg["iterations"] == 200_000 and (tmp_path / "admin-config.json").exists()
     assert admin.pbkdf2_hex("a-long-passphrase", cfg["salt"]) == cfg["hash"]
+    assert (tmp_path / "archive" / "admin-config.json").read_text() == (tmp_path / "admin-config.json").read_text()
+    assert cfg["path"] == "site/archive/2026/data/results.json"

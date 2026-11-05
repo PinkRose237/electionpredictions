@@ -4,7 +4,7 @@ import Foundation
 /// Primary: The New York Times' results JSON (AP votes and calls; `eevp` = AP's estimated share of the
 /// expected vote counted). Backup: CNN's national-races JSON, used only for races the primary lacks.
 enum Feeds {
-    static let site = URL(string: "https://pinkrose237.github.io/electionpredictions/data/")!
+    static let site = URL(string: "https://pinkrose237.github.io/electionpredictions/archive/2026/data/")!
     static let nyt = ["senate", "house"].map { URL(string: "https://static01.nyt.com/elections-assets/pages/data/2026-11-03/results-\($0).json")! }
     static let cnn = ["SG", "HG"].map { URL(string: "https://politics.api.cnn.io/results/national-races/2026-\($0).json")! }
 

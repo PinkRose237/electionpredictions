@@ -1,5 +1,5 @@
 /**
- * common.js — shared helpers for the Midterm Model 2026 site.
+ * common.js — shared helpers for the Presidential Model 2028 site.
  *
  * Sections
  *   1. Site constants, state list, tile-map layout
@@ -18,13 +18,12 @@
 // ---------------------------------------------------------------------------
 
 /** Site name — rename here (and in the <title> tags) to rebrand. */
-export const SITE_NAME = 'Midterm Model 2026';
-export const ELECTION_DATE = '2026-11-03';
+export const SITE_NAME = 'Presidential Model 2028';
+export const ELECTION_DATE = '2028-11-07';
 export const DASH = '—';
-
-export const CHAMBERS = ['house', 'senate', 'governor'];
-export const CHAMBER_LABEL = { house: 'House', senate: 'Senate', governor: 'Governors', president: 'President' };
-export const CHAMBER_SINGULAR = { house: 'House', senate: 'Senate', governor: 'Governor', president: 'President' };
+export const TOTAL_EV = 538;
+export const NEEDED_EV = 270;
+export const PARTY_NAME = { D: 'Democratic', R: 'Republican' };
 
 export const LABELS = ['Safe D', 'Likely D', 'Lean D', 'Tossup', 'Lean R', 'Likely R', 'Safe R'];
 export const COMPETITIVE = new Set(['Likely D', 'Lean D', 'Tossup', 'Lean R', 'Likely R']);
@@ -81,9 +80,19 @@ export function withData(url) {
   const joined = `${base}${base.includes('?') ? '&' : '?'}data=${encodeURIComponent(DATA_PARAM)}`;
   return hash != null ? `${joined}#${hash}` : joined;
 }
-export function raceHref(id) {
-  return withData(`race.html?id=${encodeURIComponent(id)}`);
+export function stateHref(id) {
+  return withData(`state.html?id=${encodeURIComponent(id)}`);
 }
+/** "PA" → "Pennsylvania", "ME-2" → "Maine 2nd District". */
+export function contestName(id) {
+  if (!id) return '';
+  const [st, d] = String(id).split('-');
+  const name = STATE_NAMES[st] || st;
+  if (!d) return name;
+  return `${name} ${d}${d === '1' ? 'st' : d === '2' ? 'nd' : 'rd'} District`;
+}
+/** Short label: "PA", "ME-2". */
+export function contestShort(id) { return String(id || ''); }
 
 /** Fetch `${base}/${relPath}` and parse JSON, with readable errors. */
 export async function loadJSON(relPath, base) {
@@ -693,7 +702,7 @@ export function holderNode(race) {
 /** Fill the brand name, propagate the data parameter to nav links, mark the current page. */
 export function initChrome({ current } = {}) {
   document.querySelectorAll('[data-site-name]').forEach((el) => { el.textContent = SITE_NAME; });
-  if (document.title.includes('Midterm Model 2026')) document.title = document.title.replace('Midterm Model 2026', SITE_NAME);
+  if (document.title.includes('Presidential Model 2028')) document.title = document.title.replace('Presidential Model 2028', SITE_NAME);
   document.querySelectorAll('a[data-nav]').forEach((a) => {
     a.setAttribute('href', withData(a.getAttribute('href')));
     if (current && a.dataset.nav === current) a.setAttribute('aria-current', 'page');

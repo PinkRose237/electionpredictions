@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>2026 Midterm Results — Midterm Model 2026</title>
-  <meta name="description" content="Results of the 2026 U.S. midterm elections: who won the Senate, the House and the governorships, the seats that flipped, the races still being counted, and how the forecast did.">
+  <title>Presidential Model 2028 — 2028 Election Forecast</title>
+  <meta name="description" content="Who will win the 2028 presidential election? A simulation-based Electoral College forecast for every state, updated as the campaign develops.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="2026 Midterm Results — Midterm Model 2026">
-  <meta property="og:description" content="Who won the Senate, the House and the governorships in 2026, the seats that flipped, what's still being counted, and how the forecast did.">
+  <meta property="og:title" content="Presidential Model 2028 — 2028 Election Forecast">
+  <meta property="og:description" content="Who will win the 2028 presidential election? A simulation-based Electoral College forecast for every state, updated as the campaign develops.">
   <meta property="og:url" content="https://pinkrose237.github.io/electionpredictions/">
   <meta name="twitter:card" content="summary">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='16' height='32' rx='4' fill='%232166ac'/%3E%3Crect x='16' width='16' height='32' rx='4' fill='%23b2182b'/%3E%3Crect x='10' width='12' height='32' fill='%232166ac'/%3E%3Crect x='16' width='6' height='32' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231b1b1a'/%3E%3Crect x='5' y='9' width='10' height='14' rx='2' fill='%232166ac'/%3E%3Crect x='17' y='9' width='10' height='14' rx='2' fill='%23b2182b'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -21,46 +21,59 @@
   <a class="visually-hidden" href="#main">Skip to content</a>
   <header class="topbar">
     <div class="container topbar-inner">
-      <a class="brand" href="index.html" data-nav="home"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Midterm Model 2026</span></a>
+      <a class="brand" href="index.html" data-nav="brand"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Presidential Model 2028</span></a>
       <nav class="nav" aria-label="Primary">
-        <a href="index.html" data-nav="home">Results</a>
+        <a href="index.html" data-nav="home">Forecast</a>
         <a href="map.html" data-nav="map">Map</a>
-        <a href="results.html" data-nav="races">All races</a>
-        <a href="calls.html" data-nav="calls">Race calls</a>
-        <a href="scorecard.html" data-nav="scorecard">Scorecard</a>
-        <a href="forecast.html" data-nav="forecast">Final forecast</a>
-        <a href="president.html" data-nav="president">2028</a>
+        <a href="states.html" data-nav="states">States</a>
+        <a href="field.html" data-nav="field">The field</a>
+        <a href="polls.html" data-nav="polls">Polls</a>
+        <a href="model.html" data-nav="model">Model log</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
       </nav>
       <div class="topbar-meta" data-updated></div>
     </div>
   </header>
 
   <main id="main" class="container">
-    <div id="status" class="status" role="status">Loading the results…</div>
-    <div id="home" hidden>
+    <div id="status" class="status" role="status">Loading the forecast…</div>
+    <div id="app" hidden>
       <div class="page-head home-head">
-        <h1>2026 midterm results</h1>
-        <p id="headline" class="home-headline"></p>
-        <p id="freshness" class="muted small"></p>
+        <h1>Who will win the 2028 presidential election?</h1>
+        <p id="lede" class="lede"></p>
       </div>
-      <section id="outcomes" class="scoreboard outcomes" aria-label="Control of each chamber"></section>
-      <div class="home-grid">
-        <section id="counting" class="card home-card" aria-labelledby="h-counting"></section>
-        <section id="latest" class="card home-card" aria-labelledby="h-latest"></section>
-      </div>
-      <div class="home-grid">
-        <section id="score" class="card home-card" aria-labelledby="h-score"></section>
-        <section id="explore" class="card home-card explore" aria-labelledby="h-explore">
-          <h2 id="h-explore">Explore</h2>
-          <ul class="explore-list">
-            <li><a href="map.html"><b>Map</b></a> Every race on a state map and a one-square-per-district House map, coloured by result.</li>
-            <li><a href="results.html"><b>All races</b></a> Every Senate, House and governor race: winner, margin, share counted, and the forecast beside it.</li>
-            <li><a href="calls.html"><b>Race calls</b></a> When CNN, NBC News, Bloomberg and the AP each called every race, and where they differed.</li>
-            <li><a href="scorecard.html"><b>Scorecard</b></a> How the final forecast held up, race by race.</li>
-            <li><a href="forecast.html"><b>Final forecast</b></a> The model’s last pre-election forecast, kept as it was published.</li>
-          </ul>
-        </section>
-      </div>
+      <section class="section" aria-label="Headline forecast"><div id="hero"></div></section>
+      <section class="section two-col" aria-label="Electoral votes">
+        <div class="card"><h2>Electoral votes</h2><p class="card-sub">Democratic electoral votes across all simulations. Blue wins, red loses, grey is a 269–269 tie.</p><div id="hist" class="chart-box"></div><dl id="ev-stats" class="stats"></dl></div>
+        <div class="card"><h2>Chance of winning over time</h2><p class="card-sub">One point per update.</p><div id="trend" class="chart-box"></div></div>
+      </section>
+      <section class="section" aria-label="Road to 270">
+        <div class="card"><h2>The road to 270</h2><p class="card-sub">Every contest lined up from most to least likely to vote Democratic, sized by electoral votes. The one that crosses 270 is the tipping point.</p><div id="road" class="chart-box"></div></div>
+      </section>
+      <section class="section" aria-label="Map">
+        <div class="card map-card"><div class="card-head"><h2>The map</h2><a class="btn" href="map.html">Open the full map →</a></div><div id="map" class="chart-box map-wrap"></div><div id="legend"></div></div>
+      </section>
+      <section class="section" aria-labelledby="h-overview" id="overview-block" hidden>
+        <div class="card overview-card"><h2 id="h-overview">Where the race stands</h2><div id="overview"></div></div>
+      </section>
+      <section class="section two-col" aria-label="Nominees">
+        <div class="card" id="nom-D"></div>
+        <div class="card" id="nom-R"></div>
+      </section>
+      <section class="section" aria-labelledby="h-match">
+        <div class="section-head"><h2 id="h-match">Likeliest matchups</h2><p>How the general election looks under each pairing of nominees, and how likely each pairing is.</p></div>
+        <div id="matchups" class="table-wrap"></div>
+      </section>
+      <section class="section two-col" aria-label="Environment and tipping points">
+        <div class="card" id="env"></div>
+        <div class="card" id="tipping"></div>
+      </section>
+      <section class="section" aria-labelledby="h-close">
+        <div class="section-head"><h2 id="h-close">Closest contests</h2><p>The ten contests nearest a coin flip.</p></div>
+        <div id="closest" class="closest-grid"></div>
+      </section>
+      <section class="section" aria-label="Latest model revision"><div class="card" id="revision"></div></section>
+      <section class="section" aria-label="Markets"><p id="markets" class="markets-line"></p></section>
     </div>
   </main>
 
@@ -69,18 +82,21 @@
       <div>
         <h4>Data sources</h4>
         <ul>
-          <li>Vote counts: The Associated Press via The New York Times (CNN as a backup)</li>
-          <li>Race calls: a race counts as called once 2 of 4 news organizations (CNN, NBC News, Bloomberg, the AP) agree</li>
-          <li>Forecast: this site’s final pre-election run, November 3, 2026</li>
+          <li>Results 2020 and 2024: certified state and district returns</li>
+          <li>Polls, candidate fields, approval: Wikipedia, as published</li>
+          <li>Economy: U.S. Bureau of Labor Statistics</li>
+          <li>Fundraising: Federal Election Commission</li>
+          <li>Markets (comparison only, never an input): Polymarket, Kalshi</li>
+          <li>News: Google News</li>
         </ul>
       </div>
       <div>
         <h4>About</h4>
         <ul>
-          <li><a href="methodology.html" data-nav="methodology">How the model works</a></li>
+          <li><a href="methodology.html">How the model works</a> · <a href="model.html">Model log</a></li>
           <li data-generated></li>
           <li><a href="admin.html">Admin</a></li>
-          <li><span data-site-name>Midterm Model 2026</span> · not affiliated with any campaign or party</li>
+          <li><span data-site-name>Presidential Model 2028</span> · independent, not affiliated with any campaign or party</li>
         </ul>
       </div>
     </div>

@@ -17,9 +17,9 @@ A full-screen, always-on board of the 2026 Senate and House results (no governor
 
 The data is the same as the website's (`site/live.js`): live votes and race calls from the AP via The New
 York Times' results feed (CNN as backup), with the results desk's manual overrides
-(`data/results.json`) on top, and the site's saved snapshot (`data/results-auto.json`) when the feeds
+(`archive/2026/data/results.json`) on top, and the site's saved snapshot (`archive/2026/data/results-auto.json`) when the feeds
 can't be reached. Race names, sides, ratings and model margins come from the published
-`data/races.json` / `summary.json` / `schedule.json`.
+`archive/2026/data/races.json` / `summary.json` / `schedule.json`.
 
 ## Put it on your Apple TV
 

@@ -1,4 +1,4 @@
-"""Command-line entry point: ingest -> model -> export -> serve."""
+"""Command-line entry point for the 2028 presidential model: ingest -> rebuild -> export -> serve."""
 from __future__ import annotations
 
 import argparse
@@ -9,51 +9,8 @@ import sys
 import time
 
 from .config import SITE_DIR, days_to_election
-from .db import connect, log_run, now_iso, rows
-
-STAGES = ["races", "ratings", "generic", "polls", "fec", "wiki_fundraising", "followthemoney", "census", "markets", "news", "ai"]
-
-
-def ingest(con, only=None, skip=()):
-    import os
-
-    from .sources import ai, census, fec, followthemoney, generic_ballot, markets, news, polls, races, ratings, wiki_fundraising
-
-    fns = {
-        "races": lambda: races.load_all(con),
-        "ratings": lambda: ratings.load_all(con),
-        "generic": lambda: generic_ballot.load(con),
-        "polls": lambda: polls.load(con, verbose=False),
-        "fec": lambda: fec.load(con, verbose=False),
-        "wiki_fundraising": lambda: wiki_fundraising.load(con, verbose=False),
-        "followthemoney": lambda: followthemoney.load(con, verbose=True),
-        "census": lambda: census.load(con, verbose=True),
-        "markets": lambda: markets.load(con, verbose=False),
-        "news": lambda: news.load(con, verbose=False),
-        "ai": lambda: ai.load(con, verbose=True, max_calls=int(os.environ.get("AI_MAX_CALLS", "700"))),
-    }
-    has_creds = bool(os.environ.get("OPENCODE_API_KEY") or os.environ.get("OPENCODE_ZEN_API_KEY"))
-    for stage in STAGES:
-        if (only and stage not in only) or stage in skip:
-            continue
-        if stage == "ai" and not only and not has_creds:
-            print("[ai] skipped (no OPENCODE_API_KEY): the quantitative baseline stands")
-            continue
-        t0, started = time.time(), now_iso()
-        print(f"[{stage}] ...", flush=True)
-        try:
-            res = fns[stage]()
-            print(f"[{stage}] done in {time.time() - t0:.0f}s: {res}")
-        except Exception as e:  # noqa: BLE001
-            print(f"[{stage}] FAILED: {e!r}", file=sys.stderr)
-            log_run(con, stage, started, False, repr(e))
-
-
-def model(con, sims=20000, seed=None, use_ai=True):
-    from .model import forecast
-
-    print(f"[model] {sims} simulations, {days_to_election()} days to the election" + ("" if use_ai else " (baseline only)"))
-    return forecast.run(con, n_sims=sims, seed=seed, use_ai=use_ai)
+from .db import connect, now_iso, rows
+from .pipeline import STAGES, ingest, rebuild
 
 
 def export(con):
@@ -64,24 +21,26 @@ def export(con):
 
 
 def status(con):
-    print("Races:", rows(con, "SELECT chamber, count(*) n FROM races GROUP BY chamber"))
-    print("Polls:", rows(con, "SELECT count(*) n, count(distinct race_id) races, max(end_date) newest FROM polls")[0])
-    print("Ratings:", rows(con, "SELECT count(*) n, max(as_of) newest FROM ratings")[0])
-    print("Generic ballot:", rows(con, "SELECT source, as_of, margin FROM generic_ballot ORDER BY as_of DESC LIMIT 5"))
-    print("Markets:", rows(con, "SELECT platform, count(*) n, max(fetched_at) fetched FROM markets GROUP BY platform"))
-    print("News:", rows(con, "SELECT count(*) n, count(distinct race_id) races FROM news")[0])
-    print("FEC:", rows(con, "SELECT count(*) n, max(coverage_end) newest FROM candidates WHERE receipts IS NOT NULL")[0])
-    print("Forecast runs:", rows(con, "SELECT run_date, chamber, round(p_dem,3) p_dem, round(dem_seats_mean,1) seats FROM chamber_forecasts ORDER BY run_date DESC LIMIT 9"))
-    print("Recent stages:", [f"{r['stage']}@{r['finished_at']} ok={r['ok']}" for r in rows(con, "SELECT * FROM runs ORDER BY run_id DESC LIMIT 8")])
+    print("Polls:", rows(con, "SELECT scope, count(*) n, max(end_date) newest FROM polls GROUP BY scope"))
+    print("Primary polls:", rows(con, "SELECT party, count(*) n, max(end_date) newest FROM primary_polls GROUP BY party"))
+    print("Candidates:", rows(con, "SELECT party, status, count(*) n FROM candidates GROUP BY party, status"))
+    print("Approval:", rows(con, "SELECT source, as_of, net FROM approval WHERE source='Average' ORDER BY as_of DESC LIMIT 3"))
+    print("Economy:", rows(con, "SELECT series, max(period) latest FROM economy GROUP BY series"))
+    print("Ratings:", rows(con, "SELECT count(*) n FROM ratings")[0])
+    print("Markets:", rows(con, "SELECT platform, kind, count(*) n FROM markets GROUP BY platform, kind"))
+    print("News:", rows(con, "SELECT count(*) n, count(distinct topic) topics FROM news")[0])
+    print("Model versions:", [f"v{r['version']} {r['run_date']} {r['origin']}: {r['title']}" for r in
+                              rows(con, "SELECT * FROM model_specs ORDER BY version DESC LIMIT 6")])
+    print("Forecasts:", rows(con, "SELECT run_date, spec_version, round(p_dem,3) p_dem, round(dem_ev_mean,1) dem_ev FROM national_forecasts ORDER BY run_date DESC LIMIT 5"))
+    print("Recent stages:", [f"{r['stage']}@{r['finished_at']} ok={r['ok']}" for r in rows(con, "SELECT * FROM runs ORDER BY run_id DESC LIMIT 10")])
 
 
 def results(watch: int = 0, push: bool = False):
-    """Snapshot the live results feeds (results-auto.json) and the outlets' race calls (calls.json),
-    once or every `watch` seconds."""
+    """Archived 2026 midterm site: snapshot the live results feeds and outlets' race calls."""
     import subprocess
 
-    from .sources.live_results import SNAPSHOT_PATH, snapshot
-    from .sources.race_calls import CALLS_PATH, write_calls
+    from .archive2026.live_results import SNAPSHOT_PATH, snapshot
+    from .archive2026.race_calls import CALLS_PATH, write_calls
 
     rels = [str(p.relative_to(SITE_DIR.parent)) for p in (SNAPSHOT_PATH, CALLS_PATH)]
     git = lambda *a: subprocess.run(["git", *a], cwd=SITE_DIR.parent, capture_output=True, text=True)  # noqa: E731
@@ -91,7 +50,7 @@ def results(watch: int = 0, push: bool = False):
             calls = write_calls()
             if push and (res.get("written") or calls.get("written")):
                 _push_snapshot(git, rels)
-        except Exception as e:  # noqa: BLE001 - a bad cycle must not stop an election-night watch
+        except Exception as e:  # noqa: BLE001 - a bad cycle must not stop a watch
             print(f"[results] cycle failed: {e!r}", file=sys.stderr)
             res = {}
         if not watch:
@@ -100,9 +59,6 @@ def results(watch: int = 0, push: bool = False):
 
 
 def _push_snapshot(git, rels):
-    """Commit the snapshot files and push. Another writer (the scheduled workflow) may have pushed its own
-    snapshot meanwhile: on a conflict in these generated files ours is newer, so rebase with -X theirs
-    (in a rebase, "theirs" is the commit being replayed: ours). Anything else aborts cleanly."""
     git_dir = SITE_DIR.parent / ".git"
     if (git_dir / "rebase-merge").exists() or (git_dir / "rebase-apply").exists() or (git_dir / "MERGE_HEAD").exists():
         print("[results] a rebase or merge is in progress in this checkout; not pushing until it's finished")
@@ -126,7 +82,7 @@ class _NoCacheHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Cache-Control", "no-store")
         super().end_headers()
 
-    def log_message(self, fmt, *args):  # quieter
+    def log_message(self, fmt, *args):
         pass
 
 
@@ -137,32 +93,33 @@ def serve(port=8000):
 
 
 def main(argv=None):
-    p = argparse.ArgumentParser(prog="electionpredictions", description="2026 midterm forecast pipeline")
+    p = argparse.ArgumentParser(prog="electionpredictions", description="2028 presidential election model")
     sub = p.add_subparsers(dest="cmd", required=True)
-    a = sub.add_parser("ingest", help="fetch all data sources into the database")
+    a = sub.add_parser("ingest", help="fetch the data sources into the database")
     a.add_argument("--only", help="comma-separated stages: " + ",".join(STAGES))
     a.add_argument("--skip", default="", help="comma-separated stages to skip")
-    m = sub.add_parser("model", help="run the forecast model")
+    m = sub.add_parser("model", help="rebuild the model spec (calibrate + revise) and run the forecast")
     m.add_argument("--sims", type=int, default=20000)
     m.add_argument("--seed", type=int)
-    m.add_argument("--baseline-only", action="store_true", help="ignore the analyst decisions")
+    m.add_argument("--no-revision", action="store_true", help="calibrate only; do not call the revision step")
+    m.add_argument("--no-narrative", action="store_true", help="skip the written summaries")
     sub.add_parser("export", help="write site/data JSON")
-    r = sub.add_parser("run", help="ingest + model + export")
-    r.add_argument("--skip", default="")
+    r = sub.add_parser("run", help="ingest + model + export (one full update)")
+    r.add_argument("--skip", default="", help="comma-separated stages to skip (ingest stages, or 'revision', 'narrative')")
     r.add_argument("--sims", type=int, default=20000)
     s = sub.add_parser("serve", help="serve the site locally")
     s.add_argument("--port", type=int, default=8000)
     sub.add_parser("status", help="show what is in the database")
     sub.add_parser("ai-probe", help="make one tiny request to the AI provider and print what it answers (diagnostics)")
-    rs = sub.add_parser("results", help="snapshot the live results feeds and outlets' race calls (results-auto.json, calls.json)")
-    rs.add_argument("--watch", type=int, default=0, metavar="SECONDS", help="keep refreshing every SECONDS (e.g. 120)")
-    rs.add_argument("--push", action="store_true", help="commit and push the snapshot whenever it changes")
+    rs = sub.add_parser("results", help="archived 2026 site: snapshot results feeds and race calls")
+    rs.add_argument("--watch", type=int, default=0, metavar="SECONDS")
+    rs.add_argument("--push", action="store_true")
     ap = sub.add_parser("set-admin-password", help="set the password for the site's admin page")
     ap.add_argument("--password", help="omit to be prompted")
-    ap.add_argument("--repo", help="GitHub owner/name the admin page publishes to (default: origin remote)")
+    ap.add_argument("--repo", help="GitHub owner/name the archived corrections desk publishes to (default: origin remote)")
     args = p.parse_args(argv)
     if args.cmd == "ai-probe":
-        from .sources.ai import probe
+        from .llm import probe
 
         print(json.dumps(probe(), indent=2))
         return
@@ -172,28 +129,26 @@ def main(argv=None):
     if args.cmd == "set-admin-password":
         import getpass
 
-        from .admin import CONFIG_PATH, write_config
+        from .admin import CONFIG_PATHS, write_config
 
         pw = args.password or getpass.getpass("New admin password: ")
         if len(pw) < 8:
             raise SystemExit("Use at least 8 characters (a long passphrase is best: the hash is public).")
-        cfg = write_config(pw, repo=args.repo)
-        print(f"Wrote {CONFIG_PATH} (publishes to {cfg['repo'] or '<set --repo>'} on {cfg['branch']}: {cfg['path']})")
+        write_config(pw, repo=args.repo)
+        print("Wrote " + ", ".join(str(p) for p in CONFIG_PATHS))
         return
     con = connect()
+    print(f"2028 presidential model · {days_to_election()} days to the election")
     if args.cmd == "ingest":
         ingest(con, only=args.only.split(",") if args.only else None, skip=tuple(filter(None, args.skip.split(","))))
     elif args.cmd == "model":
-        model(con, sims=args.sims, seed=args.seed, use_ai=not args.baseline_only)
+        rebuild(con, n_sims=args.sims, seed=args.seed, revise=not args.no_revision, narrate=not args.no_narrative)
     elif args.cmd == "export":
         export(con)
     elif args.cmd == "run":
         skip = tuple(filter(None, args.skip.split(",")))
-        ingest(con, skip=skip + ("ai",))
-        model(con, sims=args.sims, use_ai=False)   # quantitative baseline the decisions are made against
-        if "ai" not in skip:
-            ingest(con, only=["ai"])
-        model(con, sims=args.sims)                 # final: decisions applied, coherent simulation
+        ingest(con, skip=skip)
+        rebuild(con, n_sims=args.sims, revise="revision" not in skip, narrate="narrative" not in skip)
         export(con)
     elif args.cmd == "serve":
         serve(args.port)

@@ -1,5 +1,5 @@
 /* ==========================================================================
-   Midterm Model 2026 — styles
+   Presidential Model 2028 — styles
    1. Tokens (light, then dark override)   2. Base   3. Chrome (top bar, footer)
    4. Components   5. Dashboard   6. Race page   7. Methodology   8. Responsive
    ========================================================================== */
@@ -925,3 +925,77 @@ details.admin-state[open] > summary::before { content: '▾'; }
 .overview-chambers dd { margin: 0; color: var(--ink-2); }
 .sub-h { font-size: 13px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--ink-3); margin: 14px 0 6px; }
 .model-notes.factors li { color: var(--ink); }
+
+/* ==========================================================================
+   9. Presidential Model 2028
+   ========================================================================== */
+.two-col { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.lede { font-size: 17px; color: var(--ink-2); max-width: 760px; }
+.home-head h1 { font-size: clamp(26px, 4vw, 38px); letter-spacing: -0.02em; }
+.hero-card .control-probs .big { font-size: clamp(44px, 8vw, 72px); }
+.hero-card .stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.model-chip { margin: var(--s3) 0 0; color: var(--ink-3); }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--s3); flex-wrap: wrap; }
+.card-head h2, .card-head h3 { margin: 0; }
+.races-table.compact td, .races-table.compact th { padding: 5px 8px; }
+.bar-cell { width: 28%; min-width: 60px; }
+.mini-bar { display: block; height: 8px; border-radius: 4px; min-width: 2px; }
+.mini-bar.dem { background: var(--dem); } .mini-bar.rep { background: var(--rep); } .mini-bar.ind { background: var(--ind); }
+.tip-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.tip-list li { display: grid; grid-template-columns: 1fr auto minmax(60px, 34%) 52px auto; align-items: center; gap: 8px; font-size: 13.5px; }
+.tip-bar { height: 8px; background: var(--surface-3); border-radius: 4px; overflow: hidden; }
+.tip-bar > span { display: block; height: 100%; background: var(--ink-3); }
+.rc-head { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.rc-title { font-weight: 700; }
+.big-num { display: inline-block; font-size: 22px; font-weight: 700; padding: 2px 8px; border-radius: 6px; margin: 6px 0; font-variant-numeric: tabular-nums; }
+.prob-legend-wrap { display: flex; align-items: center; gap: 8px; margin-top: var(--s2); }
+.prob-legend { display: flex; flex: 1; max-width: 360px; height: 10px; border-radius: 5px; overflow: hidden; }
+.chart.road .seg { cursor: pointer; stroke: var(--surface); stroke-width: 0.6; }
+.chart.road .seg:hover, .chart.road .seg:focus { stroke: var(--ink); stroke-width: 1.5; outline: none; }
+.chart.road .seg-label { font-size: 10px; font-weight: 600; pointer-events: none; }
+.ec-map .shape.race { cursor: pointer; stroke: var(--map-stroke); stroke-width: 1; transition: fill 0.4s ease; }
+.ec-map .shape.race:hover, .ec-map .shape.race:focus { stroke: var(--ink); stroke-width: 2; outline: none; }
+.ec-map .shape.selected { stroke: var(--ink); stroke-width: 2.6; }
+.ec-map .map-label { font-size: 11px; font-weight: 600; pointer-events: none; }
+.ec-map .map-note-label { font-size: 11px; fill: var(--ink-3); }
+.map-layout { display: grid; grid-template-columns: minmax(0, 2.2fr) minmax(240px, 1fr); gap: var(--s4); align-items: start; }
+.map-detail h2 { margin-top: 0; }
+.md-big { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: var(--s2) 0; }
+.md-big .prob-chip { font-size: 20px; padding: 4px 10px; }
+.map-summary { margin-top: var(--s2); font-size: 13px; }
+.dem-text { color: var(--dem); font-weight: 600; } .rep-text { color: var(--rep); font-weight: 600; }
+.ev-stack > span { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; }
+.ev-stack-wrap .ev-stack { height: 22px; border-radius: 6px; }
+.ev-270 { position: absolute; top: -16px; transform: translateX(-50%); font-size: 11px; font-weight: 700; color: var(--ink-2); }
+.ev-270::after { content: ''; position: absolute; left: 50%; top: 14px; height: 28px; border-left: 2px solid var(--ink); }
+.bucket-rows { display: grid; gap: 6px; margin-top: var(--s4); font-size: 13px; }
+.bucket-row .pill { min-width: 70px; text-align: center; display: inline-block; }
+.mrange { vertical-align: middle; }
+.mr-cell { display: inline-flex; align-items: center; gap: 6px; justify-content: flex-end; }
+.status-declared { background: var(--dem-soft); color: var(--ink); }
+.status-exploratory { background: var(--ind-soft); color: var(--ink); }
+.status-potential { background: var(--surface-2); color: var(--ink-3); }
+.field-table td { vertical-align: top; }
+.log-entry { margin-bottom: var(--s3); }
+.log-entry details summary { cursor: pointer; color: var(--link); margin: var(--s2) 0; }
+.mono { font-family: var(--mono); font-size: 11.5px; }
+.admin-links { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--s3); }
+.link-card { display: flex; flex-direction: column; gap: 4px; color: inherit; }
+.link-card:hover { text-decoration: none; border-color: var(--border-strong); box-shadow: var(--shadow); }
+.waterfall-svg .label.strong { font-weight: 700; fill: var(--ink); }
+.method h2 { margin-top: var(--s6); }
+.method .toc ol { columns: 2; margin: 0; }
+.headline .control-probs .big { font-size: clamp(36px, 6vw, 56px); }
+@media (max-width: 860px) {
+  .map-layout { grid-template-columns: 1fr; }
+  .hero-card .stats { grid-template-columns: 1fr 1fr; }
+  .method .toc ol { columns: 1; }
+}
+@media (max-width: 1000px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
+.topbar-inner { gap: var(--s4); }
+@media (max-width: 1280px) { .topbar-meta { display: none; } .theme-toggle { margin-left: auto; } }
+.races-table td.num, .races-table th.num { white-space: nowrap; padding-left: 14px; }
+.kv > div { display: contents; }
+.field-table .chip { white-space: nowrap; }
+.field-table td:first-child { min-width: 170px; }
+.field-table .bar-cell { width: 14%; }

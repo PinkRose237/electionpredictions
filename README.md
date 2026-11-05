@@ -1,252 +1,172 @@
-# Midterm Model 2026
+# Presidential Model 2028
 
-Results and a scored forecast for **every 2026 U.S. midterm race**: all 435 House seats, the 35 Senate
-seats (including the Ohio and Florida specials) and the 36 governorships. Before the election a Python
-pipeline pulled polls, expert ratings, fundraising, prediction-market odds and news, ran a
-simulation-based forecast, and wrote static JSON that a dependency-free website renders. Since election
-day the site is a results site: the final forecast is frozen as it stood on November 3, and results,
-race calls and a forecast scorecard update as the last races are counted.
+A forecast of the **2028 U.S. presidential election** (November 7, 2028) for all 56 Electoral College
+contests: the 50 states, the District of Columbia, and the congressional districts of Maine and Nebraska.
+A Python pipeline gathers polls, primary polling, the candidate fields, presidential approval, the economy,
+expert ratings, fundraising, prediction markets and news; a simulation turns them into probabilities; static
+JSON feeds a dependency-free website.
 
-**Site map (post-election):** `index.html` results home (control of each chamber, flips, still
-counting, latest calls, forecast summary) · `map.html` · `results.html` all races · `calls.html` race calls
-by outlet · `scorecard.html` how the forecast did · `forecast.html` the archived final forecast ·
-`race.html?id=…` race pages (result on top, final forecast below) · `president.html` 2028 ·
-`admin.html` corrections. Pages share `site/results-data.js` for results, confirmed calls and scoring.
+What sets it apart: **the model rebuilds itself at every update.** Its specification (nomination odds,
+candidate strength, home states, the weight on polls versus fundamentals, the size and shape of the
+uncertainty, state-specific adjustments) is recalibrated from the data and then revised against the full body
+of evidence by an LLM reviewer, inside hard guardrails. Every revision is stored as a numbered version with a
+changelog and published on the site's Model log.
 
 ```
-sources ──▶ SQLite (data/elections.db) ──▶ model ──▶ site/data/*.json ──▶ static site (site/)
+sources ─▶ SQLite (data/president2028.db) ─▶ calibrate ─▶ baseline run ─▶ revise ─▶ guardrails ─▶ spec vN
+                                                                                                    │
+                    static site (site/) ◀── site/data/*.json ◀── export ◀── summaries ◀── final run ◀┘
 ```
+
+The retired **2026 midterm** site (results, race calls, scorecard, the frozen final forecast, the
+corrections desk) lives in `site/archive/2026/`, reachable only after signing in on `admin.html`.
 
 ## Quick start
 
 ```bash
-uv sync                                   # Python 3.14 environment (uses uv)
-uv run electionpredictions run            # ingest everything, run the model, export the site data (~10 min first time)
+uv sync                                   # Python 3.14 environment
+uv run electionpredictions run            # ingest, rebuild the model, export site/data (~1 minute)
 uv run electionpredictions serve          # http://localhost:8000
+uv run pytest -q                          # tests
 ```
 
-Individual stages:
+Commands:
 
 ```bash
-uv run electionpredictions ingest                       # all sources
-uv run electionpredictions ingest --only polls,markets  # some sources (races,ratings,generic,polls,fec,wiki_fundraising,followthemoney,census,markets,news,ai)
-uv run electionpredictions model --sims 20000           # simulation on the decided numbers (stores a dated snapshot)
-uv run electionpredictions model --baseline-only        # pure quantitative forecast, ignoring the decision layer
-uv run electionpredictions export                       # write site/data/
-uv run electionpredictions status                       # what's in the database
-uv run pytest                                           # tests
+uv run electionpredictions ingest [--only polls,primaries]   # stages: polls, primaries, approval, economy, ratings, money, markets, news
+uv run electionpredictions model [--no-revision] [--no-narrative] [--sims 20000]   # calibrate, revise, run, store a new spec version
+uv run electionpredictions export                            # write site/data
+uv run electionpredictions run [--skip news,revision]        # all of the above
+uv run electionpredictions status                            # database contents and the latest model versions
+uv run electionpredictions ai-probe                          # one tiny request to the AI gateway (diagnostics)
+uv run electionpredictions set-admin-password                # the admin page / archive password (PBKDF2 hash, public)
+uv run electionpredictions results [--watch 120 --push]      # archived 2026 site: results and race-call snapshots
 ```
 
-Every source is cached on disk under `data/cache/` (Wikipedia 6 h, markets 1 h, news 3 h, FEC 24 h),
-so re-runs are fast and polite to the upstream sites.
+All HTTP is cached under `data/cache/` (Wikipedia 6 h, markets 1 h, news 3 h, FEC 24 h, BLS 12 h).
 
 ## What goes in
 
-| Input | Source | Notes |
+| Input | Source | Used for |
 |---|---|---|
-| Race universe, candidates, incumbents, 2026 Cook PVI | Wikipedia's 2026 House/Senate/gubernatorial election articles | Reflects mid-decade redistricting (TX, CA, FL, MO, NC, OH, UT, AL, LA…) |
-| Expert ratings (Cook, Inside Elections, Sabato, DDHQ, Silver Bulletin, Split Ticket, Economist, FiftyPlusOne, Fox, RCP) | Wikipedia's ratings aggregation tables | ~1,900 ratings, refreshed daily |
-| General-election polls | Each race's Wikipedia article (which aggregates published polls) | ~1,150 polls across 145 races; ranked-choice rounds and hypothetical matchups handled |
-| Generic congressional ballot | Aggregator averages (DDHQ, FiftyPlusOne, RCP, Silver Bulletin) | Drives the national environment |
-| Fundraising | FEC bulk "all candidates" summary file; Wikipedia "Fundraising" tables as backfill | Governors file with state agencies, so their money comes from the Wikipedia tables (state-filing figures) |
-| Prediction markets | Polymarket, PredictIt, Kalshi | Shown for comparison only — **not** a model input |
-| News | Google News RSS, per race | Headlines for context; not a model input |
-| Poll-closing times & call-time history | The Green Papers (2026 closing times); AP race-call timing 2018–2024 | `src/electionpredictions/schedule.py`, exported to `site/data/schedule.json` |
+| 2020 and 2024 results by state and district | Wikipedia "Results by state" tables, frozen in `history.py` | Each contest's partisan lean |
+| General-election trial heats (national and state) | Wikipedia's 2028 election article, one table per matchup | National environment, candidate strength, state leans |
+| Primary polls, aggregator averages, declared candidates | Wikipedia's 2028 primaries and primary-polling articles | The candidate fields and nomination odds |
+| Presidential approval | Wikipedia's aggregator table ("Opinion polling on the second Trump presidency") | Fundamentals |
+| Inflation, unemployment, real wages | Bureau of Labor Statistics public API | Fundamentals |
+| Expert ratings | Wikipedia "Predictions" table, once raters publish | Pull on state margins |
+| Fundraising | FEC API (office P) | Context for the revision step and the site |
+| Prediction markets | Polymarket, Kalshi | **Comparison only**: never a model input, never shown to the reviewer |
+| News | Google News RSS (race, both primaries, leading candidates, closest states) | Context for the revision step and the site |
 
-## How the forecast is decided
+## How the forecast works
 
-1. **Evidence**: every source above is ingested into SQLite.
-2. **Baseline**: the quantitative model (below) turns the evidence into a margin and uncertainty per race.
-3. **Decisions**: an LLM (GLM 5.3 Flash via OpenCode Go, `OPENCODE_API_KEY`) reviews each
-   race's full dossier (candidates, money and outside spending, ratings, polls, markets, headlines, the baseline)
-   and returns a strict-JSON decision: final margin, uncertainty, label, key factors, rationale, what to watch,
-   and a two-paragraph overview. A national review sets a shared environment adjustment and the scale of the
-   national error term. Decisions are cached by an evidence hash, so a daily run re-decides only races whose
-   data changed (`AI_MAX_CALLS` caps a run, default 700).
-4. **Guardrails** (`model/forecast.py`): a decision may move a race at most 10 points from the baseline, its
-   uncertainty is kept between 2.5 and 12 points, malformed replies are rejected, and a race with no valid
-   decision keeps the baseline. Uncontested races are fixed.
-5. **Simulation**: 20,000 correlated Monte Carlo draws on the decided numbers produce the probabilities, seat
-   totals and control odds the site shows, so everything stays coherent.
+For every contest the expected Democratic-minus-Republican margin is
 
-The site itself does not label any of this; it presents the forecast. `uv run electionpredictions model
---baseline-only` reproduces the pure quantitative forecast for comparison.
+```
+lean (2020/2024 vs nation, updated by state polls) + national environment
+  + D nominee strength − R nominee strength + home-state effects + state adjustment + rating pull
+```
 
-## How the model works (short version)
+- **National environment**: a weighted ridge regression over every national trial heat separates the overall
+  environment from each candidate's strength; it is blended with a fundamentals estimate (presidential net
+  approval and an economic index) with a weight on polls that grows toward Election Day.
+- **Unknown nominees**: each of 20,000 simulations draws a Democratic and a Republican nominee from the
+  nomination odds (including "someone else").
+- **Correlated error**: national (fat-tailed, shrinking as the election nears), regional, along the
+  2020-to-2024 realignment axis, state (fat-tailed), plus district noise.
+- **Outputs**: chance of winning, electoral-vote distribution, popular vote, Electoral College/popular-vote
+  split, tipping-point odds, each contest's odds and range, and the same outcomes for each possible nominee and
+  each of the likeliest matchups.
 
-For every race the model builds a **prior** from fundamentals (partisan lean + national environment
-+ incumbency + fundraising) blended 40/60 with the expert-rating consensus, then updates it with a
-recency/sample/quality-weighted **polling average** using inverse-variance weighting. 20,000 Monte
-Carlo simulations add a shared national swing, regional and state swings, and a fat-tailed
-race-specific error, which is what makes seat totals and control probabilities honest about
-correlated polling misses. The full write-up is in `site/methodology.html`; the implementation is
-`src/electionpredictions/model/`.
+Code: `src/electionpredictions/model/` (`spec.py` the specification and its guardrails, `calibrate.py`,
+`evidence.py`, `contests.py`, `engine.py`, `store.py`). The full write-up is `site/methodology.html`.
 
-## Results
+## The self-rebuilding loop
 
-**Automatic.** The results pages pull vote counts straight from public results feeds in the visitor's
-browser every minute (`site/live.js`): The New York Times' results JSON (AP votes) first, CNN's
-results JSON for anything it is missing. Every race is matched to our Democratic/Republican sides by
-candidate name, so an independent standing in for a party (Nebraska Senate) lands on the right side. A
-race counts as called once 2 of the 4 news outlets in `calls.json` agree (see Race Calls below).
+`pipeline.rebuild` runs on every update:
 
-**Final forecast is frozen.** The 2026 forecast data in `site/data/` (races, summary, schedule) is the
-run published at 18:46 UTC on November 3, before polls closed; the daily workflow no longer re-runs the
-2026 pipeline. A run after polls close would let results leak in through its inputs.
+1. **Calibrate** (`model/calibrate.py`): re-derive the data-driven parts of the latest spec: nomination odds
+   from primary polling (blended 50/50 with the previous odds), candidate strength from the trial-heat
+   regression, new candidates as they appear, home states.
+2. **Baseline**: simulate the calibrated proposal.
+3. **Revise** (`revision.py`): the reviewer (GLM 5.3 Flash through the OpenCode Go gateway, `OPENCODE_API_KEY`)
+   receives the current spec, the proposal, every parameter's bounds and meaning, the evidence (polls,
+   regression, primaries, the field, approval, economy, ratings, fundraising, headlines; never markets), the
+   proposal's diagnostics and the recent revision history, and returns a complete spec with a title, a
+   summary and a reason per change.
+4. **Guardrails** (`spec.validate`): hard bounds and a maximum step per revision for every parameter, ±5 for
+   candidate strength, ±4 and at most 12 state adjustments, normalised nomination odds with at most 12 named
+   candidates per party. Anything outside is limited (and the changelog says so); a failed or malformed
+   revision leaves the calibrated spec in place.
+5. **Version**: if the spec changed, it is stored as the next version in `model_specs` with its changelog.
+6. **Final run + summaries** (`narrative.py`): 20,000 simulations on the new spec, then the national overview
+   and competitive-state summaries, cached by input hash.
 
-**Snapshot.** `uv run electionpredictions results` saves the same feeds to `site/data/results-auto.json`;
-add `--watch 120 --push` to keep it fresh from your own machine. `.github/workflows/results.yml` does
-this every 10 minutes from 6 pm ET on election night through Nov 6, then hourly through November. The
-page falls back to this snapshot when a browser can't reach the feeds, and it keeps the results after
-the feeds go offline. Both are unofficial endpoints the outlets don't document, so they can change
-without notice; check the official state links if numbers look off.
-
-**Map page.** `site/map.html` shows Senate and governor races on a state map (small north-eastern states as
-labelled boxes) and House races on a one-square-per-district map, coloured by live results (won, leading,
-polls closed, polls open, flips outlined) or by the forecast. Hover, focus or tap a race for a panel with
-the vote, share counted, model vs actual margin and every outlet's call; search finds a race by state,
-district or candidate. Geometry is `site/geo/us-maps.json`, the same file the Apple TV app uses.
-
-**Race Calls page.** `site/calls.html` lines up the calls for every race from four news organizations:
-CNN and NBC News (AllSides: Lean Left; each runs its own decision desk), Bloomberg (Center; publishes the
-AP's calls), and the AP itself as a wire column (Lean Left), read from each outlet's own results feed
-(Fox News was dropped on election night). The most recent calls are listed first, with disagreements
-highlighted and a seats-called tally per outlet. A race is **Confirmed** once 2 of the 4 outlets have
-called it for the same candidate and no other candidate has as many (a 2–2 split stays unconfirmed). The
-whole site (Results page, Map, race pages, dashboard) and the Apple TV app count a race as called only
-once it's confirmed; before that it shows as awaiting confirmation. The same `results` command and
-workflow collect them into `site/data/calls.json`. Reuters, NewsNation, the Wall Street Journal and
-Decision Desk HQ block automated access, so they aren't included.
-
-**Corrections (admin page).** `site/admin.html` is a password-gated results desk for every race,
-grouped by state with each state's official results link and a poll-closing countdown. The feed's
-numbers appear in grey in every box; type over any of them, call a race (D / R / Oth, click again to
-undo), or use **Paste** on a row: copy that race's table from any results site and the page reads the
-candidates' votes, the total and the percent reporting out of it. Empty boxes keep following the feed.
-"Show: Polls closed, not called" lists exactly the races still waiting. Overrides autosave in the
-browser; **Publish** commits them as `site/data/results.json` with your own GitHub token (a
-fine-grained personal access token with *Contents: read and write* on this repo, stored only in your
-browser), and `.github/workflows/deploy-site.yml` redeploys the site. Visitors' pages pick the new
-overrides up on their next refresh.
-
-- Set or change the password: `uv run electionpredictions set-admin-password` (writes a PBKDF2 hash
-  to `site/admin-config.json`; use a long passphrase, the hash is public).
-- The gate is client-side, as on any static site: it keeps casual visitors out of the UI, but the
-  thing that actually protects the live site is the GitHub token, which never leaves your browser.
-- Export/Import JSON and "Load published" let you move drafts between devices.
-
-**Apple TV.** `tvos/` holds an always-on Senate and House results board for Apple TV: maps and seat
-counts with control banners and flips, a strip cycling through the closest races still counting, flipped
-seats and the forecast's record, and alerts for late calls; refreshes every minute and keeps the screen
-awake. It reads the same feeds and confirmed calls as the site. See `tvos/README.md` to install it.
+Without `OPENCODE_API_KEY` steps 3 and 6 are skipped and the model still recalibrates itself every run.
+The site presents all of this as the forecast's own model log; it never refers to AI.
 
 ## Keeping it updated
 
-Before the election the forecast was re-run daily (the 2026 run is now frozen; the 2028 run continues).
-Three options:
+`.github/workflows/update.yml` runs the full pipeline twice a day (11:17 and 23:17 UTC), commits `site/data`
+and deploys `site/` to GitHub Pages. Repository secrets: `OPENCODE_API_KEY` (revision + summaries) and
+optionally `FEC_API_KEY`. Run it by hand from the Actions tab; tick **dry_run** to run without committing
+or deploying (the exported data is attached as an artifact). The exporter merges each run's history into the
+published JSON, so trend lines survive a rebuilt database.
 
-**1. GitHub Actions (recommended).** `.github/workflows/update.yml` runs the pipeline every day,
-commits `site/data/` and deploys `site/` to GitHub Pages. Enable Pages (Settings → Pages → Source:
-GitHub Actions) and optionally add an `FEC_API_KEY` repository secret.
+`.github/workflows/results.yml` keeps the archived 2026 results and race calls fresh through November;
+`deploy-site.yml` redeploys on any push under `site/`; `probe.yml` checks the AI gateway.
 
-**2. cron.** Run at 07:15 local time:
+## The site
 
-```
-15 7 * * * cd /path/to/electionpredictions && uv run electionpredictions run >> data/run.log 2>&1
-```
+| Page | What it shows |
+|---|---|
+| `index.html` | Chance of winning, electoral votes, trend, road to 270, map, overview, nominations, likeliest matchups, environment, tipping points, closest contests, latest model revision, markets comparison |
+| `map.html` | Electoral College map, overall or for any likely matchup, with a detail panel and EVs by category |
+| `states.html` / `state.html?id=PA` | All 56 contests; one contest's odds, margin breakdown, matchups, trend, polls, past results, coverage |
+| `field.html` | Both nomination contests: candidates, primary polling, nomination odds, strength, fundraising, markets |
+| `polls.html` | Trial heats with their weights, candidate polling strength, approval, the economy |
+| `model.html` | The current specification, every setting with its bounds, and every revision with its reasons |
+| `methodology.html` | How it works |
+| `admin.html` | Sign-in; links to the 2026 archive; pipeline log and raw model data |
 
-**3. launchd (macOS).** See `docs/SCHEDULING.md`.
+Plain HTML/CSS/JS modules, no build step: publish `site/` anywhere static files are served.
 
-Because the exporter merges each run's history into the published JSON, trend lines survive even if
-the SQLite database is rebuilt from scratch.
-
-## 2028 presidential model (early, separate section)
-
-`site/president.html` tracks Generic Democrat vs. Generic Republican across 51 winner-take-all
-contests (50 states + DC, 538 EVs, 270 to win) for November 7, 2028. It runs off the same code with
-a cycle switch — a separate database and data directory, so the 2026 dashboard is untouched:
-
-```bash
-EP_CYCLE=2028 uv run electionpredictions run --skip ai,followthemoney  # ingest, model, export to site/data2028 (~2 min; ai needs OPENCODE_API_KEY)
-EP_CYCLE=2028 uv run electionpredictions status
-uv run electionpredictions serve  # open /president.html
-```
-
-Early on this rests on fundamentals (Cook PVI per state, neutral national environment, wide
-time-scaled uncertainty); state polls, expert ratings, FEC money, markets and news blend in
-automatically as they appear. Maine/Nebraska award by district in reality — modelled winner-take-all
-for now. State pages work via `race.html?id=PA-PRES&data=data2028`.
-
-## Deploying the site
-
-`site/` is plain HTML/CSS/JS with no build step. Publish that directory anywhere static files are
-served: GitHub Pages (the workflow does this), Netlify (`publish = "site"`), Vercel, S3, or
-`python3 -m http.server --directory site`.
-
-## API keys (all optional, all free)
-
-Put keys in a `.env` file at the repo root (see `.env.example`; git-ignored) for local runs, and as
-repository secrets with the same names for the GitHub Actions workflow. Each one unlocks a source:
-
-| Key | Get it | What it adds |
-|---|---|---|
-| `FEC_API_KEY` | https://api.data.gov/signup (instant, 1,000 req/hour) | Fresh candidate totals layered over the weekly bulk file, plus **outside spending** (independent expenditures for/against every federal principal candidate) which feeds the money term |
-| `FOLLOWTHEMONEY_API_KEY` | free account at https://www.followthemoney.org | **Governor fundraising** from state campaign-finance filings for the candidates Wikipedia doesn't cover |
-| `CENSUS_API_KEY` | https://api.census.gov/data/key_signup.html (instant) | **District and state demographics** (college share, white non-Hispanic share); the simulation then moves demographically similar races together when it draws errors |
-| `OPENCODE_API_KEY` | https://opencode.ai/auth (OpenCode Zen, billing required) | The decision layer: per-race forecast decisions, overviews and the national review by Z.AI's GLM 5.3 Flash through the OpenCode Go subscription gateway (`https://opencode.ai/zen/go/v1`, the default `AI_BASE_URL`); a full 506-race pass uses well under a dollar of the plan's usage allowance. Pay-as-you-go Zen (`https://opencode.ai/zen/v1`) works too with account credit; the `-free` tiers only work inside the OpenCode client. Any gateway model works via `AI_MODEL`. Without a key the quantitative baseline stands. |
-
-Without keys the pipeline runs exactly as before. States that redrew maps for 2026 use statewide demographics because ACS district data predates the new lines.
-
-## Configuration (environment variables)
+## Configuration
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `FEC_API_KEY` | `DEMO_KEY` | Real key enables API refresh + outside spending (DEMO_KEY is limited to ~40 requests/hour) |
-| `FOLLOWTHEMONEY_API_KEY`, `CENSUS_API_KEY` | unset | Enable the `followthemoney` and `census` stages |
-| `EP_TTL_WIKI`, `EP_TTL_MARKETS`, `EP_TTL_NEWS`, `EP_TTL_FEC` | 6h / 1h / 3h / 24h | Cache lifetimes in seconds |
-| `EP_USER_AGENT` | project string | Sent with every request |
-| `OPENCODE_API_KEY` | unset | Enables the decision layer (`ingest --only ai`); `AI_MODEL`, `AI_BASE_URL`, `AI_MAX_CALLS` tune it |
+| `OPENCODE_API_KEY` | unset | Enables the revision step and the summaries |
+| `AI_MODEL`, `AI_BASE_URL` | `glm-5.3-flash`, `https://opencode.ai/zen/go/v1` | Model and gateway (pay-as-you-go Zen: `/zen/v1`) |
+| `FEC_API_KEY` | `DEMO_KEY` | FEC API (the demo key allows ~10 requests/hour; the stage makes one or two) |
+| `EP_TTL_WIKI`, `EP_TTL_MARKETS`, `EP_TTL_NEWS`, `EP_TTL_FEC`, `EP_TTL_ECON` | 6h / 1h / 3h / 24h / 12h | Cache lifetimes (seconds) |
 
 ## Project layout
 
 ```
 src/electionpredictions/
-  config.py            constants (election date, seat math, regions, cache TTLs)
-  db.py                SQLite schema + helpers
-  util.py              parsers (PVI, percentages, poll dates, candidate strings, ratings)
-  sources/
-    wikipedia.py       cached page fetch + table extraction with section paths
-    races.py           race universe & candidates (Senate, governors, all 435 House seats)
-    ratings.py         expert ratings
-    generic_ballot.py  national environment
-    polls.py           per-race polls (incl. ranked-choice rounds, hypothetical matchups)
-    fec.py             fundraising (bulk file, API fallback)
-    wiki_fundraising.py  fundraising backfill from race articles (governors, unmatched candidates)
-    followthemoney.py  governor fundraising from state filings (needs key)
-    census.py          ACS demographics for correlated simulation errors (needs key)
-    markets.py         Polymarket / PredictIt / Kalshi
-    news.py            Google News RSS
-  model/
-    pollavg.py         weighted polling average
-    fundamentals.py    lean + environment + incumbency + money; rating consensus
-    forecast.py        combination, Monte Carlo simulation, chamber math
-  schedule.py          poll-closing times per race + expected AP call windows (Election Results page)
-  sources/live_results.py  election-night results feed snapshot (results-auto.json; mirrors site/live.js)
-  sources/race_calls.py    race calls from CNN, NBC, Bloomberg and the AP (calls.json)
-  export.py            site/data JSON (schema in docs/DATA_CONTRACT.md)
-  cli.py               command-line interface
-site/                  the website (index.html, results.html, admin.html, race.html, methodology.html, *.js, styles.css, data/)
-tests/                 pytest suite
+  config.py        constants: election date, 56 contests and their electoral votes, regions, keys, TTLs
+  history.py       certified 2020/2024 results by state and district (frozen)
+  db.py            SQLite schema and helpers
+  sources/         polls, primaries, approval, economy, ratings, money, markets, news (+ wikipedia/http helpers)
+  model/           spec (+guardrails), calibrate, evidence, contests, engine (simulation), store (versions)
+  llm.py           OpenCode gateway client
+  revision.py      the model-revision step
+  narrative.py     national and state summaries
+  pipeline.py      ingest + rebuild orchestration
+  export.py        site/data JSON (schema: docs/DATA_CONTRACT.md)
+  archive2026/     results and race-call snapshots for the archived 2026 site
+  cli.py, admin.py
+site/              the 2028 site; site/archive/2026/ the retired midterm site (admin-only)
+tests/             pytest suite (offline; the revision step is tested with a mocked LLM)
+tvos/              Apple TV results board for the 2026 election night (reads the archive's data)
 ```
 
 ## Known limitations
 
-- Wikipedia's poll tables can lag or contain transcription errors; polls get pollster quality tiers
-  and a partisan-sponsor adjustment but no per-pollster house-effect estimate.
-- District-level House polling is sparse, so most House seats lean on fundamentals and ratings.
-- After mid-decade redistricting some incumbents' "last result" and district history are not
-  comparable; the model uses the new-district PVI.
-- Independents are mapped onto a Democratic or Republican "side" for the two-party framing; a
-  non-caucusing independent (Nebraska) counts as neither party for Senate control.
-- Louisiana's new closed primaries, California's top-two and Alaska's ranked-choice generals are
-  handled with simple rules described in the methodology.
+- Two years out, hypothetical trial heats have a poor record; the forecast leans on fundamentals and keeps
+  wide ranges on purpose.
+- Third-party candidates are folded into the two-party margin; polls including them are down-weighted.
+- Candidate strength and home-state effects are rough; early state polling is sparse.
+- The admin gate is client-side (the archive's files are public if you know the URL); publishing corrections
+  still requires the admin's own GitHub token.

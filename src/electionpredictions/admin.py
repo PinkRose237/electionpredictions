@@ -1,7 +1,8 @@
 """Admin page configuration: a PBKDF2 password hash the static site can verify in the browser.
 
-The hash lives in site/admin-config.json (public). It only gates the admin UI; publishing results
-requires the admin's own GitHub token, which never leaves their browser.
+The hash lives in site/admin-config.json (public) and, for the archived 2026 corrections desk, in
+site/archive/2026/admin-config.json. It only gates the admin UI (including the archived 2026 midterm pages);
+publishing corrections requires the admin's own GitHub token, which never leaves their browser.
 """
 from __future__ import annotations
 
@@ -10,9 +11,12 @@ import json
 import secrets
 import subprocess
 
-from .config import SITE_DIR
+from .config import ARCHIVE_2026_DIR, SITE_DIR
 
 CONFIG_PATH = SITE_DIR / "admin-config.json"
+ARCHIVE_CONFIG_PATH = ARCHIVE_2026_DIR / "admin-config.json"
+CONFIG_PATHS = (CONFIG_PATH, ARCHIVE_CONFIG_PATH)
+RESULTS_PATH = "site/archive/2026/data/results.json"
 ITERATIONS = 200_000
 
 
@@ -31,7 +35,7 @@ def detect_repo() -> str | None:
     return None
 
 
-def write_config(password: str, repo: str | None = None, branch: str = "main", path: str = "site/data/results.json") -> dict:
+def write_config(password: str, repo: str | None = None, branch: str = "main", path: str = RESULTS_PATH) -> dict:
     existing = {}
     if CONFIG_PATH.exists():
         try:
@@ -42,7 +46,9 @@ def write_config(password: str, repo: str | None = None, branch: str = "main", p
     cfg = dict(
         salt=salt, hash=pbkdf2_hex(password, salt), iterations=ITERATIONS,
         repo=repo or existing.get("repo") or detect_repo() or "",
-        branch=branch or existing.get("branch", "main"), path=path or existing.get("path", "site/data/results.json"),
+        branch=branch or existing.get("branch", "main"), path=path or existing.get("path", RESULTS_PATH),
     )
-    CONFIG_PATH.write_text(json.dumps(cfg, indent=2) + "\n")
+    for p in (CONFIG_PATH, ARCHIVE_CONFIG_PATH):  # read at call time (tests patch them)
+        if p.parent.exists():
+            p.write_text(json.dumps(cfg, indent=2) + "\n")
     return cfg
