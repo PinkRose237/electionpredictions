@@ -1,6 +1,6 @@
 import Foundation
 
-// MARK: - Site data (https://pinkrose237.github.io/electionpredictions/data/, see docs/DATA_CONTRACT.md)
+// MARK: - Site data (https://pinkrose237.github.io/electionpredictions/archive/2026/data/, see docs/DATA_CONTRACT_2026.md)
 
 struct Candidate: Decodable, Hashable, Sendable {
     let name: String

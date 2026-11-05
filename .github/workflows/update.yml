@@ -1,9 +1,18 @@
 name: Update forecast (2028)
 
+# Every run is one full rebuild of the 2028 presidential model: refresh the evidence, recalibrate the model
+# specification, revise it against the evidence (OPENCODE_API_KEY), run the final simulation, write the
+# summaries, export site/data, commit and deploy. Twice a day so the model keeps pace with the news.
 on:
   schedule:
-    - cron: "17 11 * * *"   # daily, 11:17 UTC
+    - cron: "17 11 * * *"   # 11:17 UTC
+    - cron: "17 23 * * *"   # 23:17 UTC
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run the pipeline but do not commit or deploy (uploads site/data as an artifact)"
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -17,6 +26,8 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.commit.outputs.publish }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -24,33 +35,43 @@ jobs:
         uses: actions/cache@v4
         with:
           path: data
-          key: data-${{ github.run_id }}
+          key: data-2028-${{ github.run_id }}
           restore-keys: |
-            data-
+            data-2028-
       - run: uv sync
-      # The 2026 forecast is frozen at its final pre-election run (Nov 3, 18:46 UTC); re-running it after
-      # polls close would let results leak in. Only the 2028 presidential forecast still updates daily.
-      - name: Run presidential pipeline
+      - name: Rebuild the model and export
         env:
-          EP_CYCLE: "2028"
           FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
-          CENSUS_API_KEY: ${{ secrets.CENSUS_API_KEY }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-        run: uv run electionpredictions run --skip followthemoney
-      - name: Commit published data
+          AI_MODEL: ${{ vars.AI_MODEL }}
+          AI_BASE_URL: ${{ vars.AI_BASE_URL }}
+        run: uv run electionpredictions run
+      - name: Show the model log
+        run: uv run electionpredictions status
+      - if: inputs.dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-data
+          path: site/data
+      - id: commit
+        if: ${{ !inputs.dry_run }}
+        name: Commit published data
         run: |
           git config user.name "forecast-bot"
           git config user.email "forecast-bot@users.noreply.github.com"
-          git add site/data2028
-          git commit -m "Update forecast $(date -u +%F)" || echo "nothing to commit"
+          git add site/data
+          git commit -m "Update forecast $(date -u +%FT%H:%MZ)" || echo "nothing to commit"
           git pull --rebase origin main
           git push
-      - uses: actions/upload-pages-artifact@v3
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+      - if: ${{ !inputs.dry_run }}
+        uses: actions/upload-pages-artifact@v3
         with:
           path: site
 
   deploy:
     needs: update
+    if: needs.update.outputs.publish == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages

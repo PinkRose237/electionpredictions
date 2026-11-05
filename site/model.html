@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Model log — Presidential Model 2028</title>
+  <meta name="description" content="The 2028 forecast re-specifies itself at every update. The current model settings and a log of every revision with its reasons.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Model log — Presidential Model 2028">
+  <meta property="og:description" content="The 2028 forecast re-specifies itself at every update. The current model settings and a log of every revision with its reasons.">
+  <meta property="og:url" content="https://pinkrose237.github.io/electionpredictions/model.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231b1b1a'/%3E%3Crect x='5' y='9' width='10' height='14' rx='2' fill='%232166ac'/%3E%3Crect x='17' y='9' width='10' height='14' rx='2' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="visually-hidden" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html" data-nav="brand"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Presidential Model 2028</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" data-nav="home">Forecast</a>
+        <a href="map.html" data-nav="map">Map</a>
+        <a href="states.html" data-nav="states">States</a>
+        <a href="field.html" data-nav="field">The field</a>
+        <a href="polls.html" data-nav="polls">Polls</a>
+        <a href="model.html" data-nav="model">Model log</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
+      </nav>
+      <div class="topbar-meta" data-updated></div>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <div id="status" class="status" role="status">Loading the forecast…</div>
+    <div id="app" hidden>
+      <div class="page-head"><h1>Model log</h1><p>This forecast does not run on fixed settings. At every update the model is rebuilt against the latest evidence: the candidate field and nomination odds, each candidate's strength, the weight on polls versus fundamentals, the size of the uncertainty and any state-specific adjustments are re-derived, reviewed and, when the evidence calls for it, revised, inside fixed guardrails. Every revision is numbered and recorded here with its reasons.</p></div>
+      <section class="section"><div class="card" id="current"></div></section>
+      <section class="section two-col"><div class="card" id="nominees"></div><div class="card" id="adjustments"></div></section>
+      <section class="section"><div class="card"><h2>Settings</h2><p class="card-sub">Every tunable choice in the model, its current value, its allowed range and the largest change one revision may make.</p><div id="params" class="table-wrap"></div></div></section>
+      <section class="section" aria-labelledby="h-log"><div class="section-head"><h2 id="h-log">Revisions</h2><p>Newest first.</p></div><div id="log"></div></section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <h4>Data sources</h4>
+        <ul>
+          <li>Results 2020 and 2024: certified state and district returns</li>
+          <li>Polls, candidate fields, approval: Wikipedia, as published</li>
+          <li>Economy: U.S. Bureau of Labor Statistics</li>
+          <li>Fundraising: Federal Election Commission</li>
+          <li>Markets (comparison only, never an input): Polymarket, Kalshi</li>
+          <li>News: Google News</li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li><a href="methodology.html">How the model works</a> · <a href="model.html">Model log</a></li>
+          <li data-generated></li>
+          <li><a href="admin.html">Admin</a></li>
+          <li><span data-site-name>Presidential Model 2028</span> · independent, not affiliated with any campaign or party</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./model.js"></script>
+</body>
+</html>

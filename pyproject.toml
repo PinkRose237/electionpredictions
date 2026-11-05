@@ -1,7 +1,7 @@
 [project]
 name = "electionpredictions"
 version = "0.1.0"
-description = "Add your description here"
+description = "2028 U.S. presidential election forecast with a self-revising model"
 authors = [
     { name = "James Griffis", email = "mykatiekakes14@gmail.com" }
 ]

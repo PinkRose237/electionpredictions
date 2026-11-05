@@ -1,173 +1,89 @@
-"""Expert race ratings (Cook, Sabato, Inside Elections, DDHQ, Silver Bulletin, ...) from Wikipedia's
-aggregation tables."""
+"""State-level expert ratings for 2028 (Cook, Inside Elections, Sabato, ...), once raters publish them.
+
+Read from the "Predictions" table(s) of Wikipedia's 2028 presidential election article: one row per state (or
+congressional district for Maine/Nebraska), one column per rater with the date in the header."""
 from __future__ import annotations
 
+import json
 import re
 from typing import Optional
 
 from dateutil import parser as dtparser
 
-from ..config import CYCLE, DC_NAME, STATES
-from ..db import upsert
-from ..util import clean, parse_rating, race_id, state_abbr
-from .races import HOUSE_PAGE, GOV_PAGE, PRESIDENT_PAGE, SENATE_PAGE, _col, _district_number, _row_str
-from .wikipedia import extract_tables, find_tables, page_html
+from ..config import CONTEST_EVS, STATE_BY_NAME
+from ..db import log_run, now_iso, upsert
+from ..util import clean, parse_rating
+from .wikipedia import extract_tables, page_html
 
-HOUSE_RATINGS_PAGE = "2026 United States House of Representatives election ratings"
-
+PAGE = "2028 United States presidential election"
 RATER_NAMES = {
-    "cook": "Cook Political Report",
-    "ie": "Inside Elections",
-    "sabato": "Sabato's Crystal Ball",
-    "econ": "The Economist",
-    "st": "Split Ticket",
-    "ddhq": "Decision Desk HQ",
-    "fpo": "FPO",
-    "fox": "Fox News",
-    "rcp": "RealClearPolitics",
-    "silver": "Silver Bulletin",
-    "cnalysis": "CNalysis",
-    "politico": "Politico",
-    "elections daily": "Elections Daily",
-    "ed": "Elections Daily",
-    "270towin": "270toWin",
-    "rttwh": "Race to the WH",
+    "cook": "Cook Political Report", "ie": "Inside Elections", "sabato": "Sabato's Crystal Ball", "econ": "The Economist",
+    "st": "Split Ticket", "ddhq": "Decision Desk HQ", "cnalysis": "CNalysis", "cnn": "CNN", "npr": "NPR",
+    "270towin": "270toWin", "silver": "Silver Bulletin", "fox": "Fox News", "rcp": "RealClearPolitics",
 }
 
 
-def _parse_rater_header(col: str) -> Optional[tuple[str, Optional[str]]]:
-    """'Cook Sep. 11, 2026' -> ('Cook Political Report', '2026-09-11')"""
+def rater_header(col: str) -> Optional[tuple[str, Optional[str]]]:
+    """'Cook Sep. 11, 2027' -> ('Cook Political Report', '2027-09-11'); 'Sabato' -> ("Sabato's Crystal Ball", None)."""
     c = clean(col)
-    m = re.match(r"^([A-Za-z0-9'&\. ]+?)\s+([A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s+\d{4})", c)
+    m = re.match(r"^([A-Za-z0-9'&\. ]+?)(?:\s+([A-Z][a-z]{2,8}\.?\s+\d{1,2},?\s+\d{4}))?$", c)
     if not m:
         return None
     key = m.group(1).strip().lower().rstrip(".")
-    name = RATER_NAMES.get(key, m.group(1).strip())
-    try:
-        as_of = dtparser.parse(m.group(2).replace(".", "")).date().isoformat()
-    except (ValueError, OverflowError):
-        as_of = None
+    if key in ("state", "evs", "ev", "electoral votes", "pvi", "2024 result", "result", "2024"):
+        return None
+    name = RATER_NAMES.get(key.split()[0] if key.split() else key, m.group(1).strip())
+    as_of = None
+    if m.group(2):
+        try:
+            as_of = dtparser.parse(m.group(2).replace(".", "")).date().isoformat()
+        except (ValueError, OverflowError):
+            as_of = None
     return name, as_of
 
 
-def _ratings_from_table(df, id_fn) -> list[dict]:
+def contest_of(cell: str) -> Optional[str]:
+    s = clean(cell)
+    m = re.match(r"^(ME|NE)[-–](\d)", s)
+    if m:
+        return f"{m.group(1)}-{m.group(2)}"
+    m = re.match(r"^(Maine|Nebraska)'s (\d)", s, re.I)
+    if m:
+        return f"{STATE_BY_NAME[m.group(1).title()]}-{m.group(2)}"
+    s = re.sub(r"\s*\(.*?\)|†", "", s).strip()
+    if s in ("D.C.", "Washington, D.C.", "District of Columbia"):
+        return "DC"
+    return STATE_BY_NAME.get(s)
+
+
+def fetch() -> list[dict]:
     out = []
-    rater_cols = [(c, _parse_rater_header(c)) for c in df.columns]
-    rater_cols = [(c, r) for c, r in rater_cols if r]
-    for _, row in df.iterrows():
-        rid = id_fn(row)
-        if not rid:
+    for t in extract_tables(page_html(PAGE) or ""):
+        if not t.path or "prediction" not in t.path[-1].lower():
             continue
-        for c, (rater, as_of) in rater_cols:
-            pr = parse_rating(row[c])
-            if not pr:
+        df = t.flat()
+        sc = next((c for c in df.columns if c.lower().startswith("state")), None)
+        if not sc:
+            continue
+        raters = [(c, rater_header(c)) for c in df.columns if c != sc]
+        raters = [(c, r) for c, r in raters if r]
+        for _, row in df.iterrows():
+            cid = contest_of(row[sc])
+            if cid not in CONTEST_EVS:
                 continue
-            party, level, flip = pr
-            out.append(dict(race_id=rid, rater=rater, rating=clean(row[c]), party=party, level=level, flip=int(flip), as_of=as_of))
+            for c, (rater, as_of) in raters:
+                pr = parse_rating(row[c])
+                if pr:
+                    out.append(dict(contest_id=cid, rater=rater, rating=clean(row[c]), party=pr[0], level=pr[1], as_of=as_of))
     return out
 
 
-def senate_ratings() -> list[dict]:
-    tables = extract_tables(page_html(SENATE_PAGE))
-    out = []
-    for t in find_tables(tables, endswith=["Predictions"]):
-        df = t.flat()
-        sc = _col(df, "State")
-        if not sc:
-            continue
-
-        def id_fn(row):
-            raw = _row_str(row, sc)
-            st = state_abbr(raw)
-            return race_id("senate", st, special="special" in raw.lower()) if st else None
-
-        out.extend(_ratings_from_table(df, id_fn))
-    return out
-
-
-def governor_ratings() -> list[dict]:
-    tables = extract_tables(page_html(GOV_PAGE))
-    out = []
-    for t in find_tables(tables, endswith=["Predictions"]):
-        df = t.flat()
-        sc = _col(df, "State")
-        if not sc:
-            continue
-
-        def id_fn(row):
-            st = state_abbr(_row_str(row, sc))
-            return race_id("governor", st) if st else None
-
-        out.extend(_ratings_from_table(df, id_fn))
-    return out
-
-
-def house_ratings() -> tuple[list[dict], dict[str, float]]:
-    """Returns ratings rows plus a {race_id: pvi} map from the ratings page (CPVI column)."""
-    from ..util import parse_pvi
-
-    tables = extract_tables(page_html(HOUSE_RATINGS_PAGE))
-    out, pvis = [], {}
-    for t in tables:
-        df = t.flat()
-        dc = _col(df, "District")
-        if not dc or not any(_parse_rater_header(c) for c in df.columns):
-            continue
-        pvc = _col(df, "PVI")
-
-        def id_fn(row):
-            loc = _row_str(row, dc)
-            st = state_abbr(re.sub(r"\s+(\d+|at-large)$", "", loc, flags=re.I))
-            dist = _district_number(loc)
-            if st is None or dist is None:
-                return None
-            rid = race_id("house", st, dist)
-            if pvc:
-                pv = parse_pvi(row[pvc])
-                if pv is not None:
-                    pvis[rid] = pv
-            return rid
-
-        out.extend(_ratings_from_table(df, id_fn))
-    return out, pvis
-
-
-def president_ratings() -> list[dict]:
-    """State-level 2028 presidential ratings, if any rater has published them yet."""
-    tables = extract_tables(page_html(PRESIDENT_PAGE))
-    out = []
-    for t in find_tables(tables, endswith=["Predictions"]):
-        df = t.flat()
-        sc = _col(df, "State")
-        if not sc:
-            continue
-
-        def id_fn(row):
-            raw = _row_str(row, sc)
-            if raw == DC_NAME or "district of columbia" in raw.lower():
-                return race_id("president", "DC")
-            st = state_abbr(raw)
-            return race_id("president", st) if st else None
-
-        out.extend(_ratings_from_table(df, id_fn))
-    return out
-
-
-def load_all(con) -> dict:
-    counts = {}
-    if CYCLE == 2028:
-        pres = president_ratings()
-        con.execute("DELETE FROM ratings")
-        upsert(con, "ratings", pres, keys=["race_id", "rater"])
-        con.commit()
-        return dict(president=len(pres))
-    sen = senate_ratings()
-    gov = governor_ratings()
-    hou, pvis = house_ratings()
+def load(con, verbose: bool = False) -> dict:
+    started = now_iso()
+    rs = fetch()
     con.execute("DELETE FROM ratings")
-    upsert(con, "ratings", sen + gov + hou, keys=["race_id", "rater"])
-    for rid, pv in pvis.items():
-        con.execute("UPDATE races SET pvi=? WHERE race_id=? AND (pvi IS NULL OR pvi<>?)", (pv, rid, pv))
+    upsert(con, "ratings", rs, keys=["contest_id", "rater"])
     con.commit()
-    counts.update(senate=len(sen), governor=len(gov), house=len(hou), house_pvi_updates=len(pvis))
-    return counts
+    res = dict(ratings=len(rs), raters=len({r["rater"] for r in rs}))
+    log_run(con, "ratings", started, True, json.dumps(res))
+    return res

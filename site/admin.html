@@ -3,80 +3,74 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="robots" content="noindex, nofollow">
-  <title>Admin — Midterm Model 2026</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='16' height='32' rx='4' fill='%232166ac'/%3E%3Crect x='16' width='16' height='32' rx='4' fill='%23b2182b'/%3E%3Crect x='10' width='12' height='32' fill='%232166ac'/%3E%3Crect x='16' width='6' height='32' fill='%23b2182b'/%3E%3C/svg%3E">
+  <title>Admin — Presidential Model 2028</title>
+  <meta name="description" content="Admin.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Admin — Presidential Model 2028">
+  <meta property="og:description" content="Admin.">
+  <meta property="og:url" content="https://pinkrose237.github.io/electionpredictions/admin.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231b1b1a'/%3E%3Crect x='5' y='9' width='10' height='14' rx='2' fill='%232166ac'/%3E%3Crect x='17' y='9' width='10' height='14' rx='2' fill='%23b2182b'/%3E%3C/svg%3E">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
   <link rel="stylesheet" href="./styles.css">
+  <meta name="robots" content="noindex, nofollow">
 </head>
 <body>
   <a class="visually-hidden" href="#main">Skip to content</a>
   <header class="topbar">
     <div class="container topbar-inner">
-      <a class="brand" href="index.html" data-nav="home"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Midterm Model 2026</span></a>
+      <a class="brand" href="index.html" data-nav="brand"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Presidential Model 2028</span></a>
       <nav class="nav" aria-label="Primary">
-        <a href="index.html" data-nav="home">Results</a>
+        <a href="index.html" data-nav="home">Forecast</a>
         <a href="map.html" data-nav="map">Map</a>
-        <a href="results.html" data-nav="races">All races</a>
-        <a href="calls.html" data-nav="calls">Race calls</a>
-        <a href="scorecard.html" data-nav="scorecard">Scorecard</a>
-        <a href="forecast.html" data-nav="forecast">Final forecast</a>
-        <a href="president.html" data-nav="president">2028</a>
-        <a href="admin.html" data-nav="admin">Admin</a>
+        <a href="states.html" data-nav="states">States</a>
+        <a href="field.html" data-nav="field">The field</a>
+        <a href="polls.html" data-nav="polls">Polls</a>
+        <a href="model.html" data-nav="model">Model log</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
       </nav>
       <div class="topbar-meta" data-updated></div>
     </div>
   </header>
 
   <main id="main" class="container">
-    <div id="status" class="status" role="status">Loading…</div>
-
-    <section id="login" class="admin-login card" hidden aria-labelledby="h-login">
-      <h1 id="h-login">Admin sign-in</h1>
-      <p class="muted">Enter the admin password to manage election results. Publishing to the live site also needs your GitHub token, which stays in this browser.</p>
-      <form id="login-form" autocomplete="off">
+    <div id="status" class="status" role="status" hidden></div>
+    <section id="login" class="admin-login card" hidden>
+      <h1>Admin</h1>
+      <form id="login-form">
         <label for="pw">Password</label>
         <input id="pw" type="password" autocomplete="current-password" required>
-        <label class="check"><input id="remember" type="checkbox"> Stay signed in on this device</label>
-        <div class="login-actions">
-          <button type="submit" class="btn primary">Sign in</button>
-          <span id="login-error" class="error-text" role="alert"></span>
-        </div>
+        <label class="check-line"><input id="remember" type="checkbox"> Keep me signed in on this device</label>
+        <div class="login-actions"><button class="btn" type="submit">Sign in</button></div>
+        <p id="login-error" class="error-text" role="alert"></p>
       </form>
     </section>
-
-    <div id="admin" hidden>
-      <div class="page-head admin-head">
-        <div>
-          <h1>Results desk</h1>
-          <p>The public page pulls vote counts and race calls from the live feed on its own; the feed's numbers show here in grey. Type over any of them, call a race (D / R / Oth; click again to undo), or use <b>Paste</b> to read numbers copied from an official results site. Empty boxes keep following the feed. Overrides autosave in this browser; <b>Publish</b> commits them as <code>results.json</code> and the site picks them up within about a minute.</p>
-        </div>
-        <button type="button" class="btn" id="signout">Sign out</button>
-      </div>
-      <div id="toolbar" class="admin-toolbar card"></div>
-      <div id="filters" class="admin-filters"></div>
-      <div id="sections"></div>
-    </div>
+    <div id="app" hidden></div>
   </main>
 
   <footer class="footer">
     <div class="container footer-inner">
       <div>
-        <h4>Official results</h4>
+        <h4>Data sources</h4>
         <ul>
-          <li>Each state header links to that state's official election-night results site.</li>
-          <li>Six states (IL, ME, MA, MS, NH, WI) and New Jersey have no central live feed; use county sites or the AP.</li>
+          <li>Results 2020 and 2024: certified state and district returns</li>
+          <li>Polls, candidate fields, approval: Wikipedia, as published</li>
+          <li>Economy: U.S. Bureau of Labor Statistics</li>
+          <li>Fundraising: Federal Election Commission</li>
+          <li>Markets (comparison only, never an input): Polymarket, Kalshi</li>
+          <li>News: Google News</li>
         </ul>
       </div>
       <div>
         <h4>About</h4>
         <ul>
-          <li><a href="results.html" data-nav="results">Public results page</a></li>
-          <li><a href="methodology.html" data-nav="methodology">How the model works</a></li>
+          <li><a href="methodology.html">How the model works</a> · <a href="model.html">Model log</a></li>
           <li data-generated></li>
+          <li><a href="admin.html">Admin</a></li>
+          <li><span data-site-name>Presidential Model 2028</span> · independent, not affiliated with any campaign or party</li>
         </ul>
       </div>
     </div>

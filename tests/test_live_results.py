@@ -1,4 +1,4 @@
-from electionpredictions.sources import live_results as lr
+from electionpredictions.archive2026 import live_results as lr
 
 RACES = [
     {"race_id": "NE-SEN", "dem": {"name": "Dan Osborn", "party": "I"}, "rep": {"name": "Pete Ricketts", "party": "R"}},

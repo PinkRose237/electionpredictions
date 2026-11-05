@@ -1,109 +1,109 @@
+"""The presidential engine, its evidence layer, calibration and the historical baseline."""
 from datetime import date
 
-import numpy as np
-import pytest
+from electionpredictions.config import CONTEST_EVS, CONTEST_IDS, EVS_TO_WIN, TOTAL_EVS
+from electionpredictions.history import RESULTS
+from electionpredictions.model import engine, evidence as ev
+from electionpredictions.model.calibrate import calibrate
+from electionpredictions.model.contests import contests
+from electionpredictions.model.spec import seed
 
-from electionpredictions.model.forecast import race_forecast, simulate
-from electionpredictions.model.fundamentals import fundamentals, rating_summary
-from electionpredictions.model.pollavg import average
-
-TODAY = date(2026, 9, 22)
-
-
-def poll(end, d, r, n=800, pop="LV", lean=None, hyp=0, pollster="A", pid=None):
-    return dict(poll_id=pid or f"{pollster}{end}{d}{r}", end_date=end, dem_pct=d, rep_pct=r, sample_size=n,
-                population=pop, sponsor_lean=lean, hypothetical=hyp, pollster=pollster)
+TODAY = date(2026, 11, 5)
 
 
-def cand(name, party, inc=0, receipts=None):
-    return dict(name=name, party=party, is_incumbent=inc, major=1, receipts=receipts)
+def test_contests_and_electoral_votes():
+    assert sum(CONTEST_EVS.values()) == TOTAL_EVS == 538
+    assert len(CONTEST_IDS) == 56 and set(CONTEST_IDS) == set(RESULTS)
+    assert CONTEST_EVS["ME"] == 2 and CONTEST_EVS["NE-2"] == 1 and CONTEST_EVS["CA"] == 54
 
 
-def race(chamber="senate", pvi=0.0, inc="D", running=1, holder="D"):
-    return dict(race_id="XX-SEN", chamber=chamber, state="XX", pvi=pvi, incumbent="Inc" if inc else None,
-                incumbent_party=inc, incumbent_running=running, holder_party=holder, special=0, district=None)
+def test_history_reproduces_2024_and_2020_electoral_votes():
+    cs = contests(seed())
+    d24 = sum(c["evs"] for c in cs if c["winner24"] == "D")
+    d20 = sum(c["evs"] for c in cs if c["winner20"] == "D")
+    assert (d24, TOTAL_EVS - d24) == (226, 312)   # Harris 226 (incl. NE-2), Trump 312 (incl. ME-2)
+    assert (d20, TOTAL_EVS - d20) == (303, 235)   # Biden states on the 2020-census map (306 under the old apportionment)
 
 
-def test_average_recency_weights_newer_polls_more():
-    a = average([poll("2026-09-20", 50, 40, pollster="A"), poll("2026-08-01", 40, 50, pollster="B")], TODAY)
-    assert a["margin"] > 0 and a["n_polls"] == 2
+def test_lean_is_relative_to_nation():
+    by = {c["contest_id"]: c for c in contests(seed())}
+    assert -3 < by["PA"]["lean"] < 0 and by["WY"]["lean"] < -40 and by["DC"]["lean"] > 80
+    assert by["NE-2"]["lean"] > 3 and by["ME-2"]["lean"] < -5
 
 
-def test_average_sponsor_shift_and_weight():
-    neutral = average([poll("2026-09-20", 50, 45)], TODAY)
-    partisan = average([poll("2026-09-20", 50, 45, lean="D")], TODAY)
-    assert partisan["margin"] == pytest.approx(neutral["margin"] - 1.5)
-    assert partisan["n_eff"] < neutral["n_eff"]
+def test_national_poll_regression_separates_candidates(db):
+    from electionpredictions.db import rows
+
+    nat = ev.national_poll_model(rows(db, "SELECT * FROM polls WHERE scope='national'"), TODAY, seed())
+    assert nat and nat["n_polls"] == 5
+    s = nat["strengths"]
+    assert s["Kamala Harris"]["strength"] > s["Gavin Newsom"]["strength"]   # Harris polls better than Newsom vs the same opponents
+    assert s["Marco Rubio"]["strength"] > s["JD Vance"]["strength"]         # Rubio runs stronger than Vance
+    assert 0 < nat["g"] < 4
 
 
-def test_average_pollster_cap():
-    same = [poll("2026-09-20", 60, 40, pollster="A", pid=str(i)) for i in range(5)]
-    other = [poll("2026-09-19", 45, 55, pollster="B")]
-    a = average(same + other, TODAY)
-    # five identical polls from one firm shouldn't swamp one from another
-    assert -5 < a["margin"] < 12
+def test_state_poll_reads_relative_to_national(db):
+    from electionpredictions.db import rows
+
+    nat = ev.national_poll_model(rows(db, "SELECT * FROM polls WHERE scope='national'"), TODAY, seed())
+    leans = {c["contest_id"]: c["lean"] for c in contests(seed())}
+    upd = ev.state_lean_updates(rows(db, "SELECT * FROM polls WHERE scope='state'"), leans, nat, 0.0, TODAY, seed())
+    assert set(upd) == {"NV"}
+    assert upd["NV"]["shift"] < 0 and 0 < upd["NV"]["poll_weight"] < 0.5   # a weak R-leaning read moves the lean a little
 
 
-def test_average_ignores_stale_polls():
-    assert average([poll("2025-12-01", 50, 40)], TODAY) is None
+def test_fundamentals_direction():
+    sp = seed()
+    bad = ev.fundamentals(dict(net=-30.0), dict(inflation=6.0, unemployment_change=1.0, real_wage_growth=-2.0), sp)
+    good = ev.fundamentals(dict(net=15.0), dict(inflation=2.0, unemployment_change=-0.3, real_wage_growth=1.5), sp)
+    assert bad["dem_environment"] > 5 > good["dem_environment"]   # the White House party (R) is punished for a bad record
 
 
-def test_fundamentals_components():
-    f = fundamentals(race(pvi=-4, inc="R"), cand("D", "D", receipts=2e6), cand("R", "R", inc=1, receipts=1e6), generic_margin=8.0)
-    assert f["lean"] == -4
-    assert abs(f["environment"] - 7.2) < 1e-9
-    assert f["incumbency"] == -3
-    assert f["money"] > 0
-    assert abs(f["margin"] - (f["lean"] + f["environment"] + f["incumbency"] + f["money"])) < 1e-9
+def test_implied_nominee_odds():
+    odds = ev.implied_nominee_odds({"A": 30, "B": 15, "C": 0.5}, dte=700, extra_names=["D"])
+    assert abs(sum(odds.values()) - 1) < 1e-9 and odds["A"] > odds["B"] > odds["D"] and "C" not in odds
+    assert odds["Other"] > ev.implied_nominee_odds({"A": 30}, dte=10)["Other"]
 
 
-def test_rating_summary_and_implicit():
-    rs = [dict(party="D", level=2), dict(party="R", level=2)]
-    s = rating_summary(rs, "D")
-    assert s["n"] == 2 and s["label"] == "Tossup" and s["margin"] == 0
-    imp = rating_summary([], "R", fund_margin=-12)
-    assert imp["implicit"] and imp["label"] == "Safe R"
-    # redistricted seat: holder R but fundamentals strongly D -> safe D
-    flip = rating_summary([], "R", fund_margin=+13)
-    assert flip["label"] == "Safe D" and flip["basis"] == "fundamentals"
+def test_calibrate_builds_field(db):
+    prop, nomev, _ = calibrate(db, seed(), TODAY)
+    d = {c["name"]: c for c in prop["nominees"]["D"]}
+    r = {c["name"]: c for c in prop["nominees"]["R"]}
+    assert d["Kamala Harris"]["p"] > d["Gavin Newsom"]["p"] > d["Pete Buttigieg"]["p"]
+    assert "Royce White" in r and r["Royce White"]["home_state"] == "MN"   # declared candidates join the field
+    assert abs(sum(c["p"] for c in prop["nominees"]["D"]) - 1) < 1e-3
+    assert d["Kamala Harris"]["home_state"] == "CA"
 
 
-def test_race_forecast_polls_pull_toward_polls():
-    r = race(pvi=-3, inc="R")
-    cands = [cand("D", "D"), cand("R", "R", inc=1)]
-    ratings = [dict(party="R", level=2)]
-    without = race_forecast(r, cands, ratings, [], 8.0, TODAY)
-    with_polls = race_forecast(r, cands, ratings, [poll("2026-09-20", 52, 42, n=1000, pollster=str(i), pid=str(i)) for i in range(4)], 8.0, TODAY)
-    assert with_polls["mu"] > without["mu"]
-    assert with_polls["poll_weight"] > 0.5
+def test_engine_is_coherent(db):
+    prop, _, _ = calibrate(db, seed(), TODAY)
+    out = engine.run(db, prop, spec_version=1, today=TODAY, n_sims=3000, seed=7, verbose=False)
+    ec = out["ec"]
+    assert abs(ec["p_dem"] + ec["p_rep"] + ec["p_tie"] - 1) < 1e-9
+    assert abs(ec["dem_ev"]["mean"] + ec["rep_ev"]["mean"] - TOTAL_EVS) < 1e-6
+    assert abs(sum(b["p"] for b in ec["histogram"]) - 1) < 1e-9
+    per = {c["contest_id"]: c for c in out["contests"]}
+    assert len(per) == 56
+    assert per["DC"]["p_dem"] > 0.99 and per["WY"]["p_dem"] < 0.01
+    assert per["ME-1"]["p_dem"] > per["ME"]["p_dem"] > per["ME-2"]["p_dem"]
+    assert abs(sum(c["tip"] for c in out["contests"]) - 1) < 1e-6
+    # each matchup's odds are consistent with the candidate strengths
+    sc = out["scenarios"]
+    assert sc and all(0 <= s["p_dem"] <= 1 for s in sc) and sc[0]["p"] >= sc[-1]["p"]
+    cond = {c["name"]: c for c in out["conditional"]["R"]}
+    assert cond["Marco Rubio"]["p_win_if_nominee"] > cond["JD Vance"]["p_win_if_nominee"]
+    # persisted
+    from electionpredictions.db import rows
+
+    assert rows(db, "SELECT count(*) n FROM forecasts")[0]["n"] == 56
+    assert rows(db, "SELECT spec_version FROM national_forecasts")[0]["spec_version"] == 1
 
 
-def test_race_forecast_uncontested():
-    r = race_forecast(race(), [cand("D", "D")], [], [], 8.0, TODAY)
-    assert r["uncontested"] and r["p_dem"] == 1.0
-
-
-def test_simulate_shape_and_monotone():
-    results = [dict(mu=m, sigma_race=4.0, env_w=1.0, state="GA", uncontested=False) for m in (-10, 0, 10)]
-    wins = simulate(results, dte=42, n_sims=5000, seed=1)
-    assert wins.shape == (5000, 3)
-    p = wins.mean(axis=0)
-    assert p[0] < 0.1 and 0.4 < p[1] < 0.6 and p[2] > 0.9
-
-
-def test_simulate_correlation_via_national_swing():
-    results = [dict(mu=0.0, sigma_race=3.0, env_w=1.0, state="GA", uncontested=False),
-               dict(mu=0.0, sigma_race=3.0, env_w=1.0, state="WI", uncontested=False)]
-    wins = simulate(results, dte=42, n_sims=20000, seed=2)
-    corr = np.corrcoef(wins[:, 0], wins[:, 1])[0, 1]
-    assert corr > 0.1
-
-
-def test_pollster_tiers():
-    from electionpredictions.model.pollavg import pollster_weight
-    assert pollster_weight("New York Times/Siena College") > 1.0
-    assert pollster_weight("Rasmussen Reports") < 1.0
-    assert pollster_weight("Some Unknown Firm") == 1.0
-    hi = average([poll("2026-09-20", 50, 45, pollster="Marist")], TODAY)
-    lo = average([poll("2026-09-20", 50, 45, pollster="Trafalgar Group")], TODAY)
-    assert hi["n_eff"] > lo["n_eff"]
+def test_wider_uncertainty_pulls_toward_even(db):
+    prop, _, _ = calibrate(db, seed(), TODAY)
+    narrow = dict(prop, uncertainty=dict(prop["uncertainty"], national_mult=0.6, state_mult=0.6))
+    wide = dict(prop, uncertainty=dict(prop["uncertainty"], national_mult=1.6, state_mult=1.6))
+    a = engine.run(db, narrow, today=TODAY, n_sims=3000, seed=3, persist=False, verbose=False)["ec"]["p_dem"]
+    b = engine.run(db, wide, today=TODAY, n_sims=3000, seed=3, persist=False, verbose=False)["ec"]["p_dem"]
+    assert abs(b - 0.5) < abs(a - 0.5)
+    assert EVS_TO_WIN == 270

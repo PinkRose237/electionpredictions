@@ -1,190 +1,80 @@
-# Site data contract
+# Site data contract — 2028 presidential model
 
-The Python pipeline writes static JSON into `site/data/`. The website reads only these files.
-All probabilities are 0–1 floats. All margins are **Democratic minus Republican, in percentage points**
-(positive = D ahead). "dem"/"rep" mean the D-side and R-side principal candidate; an independent can
-stand in for a missing major-party nominee (e.g. Nebraska Senate, where `dem.party == "I"`).
+`src/electionpredictions/export.py` writes these files into `site/data/`; the site reads only them (plus
+`site/geo/us-maps.json`). Probabilities are 0–1. Margins are **Democratic minus Republican, in points**.
+Contest ids: two-letter state codes (`PA`, `DC`) and `ME-1`, `ME-2`, `NE-1`, `NE-2`, `NE-3`; `ME` and `NE`
+are the statewide contests (2 electors each). The 2026 midterm archive keeps its own frozen files in
+`site/archive/2026/data/` (see `DATA_CONTRACT_2026.md`).
 
 ## `summary.json`
 ```json
 {
-  "generated_at": "2026-09-22T20:15:00+00:00",
-  "election_date": "2026-11-03",
-  "days_to_election": 42,
-  "generic_ballot": {
-    "margin": 7.8, "dem": 49.7, "rep": 41.9,
-    "sources": [{"source": "Decision Desk HQ", "as_of": "2026-09-21", "dem": 48.1, "rep": 40.5, "margin": 7.6}]
-  },
-  "chambers": {
-    "house": {
-      "label": "House", "total": 435, "seats_up": 435, "needed": 218,
-      "not_up": {"D": 0, "R": 0},
-      "current": {"D": 213, "R": 219, "other": 3},
-      "p_dem": 0.93, "p_rep": 0.07, "p_neither": 0.0,
-      "dem_seats": {"mean": 232.4, "median": 232, "p05": 220, "p10": 223, "p90": 242, "p95": 245},
-      "rep_seats": {"mean": 202.6, "median": 203, "p05": 190, "p10": 193, "p90": 212, "p95": 215},
-      "histogram": [{"seats": 215, "p": 0.004}],
-      "markets": [{"platform": "polymarket", "p_dem": 0.925, "p_rep": 0.075, "url": "https://..."}],
-      "rating_counts": {"Safe D": 160, "Likely D": 20, "Lean D": 15, "Tossup": 25, "Lean R": 15, "Likely R": 25, "Safe R": 175},
-      "expected_flips": {"D": 22.3, "R": 3.1}
-    },
-    "senate": {"...": "same shape; total 100, seats_up 35, needed 51, not_up {D:34,R:31}"},
-    "governor": {"...": "same shape; total 50, seats_up 36, needed 26, not_up {D:7,R:7}"}
-  },
-  "history": [
-    {"date": "2026-09-22", "generic": 7.8,
-     "house": {"p_dem": 0.93, "dem_seats": 232.4}, "senate": {"p_dem": 0.55, "dem_seats": 50.4}, "governor": {"p_dem": 0.6, "dem_seats": 26.1}}
-  ],
-  "closest": ["ME-SEN", "NC-01"],
-  "sources": {"polls": 1412, "ratings": 1871, "markets": 725, "news": 3433, "fec_candidates": 968}
+  "generated_at": "2026-11-05T18:39:00+00:00", "election_date": "2028-11-07", "days_to_election": 733, "run_date": "2026-11-05",
+  "model": {"version": 7, "latest_version": 7, "origin": "revision", "updated": "…", "title": "…", "summary": "…", "n_changes": 4, "n_sims": 20000},
+  "ec": {"p_dem": 0.73, "p_rep": 0.27, "p_tie": 0.004,
+         "dem_ev": {"mean": 307, "median": 307, "p05": 190, "p10": 226, "p25": 268, "p75": 348, "p90": 393, "p95": 420},
+         "rep_ev": {"…": "same keys"}, "histogram": [{"ev": 270, "p": 0.006}]},
+  "popular": {"margin": 4.9, "sd": 6.4, "p_dem": 0.8, "p10": -2.8, "p90": 12.5},
+  "splits": {"dem_ec_rep_pv": 0.016, "rep_ec_dem_pv": 0.084},
+  "environment": {"polls": 1.5, "fundamentals": 5.9, "poll_weight": 0.25, "adjustment": 0.0, "environment": 4.8,
+                  "approval": {"net": -23.7, "approve": 36.8, "disapprove": 60.5, "as_of": "2026-11-01", "sources": 9},
+                  "economy": {"as_of": "2026-09", "unemployment": 4.2, "unemployment_change": -0.2, "inflation": 3.7, "real_wage_growth": -0.7},
+                  "econ_index": -1.3, "incumbent_party_margin": -5.9,
+                  "national_polls": {"n": 58, "n_eff": 26.5, "average": 1.7, "last": "2026-10-14", "g_sd": 2.0}},
+  "uncertainty": {"national_sd": 6.25, "state_sd": 3.9, "region_sd": 1.5, "trend_sd": 1.5, "tail_df": 6, "district_sd": 2.0},
+  "nominees": {"D": [{"name": "Gavin Newsom", "p": 0.14, "effect": 0.35, "home_state": "CA", "p_win_if_nominee": 0.75, "dem_ev": 310, "pv_margin": 5.4}],
+               "R": ["… (p_win_if_nominee is the Republican chance)"]},
+  "scenarios": [{"dem": "Kamala Harris", "rep": "JD Vance", "p": 0.118, "p_dem": 0.76, "p_rep": 0.24, "dem_ev": 311, "pv_margin": 5.5}],
+  "tipping": [{"id": "PA", "name": "Pennsylvania", "p": 0.21, "p_dem": 0.72, "evs": 19}],
+  "closest": ["AZ", "NC"],
+  "overview": {"summary": "…", "key_factors": ["…"], "nominations": {"D": "…", "R": "…"}, "watch": "…", "generated_at": "…"},
+  "markets": {"party": [{"platform": "kalshi", "outcome": "D", "p": 0.66, "volume": 0, "url": "…"}], "party_dem": 0.67,
+              "nominee_D": ["…"], "nominee_R": ["…"], "winner": ["…"]},
+  "history": [{"date": "2026-11-05", "version": 7, "p_dem": 0.73, "p_rep": 0.27, "dem_ev": 307, "dem_ev_p10": 226, "dem_ev_p90": 393, "pv": 4.9, "env": 4.8}],
+  "counts": {"national_polls": 63, "state_polls": 1, "primary_polls": 250, "ratings": 0, "markets": 106, "news": 57, "candidates": 22, "model_versions": 7}
 }
 ```
-Notes: `needed` for the Senate is 51 because the Vice President (R) breaks ties; `p_neither` is the chance
-no party reaches control on its own (independents decide). `histogram` lists Democratic seat totals with
-nonzero probability, ascending. `rating_counts` are counts of the **model's** labels among races up.
+`overview` is null when no summary has been written. `markets` are comparison only.
 
-## 2028 presidential model (`EP_CYCLE=2028`, data in `site/data2028/`, page `site/president.html`)
-
-Same shapes as above, with the presidency as the only chamber. Seat fields carry **electoral votes**:
-`total` 538, `seats_up` 51 (50 states + DC, winner-take-all; Maine/Nebraska district splits are folded
-into the statewide winner), `needed` 270, `not_up` `{D: 0, R: 0}`. `p_neither` is a 269–269 tie
-(decided by the House). `dem_seats`/`rep_seats` are expected Democratic/Republican electoral votes;
-`current` is the 2024 reference split (D 226 / R 312); `expected_flips` are states changing hands vs 2024.
-Each `races.json` entry additionally carries `evs` (the jurisdiction's electoral votes) and `prev`
-(2024 winner: `D` or `R`). Candidates are `Generic Democrat` / `Generic Republican` until nominees exist;
-named-candidate polls are stored (marked hypothetical) but only generic D-vs-R trial heats enter the average.
-
-## `races.json` — array with one object per race (506 races)
+## `states.json`
+One row per contest:
 ```json
-{
-  "race_id": "GA-SEN", "chamber": "senate", "state": "GA", "state_name": "Georgia",
-  "district": null, "special": false, "name": "Georgia Senate", "short": "GA-Sen",
-  "incumbent": "Jon Ossoff", "incumbent_party": "D", "incumbent_running": true,
-  "holder_party": "D", "open_seat": false,
-  "pvi": -1.0, "pvi_label": "R+1",
-  "dem": {"name": "Jon Ossoff", "party": "D", "incumbent": true, "receipts": 77279766.5, "cash": 42587451.0},
-  "rep": {"name": "Mike Collins", "party": "R", "incumbent": false, "receipts": 7409349.6, "cash": 2079981.4},
-  "p_dem": 0.936, "margin": 8.1, "sd": 5.3, "label": "Likely D",
-  "rating": {"label": "Likely D", "score": 2.7, "n": 10},
-  "polls": {"margin": 7.1, "n": 14, "n_eff": 6.2, "last": "2026-09-16"},
-  "fundamentals": 10.5,
-  "markets": {"p_dem": 0.935, "n": 3},
-  "flip_prob": 0.064,
-  "uncontested": false,
-  "news_count": 15
-}
+{"id": "PA", "state": "PA", "district": null, "name": "Pennsylvania", "state_name": "Pennsylvania", "evs": 19,
+ "lean": -1.0, "lean_label": "R+1.0", "hist_lean": -1.0, "p_dem": 0.72, "margin": 4.05, "sd": 7.6, "p10": -5.1, "p90": 13.2,
+ "label": "Lean D", "tip": 0.21, "margin20": 1.16, "margin24": -1.71, "winner20": "D", "winner24": "R", "flip": 0.72,
+ "n_polls": 0, "adjustment": null, "rating": null}
 ```
-`dem`/`rep`/`rating`/`polls`/`markets`/`flip_prob`/`pvi` may be `null`. `label` is one of
-`Safe D, Likely D, Lean D, Tossup, Lean R, Likely R, Safe R`. `district` is an integer for House races
-(0 = at-large) and null otherwise. `short` looks like `GA-Sen`, `TX-Gov`, `AZ-01`, `OH-Sen (special)`.
-`rating.score` is D-positive on a −4..4 scale (−4 = every rater Safe R). `rating.n == 0` means no rater
-lists the race and it is treated as safe for the holder.
+`lean` is the (poll-updated) margin relative to the nation; `hist_lean` the 2020/2024 record alone;
+`tip` the chance the contest casts the 270th electoral vote; `flip` the chance it votes differently from 2024;
+`rating` `{label, n}` once experts publish.
 
-## `races/{race_id}.json` — everything in the `races.json` object plus:
-```json
-{
-  "candidates": [{"name": "Jon Ossoff", "party": "D", "incumbent": true, "major": true,
-                  "receipts": 77279766.5, "disbursements": 59730545.5, "cash": 42587451.0, "coverage_end": "2026-06-30",
-                  "money_source": "fec"}],
-  "ratings": [{"rater": "Cook Political Report", "rating": "Lean D", "as_of": "2026-09-15"}],
-  "poll_list": [{"pollster": "Quantus Insights", "sponsor_lean": "R", "start_date": "2026-09-14", "end_date": "2026-09-16",
-                 "sample_size": 645, "population": "LV", "moe": 4.3, "dem_pct": 48.0, "rep_pct": 44.0, "und_pct": 7.0,
-                 "margin": 4.0, "hypothetical": false, "weight": 0.83,
-                 "matchup": [["Jon Ossoff", "D", 48.0], ["Mike Collins", "R", 44.0]]}],
-  "poll_aggregates": [{"source": "RealClearPolitics", "as_of": "2026-09-18", "dem": 50.6, "rep": 43.1, "margin": 7.5}],
-  "market_list": [{"platform": "polymarket", "title": "Georgia Senate Election Winner", "p_dem": 0.935, "p_rep": 0.0585,
-                   "p_other": null, "volume": 153777.0, "url": "https://polymarket.com/event/...", "fetched_at": "2026-09-22T19:00:00+00:00"}],
-  "news": [{"title": "...", "source": "USA Today", "published": "2026-09-22T16:43:59+00:00", "url": "https://..."}],
-  "model": {
-    "prior_margin": 9.6, "prior_sd": 6.0, "poll_margin": 7.1, "poll_sd": 4.7, "poll_weight": 0.62,
-    "fundamentals": {"margin": 10.5, "lean": -1.0, "environment": 7.0, "incumbency": 3.0, "money": 1.5},
-    "rating_margin": 9.0, "sigma_race": 4.5, "sigma_total": 5.3,
-    "notes": ["Incumbent Jon Ossoff (D) is running."]
-  },
-  "history": [{"date": "2026-09-22", "p_dem": 0.936, "margin": 8.1}],
-  "overview": "Two short paragraphs on where the race stands..."
-}
-```
-`overview` is null until the decision layer has run. When it has, `model` also carries `baseline_margin`,
-`analyst_adjustment` (forecast margin minus baseline), `key_factors` (list), `rationale`, `watch` and `confidence`;
-`summary.json` gains `overview` ({summary, key_factors, chambers, environment_adjustment, uncertainty_multiplier}).
-None of these fields say where they came from; the site presents them as part of the forecast.
-`candidates[].money_source` is `fec`, `wikipedia` (state-filing figures from the race article, used for governors) or null.
-`poll_list` is sorted newest first; `weight` is the model's weight (0 for polls it ignored, e.g. too old or
-a hypothetical matchup when real ones exist). `poll_list[].moe`, `und_pct`, `sample_size` may be null.
-`market_list[].p_other` is the independent/third-party price when the platform lists one.
+## `states/<id>.json`
+The row above plus: `breakdown` (`historical_lean`, `rel20`, `rel24`, `poll_shift`, `environment`,
+`nominee_effects`, `home_effect`, `adjustment`, `adjustment_reason`, `rating_pull`: they add up to `margin`),
+`poll_update` (state-poll posterior), `polls` (each with `weight`), `ratings`, `matchups`
+(`[{dem, rep, p, p_dem}]`, the contest's odds under each likely pairing), `news`, `overview`
+(`{overview, key_factors, watch}` or null) and `history` (`[{date, p_dem, margin}]`).
+
+## `scenarios.json`
+The likeliest matchups (top 12) as in `summary.scenarios`, each with `states: {id: p_dem}`.
+
+## `field.json`
+`{parties: {D|R: {candidates: [...], other, average, n_polls, aggregates, polls, news, markets, narrative}}, scenarios, winner_markets}`.
+A candidate: `name, party, status (declared|exploratory|potential), home_state, experience, announced,
+primary_share, p_nominee, effect, p_win_if_nominee, dem_ev, poll_strength {strength, sd, n_polls},
+receipts, cash, coverage_end, news`.
+
+## `polls.json`
+`national` and `state` trial heats (`id, pollster, sponsor, start, end, n, pop, dem, rep, dem_pct, rep_pct,
+other_pct, und_pct, margin, contest, matchup, weight`), `strengths` (candidate polling strength from the
+regression), `environment`, `approval` (latest aggregator rows), `approval_history`, `economy`
+(`indicators`, `index`, `series`), `state_updates`.
+
+## `model.json`
+`current`: `version`, `origin` (`seed|calibration|revision`), `spec` (the full specification),
+`parameters` (`[{path, value, low, high, max_step, description}]`), `effective` (`national_sd`, `state_sd`,
+`default_poll_weight`, `poll_weight`, `days_to_election`). `versions`: newest first,
+`[{version, created_at, run_date, origin, title, summary, changes: [{path, from, to, reason, label}]}]`.
 
 ## `meta.json`
-```json
-{"generated_at": "...", "version": "0.1.0", "runs": [{"stage": "polls", "finished_at": "...", "ok": true, "note": "{...}"}]}
-```
-
-## `schedule.json` — Election Results page
-```json
-{
-  "generated_at": "...", "election_date": "2026-11-03",
-  "first_close_utc": "2026-11-03T23:00:00+00:00", "last_close_utc": "2026-11-04T06:00:00+00:00",
-  "groups": [{
-    "state": "FL", "state_name": "Florida", "close_utc": "2026-11-04T01:00:00+00:00", "close_et": "8 pm ET",
-    "local": "8 pm ET (last polls in the state)", "note": "The Central-time panhandle ...",
-    "n_competitive": 1, "settled_typical": "2026-11-04T13:00:00+00:00", "settled_late": "...",
-    "races": [{"race_id": "FL-GOV", "short": "FL-Gov", "name": "Florida Governor", "chamber": "governor",
-               "label": "Lean R", "p_dem": 0.3, "dem": "David Jolly", "rep": "Byron Donalds", "uncontested": false,
-               "call": {"earliest": "...", "typical": "...", "late": "...", "summary": "Late election night or next morning",
-                        "tier": 2, "why": "Mail ballots are counted before polls close; ..."}}]
-  }],
-  "method": ["..."], "sources": [{"title": "...", "url": "..."}]
-}
-```
-Groups are sorted by closing time then state; a state appears more than once when it spans time zones
-(House districts in the earlier zone form their own group). `call.tier` is 0 (Safe) … 3 (Tossup) or
-`"uncontested"`.
-
-## `results.json` — manual result overrides (written by the admin page, optional)
-```json
-{
-  "updated_at": "2026-11-03T23:45:00.000Z",
-  "races": {
-    "GA-SEN": {"status": "counting", "reporting": 62, "votes": {"dem": 1234567, "rep": 1200000, "other": 20000},
-               "winner": null, "note": "", "updated_at": "2026-11-03T23:44:10.000Z"}
-  }
-}
-```
-`status` is one of `pending, counting, called, runoff, recount, final`; `winner` is `dem`, `rep`, `other` or null
-(sides as in `races.json`, so an independent standing in for a party counts on that side). Vote fields may be null.
-These entries are laid over the live feed field by field (`mergeResults` in `site/live.js`): `status`
-`pending` and null fields mean "use the feed"; anything else wins.
-Absent file = no overrides; pages must render without it.
-
-## `results-auto.json` — saved snapshot of the live results feeds (optional)
-Written by `uv run electionpredictions results` (and `.github/workflows/results.yml`). Same entry shape
-as `results.json`, plus which feed supplied each race:
-```json
-{"updated_at": "2026-11-04T03:10:00+00:00", "sources": ["nyt"],
- "races": {"GA-SEN": {"status": "called", "winner": "dem", "reporting": 96.0,
-                      "votes": {"dem": 2501234, "rep": 2390000, "other": 41000}, "updated_at": "..."}},
- "by": {"GA-SEN": "nyt"}}
-```
-`reporting` is the share of the expected vote counted (AP's estimate), 0–100. The results page pulls the
-same feeds live in the browser and uses this file only when it can't reach them.
-
-## `calls.json` — race calls by news outlet (optional)
-Written by `uv run electionpredictions results` (`sources/race_calls.py`) for the Race Calls page.
-```json
-{"updated_at": "2026-11-04T02:10:00+00:00", "ratings_source": "https://www.allsides.com/media-bias/ratings",
- "sources": [{"id": "cnn", "name": "CNN", "lean": "Lean Left", "desk": "CNN Decision Desk", "url": "...",
-              "rating_url": "...", "wire": false, "races_seen": 506, "calls": 212, "ok": true, "errors": [],
-              "checked_at": "2026-11-04T02:10:00+00:00"}],
- "races": {"GA-SEN": {"nbc": {"winner": "dem", "status": "called", "at": null},
-                      "cnn": {"winner": null, "status": "runoff", "at": "2026-11-04T01:52:10+00:00"}}}}
-```
-`sources` is in display order; `lean` is the outlet's AllSides rating. `races` lists only races at least one
-outlet has called (or sent to a runoff); a source missing from a race has not called it. `winner` is `dem`,
-`rep` or `other` (sides as in `races.json`); `at` is the outlet's own call time when it publishes one
-(Bloomberg), otherwise when the call was first seen in a snapshot (within ~2 minutes while the watch runs). When a
-source's feed fails, its previous calls are kept and `ok` is false.
-
-The site and the Apple TV app treat a race as called only once 2 of the 4 outlets agree on the same side
-(and no other side has as many)
-(`applyConsensus` in `site/live.js`): until then a feed call is shown as counting, with how many outlets
-have called it so far. If calls.json can't be loaded, the AP feed's own calls are used.
+`{generated_at, version, runs: [{stage, started_at, finished_at, ok, note}]}` (last 40 pipeline stages).
