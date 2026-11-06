@@ -22,6 +22,8 @@ from .model.contests import contests as contest_list
 from .model.evidence import national_sd_curve, poll_trust_curve, state_sd_curve
 from .model.spec import BOUNDS, DESCRIPTIONS, OTHER, get
 from .narrative import load as load_narratives
+from .revision import current_storylines
+from .sources import midterm2026
 
 VERSION = "2.0.0"
 
@@ -108,6 +110,8 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
     for r in rows(con, "SELECT * FROM ratings ORDER BY rater"):
         ratings.setdefault(r["contest_id"], []).append(dict(rater=r["rater"], rating=r["rating"], as_of=r["as_of"]))
     upd = E.get("state_updates") or {}
+    mid = midterm2026.summary()
+    mid_states = (mid or {}).get("statewide", {})
     scen_states = {f"{s['dem']}|{s['rep']}": s.get("states") or {} for s in N.get("scenarios", [])}
 
     # ---- contests
@@ -139,6 +143,7 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
             matchups=[dict(dem=s["dem"], rep=s["rep"], p=_r(s["p"], 4), p_dem=_r((scen_states.get(f"{s['dem']}|{s['rep']}") or {}).get(cid), 3))
                       for s in N.get("scenarios", [])],
             news=_news(con, cid, 12),
+            midterm_2026=(mid_states.get(c["state"]) if not c["district"] else None),
             overview=narr.get(cid),
             history=_merge_history(hist_by.get(cid, []), out_dir / "states" / f"{cid}.json"),
         )
@@ -186,6 +191,11 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
         scenarios=[{k: (_r(v, 4) if isinstance(v, float) else v) for k, v in s.items() if k != "states"} for s in N.get("scenarios", [])],
         tipping=[dict(id=r["id"], name=r["name"], p=r["tip"], p_dem=r["p_dem"], evs=r["evs"]) for r in tips],
         closest=closest, overview=narr.get("NATIONAL"), markets=mk, history=history, counts=counts,
+        storylines=current_storylines(con),
+        revisions=[dict(version=v["version"], created_at=v["created_at"], origin=v["origin"], title=v["title"], summary=v["summary"],
+                        n_changes=len(v["changes"])) for v in versions[:6]],
+        recent=_recent(con),
+        midterm_2026=mid and dict(as_of=mid["as_of"], house_vote=mid["house_vote"], seats=mid["seats"]),
     )
     _write(out_dir / "summary.json", summary)
     _write(out_dir / "scenarios.json", [dict({k: (_r(v, 4) if isinstance(v, float) else v) for k, v in s.items()}) for s in N.get("scenarios", [])])
@@ -228,7 +238,8 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
         generated_at=summary["generated_at"], run_date=run_date,
         national=[_poll_out(p, weights.get(p["poll_id"])) for p in rows(con, "SELECT * FROM polls WHERE scope='national' ORDER BY end_date DESC")],
         state=[_poll_out(p, (upd.get(p["contest_id"]) or {}).get("weights", {}).get(p["poll_id"])) for p in rows(con, "SELECT * FROM polls WHERE scope='state' ORDER BY end_date DESC")],
-        strengths=strengths, environment=summary["environment"],
+        strengths=strengths, environment=summary["environment"], house_effects=nat_polls.get("house_effects") or {},
+        midterm_2026=mid,
         approval=[dict(source=r["source"], as_of=r["as_of"], approve=r["approve"], disapprove=r["disapprove"], net=r["net"])
                   for r in rows(con, "SELECT * FROM approval WHERE as_of=(SELECT max(as_of) FROM approval) ORDER BY source")],
         approval_history=[dict(as_of=r["as_of"], net=r["net"]) for r in rows(con, "SELECT as_of, net FROM approval WHERE source='Average' ORDER BY as_of")],
@@ -247,14 +258,27 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
                                     state_sd=_r(state_sd_curve(dte) * spec["uncertainty"]["state_mult"], 2),
                                     default_poll_weight=_r(poll_trust_curve(dte), 3), poll_weight=E["environment"].get("poll_weight"),
                                     days_to_election=dte)),
-        versions=[dict(v, changes=[_label_change(c) for c in v["changes"]]) for v in versions],
+        versions=[dict(v, changes=[_label_change(c) for c in v["changes"]]) for v in versions[:200]],
+        total_versions=store.count(con), storylines=current_storylines(con),
     ))
     runs = rows(con, "SELECT stage, started_at, finished_at, ok, note FROM runs ORDER BY run_id DESC LIMIT 40")
-    _write(out_dir / "meta.json", dict(generated_at=summary["generated_at"], version=VERSION, runs=[dict(r, ok=bool(r["ok"])) for r in runs]))
+    research = [dict(r, results=json.loads(r["results"] or "[]")) for r in rows(con, "SELECT created_at, query, why, results FROM research ORDER BY id DESC LIMIT 24")]
+    _write(out_dir / "meta.json", dict(generated_at=summary["generated_at"], version=VERSION, runs=[dict(r, ok=bool(r["ok"])) for r in runs],
+                                       research=research))
     if verbose:
         ec = summary["ec"]
         print(f"  exported {len(table)} contests to {out_dir} (spec v{N.get('spec_version')}; P(D)={ec['p_dem']:.3f})")
     return summary
+
+
+def _recent(con, days: int = 7, max_points: int = 240) -> list[dict]:
+    """Every update's headline numbers over the last week (thinned to at most max_points)."""
+    rs = rows(con, "SELECT * FROM run_log WHERE ts >= datetime('now', ?) ORDER BY ts", (f"-{days} days",))
+    step = max(1, len(rs) // max_points)
+    pts = rs[::step]
+    if rs and pts[-1] is not rs[-1]:
+        pts.append(rs[-1])
+    return [dict(ts=r["ts"], v=r["spec_version"], p_dem=_r(r["p_dem"], 4), p_rep=_r(r["p_rep"], 4), dem_ev=_r(r["dem_ev"], 1), pv=_r(r["pv"], 2)) for r in pts]
 
 
 def _person(con, name, party, row, spec_by, avg, strengths, money) -> dict:

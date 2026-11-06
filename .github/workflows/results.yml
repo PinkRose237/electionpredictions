@@ -43,6 +43,9 @@ jobs:
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
       - if: steps.commit.outputs.changed == 'true'
+        name: Add the latest 2028 forecast data (from the forecast-data branch)
+        uses: ./.github/actions/forecast-data
+      - if: steps.commit.outputs.changed == 'true'
         uses: actions/upload-pages-artifact@v3
         with:
           path: site

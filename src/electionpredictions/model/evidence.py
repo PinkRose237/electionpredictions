@@ -70,9 +70,14 @@ def poll_weight(p: dict, today: date, half_life: float, third_party_weight: floa
 
 
 def national_poll_model(polls: list[dict], today: date, spec: dict) -> Optional[dict]:
+    """Weighted ridge regression over every national trial heat:
+        margin = g + strength(D) - strength(R) + house(pollster) + error
+    g is the environment for an average-strength matchup; house effects (pollsters with 2+ polls) absorb each
+    firm's systematic lean, so a prolific firm cannot tilt the average or a candidate's strength."""
     hl = float(spec["polls"]["half_life_days"])
     tpw = float(spec["polls"]["third_party_weight"])
     tau = float(spec["polls"]["candidate_prior_sd"])
+    hsd = float(spec["polls"].get("house_effect_sd", 0.0))
     obs = []
     for p in polls:
         if p.get("dem_pct") is None or p.get("rep_pct") is None or not p.get("end_date"):
@@ -84,15 +89,22 @@ def national_poll_model(polls: list[dict], today: date, spec: dict) -> Optional[
         return None
     dnames = sorted({p["dem_name"] for p, _, _ in obs})
     rnames = sorted({p["rep_name"] for p, _, _ in obs})
-    k = 1 + len(dnames) + len(rnames)
+    n_by_firm: dict[str, int] = {}
+    for p, _, _ in obs:
+        n_by_firm[p["pollster"]] = n_by_firm.get(p["pollster"], 0) + 1
+    firms = sorted(f for f, n in n_by_firm.items() if n >= 2) if hsd > 0 else []
+    nd, nr = len(dnames), len(rnames)
+    k = 1 + nd + nr + len(firms)
     X = np.zeros((len(obs), k))
     y = np.array([m for _, _, m in obs])
     w = np.array([w for _, w, _ in obs])
     for i, (p, _, _) in enumerate(obs):
         X[i, 0] = 1.0
         X[i, 1 + dnames.index(p["dem_name"])] = 1.0
-        X[i, 1 + len(dnames) + rnames.index(p["rep_name"])] = -1.0
-    prior_prec = np.array([1 / 10.0 ** 2] + [1 / tau ** 2] * (k - 1))
+        X[i, 1 + nd + rnames.index(p["rep_name"])] = -1.0
+        if p["pollster"] in firms:
+            X[i, 1 + nd + nr + firms.index(p["pollster"])] = 1.0
+    prior_prec = np.array([1 / 10.0 ** 2] + [1 / tau ** 2] * (nd + nr) + [1 / max(hsd, 1e-3) ** 2] * len(firms))
     A = (X.T * w) @ X / NAT_POLL_SD ** 2 + np.diag(prior_prec)
     b = (X.T * w) @ y / NAT_POLL_SD ** 2
     cov = np.linalg.inv(A)
@@ -106,12 +118,15 @@ def national_poll_model(polls: list[dict], today: date, spec: dict) -> Optional[
     for j, nm in enumerate(dnames):
         strengths[nm] = dict(party="D", strength=round(float(beta[1 + j]), 2), sd=round(float(sd[1 + j]), 2), n_polls=n_by[("D", nm)])
     for j, nm in enumerate(rnames):
-        strengths[nm] = dict(party="R", strength=round(float(beta[1 + len(dnames) + j]), 2), sd=round(float(sd[1 + len(dnames) + j]), 2),
-                             n_polls=n_by[("R", nm)])
+        strengths[nm] = dict(party="R", strength=round(float(beta[1 + nd + j]), 2), sd=round(float(sd[1 + nd + j]), 2), n_polls=n_by[("R", nm)])
+    house = {f: dict(effect=round(float(beta[1 + nd + nr + j]), 2), sd=round(float(sd[1 + nd + nr + j]), 2), n_polls=n_by_firm[f])
+             for j, f in enumerate(firms)}
     W = float(w.sum())
-    return dict(g=float(beta[0]), g_sd=max(1.0, float(sd[0])), strengths=strengths, n_polls=len(obs),
+    fitted = X @ beta
+    return dict(g=float(beta[0]), g_sd=max(1.0, float(sd[0])), strengths=strengths, house_effects=house, n_polls=len(obs),
                 n_eff=round(W ** 2 / float((w ** 2).sum()), 2), weight_sum=round(W, 3),
                 last_poll=max(p["end_date"] for p, _, _ in obs), weights={p["poll_id"]: round(float(x), 4) for (p, _, _), x in zip(obs, w)},
+                residuals={p["poll_id"]: round(float(yy - ff), 2) for (p, _, _), yy, ff in zip(obs, y, fitted)},
                 simple_average=round(float((w * y).sum() / W), 2))
 
 
@@ -138,7 +153,8 @@ def state_lean_updates(state_polls: list[dict], leans: dict[str, float], nat: Op
         if w <= 1e-4:
             continue
         level = matchup_level(nat, p["dem_name"], p["rep_name"]) if nat else env
-        by.setdefault(cid, []).append((p, w * sw, m - level, m))
+        house = ((nat or {}).get("house_effects", {}).get(p.get("pollster")) or {}).get("effect", 0.0)
+        by.setdefault(cid, []).append((p, w * sw, m - house - level, m))
     out = {}
     for cid, obs in by.items():
         prior = leans[cid]

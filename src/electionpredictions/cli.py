@@ -35,6 +35,42 @@ def status(con):
     print("Recent stages:", [f"{r['stage']}@{r['finished_at']} ok={r['ok']}" for r in rows(con, "SELECT * FROM runs ORDER BY run_id DESC LIMIT 10")])
 
 
+def sync_state():
+    """Replace the local database and site/data with the live model state from the forecast-data branch."""
+    import shutil
+    import subprocess
+    import tarfile
+    import tempfile
+
+    from .config import DB_PATH, SITE_DATA_DIR
+
+    root = SITE_DIR.parent
+    fetched = subprocess.run(["git", "fetch", "--depth=1", "origin", "forecast-data"], cwd=root, capture_output=True, text=True)
+    if fetched.returncode != 0:
+        raise SystemExit(f"Could not fetch the forecast-data branch: {fetched.stderr.strip()[:300]}")
+    with tempfile.TemporaryDirectory() as tmp:
+        tar = subprocess.run(["git", "archive", "--format=tar", "FETCH_HEAD"], cwd=root, capture_output=True, check=True).stdout
+        tar_path = f"{tmp}/state.tar"
+        with open(tar_path, "wb") as fh:
+            fh.write(tar)
+        with tarfile.open(tar_path) as tf:
+            tf.extractall(tmp, filter="data")
+        db = f"{tmp}/president2028.db"
+        if not __import__("os").path.exists(db):
+            raise SystemExit("The forecast-data branch has no database yet.")
+        if DB_PATH.exists():
+            shutil.copy2(DB_PATH, DB_PATH.with_suffix(".db.bak"))
+        for suffix in ("-wal", "-shm"):
+            p = DB_PATH.with_name(DB_PATH.name + suffix)
+            if p.exists():
+                p.unlink()
+        shutil.copy2(db, DB_PATH)
+        if SITE_DATA_DIR.exists():
+            shutil.rmtree(SITE_DATA_DIR)
+        shutil.copytree(f"{tmp}/site-data", SITE_DATA_DIR)
+    print(f"Synced the live model state into {DB_PATH} and {SITE_DATA_DIR} (previous database saved as .db.bak)")
+
+
 def results(watch: int = 0, push: bool = False):
     """Archived 2026 midterm site: snapshot the live results feeds and outlets' race calls."""
     import subprocess
@@ -99,18 +135,21 @@ def main(argv=None):
     a.add_argument("--only", help="comma-separated stages: " + ",".join(STAGES))
     a.add_argument("--skip", default="", help="comma-separated stages to skip")
     m = sub.add_parser("model", help="rebuild the model spec (calibrate + revise) and run the forecast")
-    m.add_argument("--sims", type=int, default=20000)
+    m.add_argument("--sims", type=int, default=50000)
     m.add_argument("--seed", type=int)
     m.add_argument("--no-revision", action="store_true", help="calibrate only; do not call the revision step")
     m.add_argument("--no-narrative", action="store_true", help="skip the written summaries")
     sub.add_parser("export", help="write site/data JSON")
     r = sub.add_parser("run", help="ingest + model + export (one full update)")
     r.add_argument("--skip", default="", help="comma-separated stages to skip (ingest stages, or 'revision', 'narrative')")
-    r.add_argument("--sims", type=int, default=20000)
+    r.add_argument("--sims", type=int, default=50000)
     s = sub.add_parser("serve", help="serve the site locally")
     s.add_argument("--port", type=int, default=8000)
     sub.add_parser("status", help="show what is in the database")
+    sub.add_parser("sync-state", help="download the live model state (database + site/data) from the forecast-data branch")
     sub.add_parser("ai-probe", help="make one tiny request to the AI provider and print what it answers (diagnostics)")
+    bm = sub.add_parser("ai-benchmark", help="time candidate models on a small spec-revision task")
+    bm.add_argument("--models", default="", help="comma-separated model ids (default: the gateway's strong candidates)")
     rs = sub.add_parser("results", help="archived 2026 site: snapshot results feeds and race calls")
     rs.add_argument("--watch", type=int, default=0, metavar="SECONDS")
     rs.add_argument("--push", action="store_true")
@@ -118,10 +157,24 @@ def main(argv=None):
     ap.add_argument("--password", help="omit to be prompted")
     ap.add_argument("--repo", help="GitHub owner/name the archived corrections desk publishes to (default: origin remote)")
     args = p.parse_args(argv)
+    if args.cmd == "sync-state":
+        sync_state()
+        return
     if args.cmd == "ai-probe":
         from .llm import probe
 
         print(json.dumps(probe(), indent=2))
+        return
+    if args.cmd == "ai-benchmark":
+        from .config import AI_MODELS_NARRATIVE, AI_MODELS_REVISION
+        from .llm import benchmark
+
+        extra = ["gpt-6-luna", "gemini-4-argon", "kimi-k3.1-pro", "kimi-k3", "qwen3.8-max", "deepseek-v4-pro", "glm-5.3", "grok-4.7",
+                 "claude-haiku-5-5", "mimo-v2.6-pro", "hy4", "minimax-m3", "gpt-5.6-luna", "glm-5.3-flash", "qwen3.8-flash", "deepseek-v4.1-flash"]
+        models = [m for m in args.models.split(",") if m] or list(dict.fromkeys(AI_MODELS_REVISION + AI_MODELS_NARRATIVE + extra))
+        rows = benchmark(models)
+        good = sorted((r for r in rows if r.get("ok")), key=lambda r: r["seconds"])
+        print("usable, fastest first:", [f"{r['model']} {r['seconds']}s" for r in good])
         return
     if args.cmd == "results":
         results(watch=args.watch, push=args.push)

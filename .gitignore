@@ -14,6 +14,8 @@ data/cache/
 data/*.db*
 data/run.log
 site/_fixture/
+# published 2028 data: generated, kept on the forecast-data branch (archive/2026/data stays tracked)
+/site/data/
 .pytest_cache/
 .env
 .DS_Store

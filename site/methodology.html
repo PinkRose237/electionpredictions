@@ -48,8 +48,8 @@
         <li><a href="#markets">Markets and news</a></li><li><a href="#limits">Known limitations</a></li></ol></nav>
 
       <h2 id="overview">The short version</h2>
-      <p>For every state and district the forecast estimates the Democratic-minus-Republican margin in November 2028 as the contest's partisan lean plus the national environment plus the effect of whoever the nominees turn out to be. It then runs 20,000 simulated elections in which the national result, regions, states and the nominees themselves all vary, and counts electoral votes in each. The share of simulations each party wins is its chance of winning the presidency.</p>
-      <p>What makes this forecast different is that its settings are not fixed. At every update the specification of the model, from the weight it puts on polls to the size of its uncertainty and the odds of each possible nominee, is re-derived from the data, reviewed against the latest polls, news and fundamentals, and revised when the evidence calls for it. Every revision is numbered and recorded in the <a href="model.html">model log</a>.</p>
+      <p>For every state and district the forecast estimates the Democratic-minus-Republican margin in November 2028 as the contest's partisan lean plus the national environment plus the effect of whoever the nominees turn out to be. It then runs 50,000 simulated elections in which the national result, regions, states and the nominees themselves all vary, and counts electoral votes in each. The share of simulations each party wins is its chance of winning the presidency.</p>
+      <p>What makes this forecast different is that it never stops updating and its settings are not fixed. Every fifteen minutes it pulls in the latest evidence and reruns. Whenever there is something new, the specification of the model, from the weight it puts on polls to the size of its uncertainty and the odds of each possible nominee, is reviewed against the latest polls, coverage and fundamentals and revised when the evidence calls for it. Every revision is numbered and recorded in the <a href="model.html">model log</a>, and the developments driving it are summarised as <a href="index.html#h-stories">storylines</a>.</p>
 
       <h2 id="contests">56 contests, 538 electors</h2>
       <p>Forty-eight states and the District of Columbia award all their electors to the statewide winner. Maine and Nebraska award two electors statewide and one to the winner of each congressional district, so the model treats Maine's two districts and Nebraska's three as contests of their own (they share the statewide error, plus a little of their own). 270 electoral votes wins; a 269–269 tie, which the House would decide, counts for neither party.</p>
@@ -60,9 +60,10 @@
       <h2 id="environment">The national environment</h2>
       <p>The environment is the expected national margin before candidate effects. It blends two estimates:</p>
       <ul>
-        <li><strong>National trial heats.</strong> Every published poll of a named matchup (say, Newsom vs. Vance) enters a weighted regression that separates the overall environment from each candidate's own strength. Polls are weighted by recency, sample size, population (likely voters count most), the pollster's record, and sponsorship (partisan-sponsored polls are discounted and nudged toward the other party).</li>
+        <li><strong>National trial heats.</strong> Every published poll of a named matchup (say, Newsom vs. Vance) enters a weighted regression that separates the overall environment from each candidate's own strength and from each pollster's <em>house effect</em>, the consistent lean of a firm that polls repeatedly, so one prolific pollster cannot tilt the average. Polls are weighted by recency, sample size, population (likely voters count most), the pollster's record, and sponsorship (partisan-sponsored polls are discounted and nudged toward the other party).</li>
         <li><strong>Fundamentals.</strong> In an open-seat race the White House party is judged on the incumbent's record: presidential net approval and an economic index built from inflation, the unemployment trend and real wage growth translate into an expected margin for the incumbent party.</li>
       </ul>
+      <p>The November 2026 midterm results (the national House vote and every statewide Senate and governor race) are the most recent national test of the parties; they inform the judgment applied to the environment and to individual states rather than entering the arithmetic directly.</p>
       <p>Two years out, early trial heats say little about November, so fundamentals carry most of the weight. The weight on polls rises steadily toward Election Day (from about a quarter now to about 85% at the end), and the model can trust polls more or less than that default.</p>
 
       <h2 id="nominees">Unknown nominees</h2>
@@ -77,21 +78,23 @@
         <li>a <strong>national</strong> error shared by every contest (fat-tailed, and much wider two years out than on Election Day),</li>
         <li><strong>regional</strong> errors shared by states in the same Census region,</li>
         <li>an error along the <strong>realignment axis</strong>: states that moved together between 2020 and 2024 move together again,</li>
-        <li>a <strong>state</strong> error, fat-tailed, and a small extra error for each congressional district.</li>
+        <li>a <strong>state</strong> error, fat-tailed, and a small extra error for each congressional district,</li>
+        <li>an <strong>independent candidate</strong>: in a share of simulations a significant independent or third-party candidate is on the ballot and shifts the margin by an uncertain amount. The chance and the expected effect are part of the model's settings and rise only if a serious bid takes shape.</li>
       </ul>
       <p>On top of that, the nominee draw itself varies from one simulation to the next. With these settings a typical swing state's 80% range today spans roughly 20 points of margin.</p>
 
       <h2 id="outputs">What the simulation reports</h2>
-      <p>Everything on the site comes from the same 20,000 simulations, so the numbers agree with one another: each contest's chance and margin range; the distribution of electoral votes; the national popular vote and the chance the popular vote and Electoral College split; the <em>tipping point</em> (in each simulation, the contest that delivers the 270th electoral vote once contests are ordered from the winner's strongest to weakest); and the same outcomes for each possible nominee and each likely matchup.</p>
+      <p>Everything on the site comes from the same 50,000 simulations, so the numbers agree with one another: each contest's chance and margin range; the distribution of electoral votes; the national popular vote and the chance the popular vote and Electoral College split; the <em>tipping point</em> (in each simulation, the contest that delivers the 270th electoral vote once contests are ordered from the winner's strongest to weakest); and the same outcomes for each possible nominee and each likely matchup.</p>
 
       <h2 id="rebuild">A model that rebuilds itself</h2>
-      <p>Every update runs the same cycle:</p>
+      <p>The forecast runs this cycle every fifteen minutes, around the clock:</p>
       <ol>
-        <li><strong>Collect.</strong> Polls, primary polling and candidate fields, approval, the economy, expert ratings, fundraising and news are refreshed.</li>
-        <li><strong>Recalibrate.</strong> The data-driven parts of the specification are re-derived: nomination odds from primary polling (blended with the previous odds so one poll cannot reset the race), candidate strength from the trial-heat regression, and new candidates added as they appear in polls or declare.</li>
-        <li><strong>Review.</strong> The recalibrated model and its results are reviewed against the full body of evidence: polls, the state of each nomination contest, the news, fundamentals and the recent history of revisions. Any setting may be revised, and each revision states its reason.</li>
+        <li><strong>Collect.</strong> Polls, primary polling and candidate fields, approval, the economy, expert ratings, fundraising and coverage of the race, the leading candidates and the closest states are refreshed.</li>
+        <li><strong>Recalibrate.</strong> The specification moves by exactly what the evidence has learned since it was last set: if primary polling shifts toward a candidate, their odds rise by that much; if new trial heats show a candidate running stronger, their strength rises by that much. Judgments made in earlier revisions stand until new evidence says otherwise, and new candidates join the field as they appear in polls or declare.</li>
+        <li><strong>Research.</strong> When there is anything new, the update first looks for what it might be missing: targeted searches of recent coverage on the candidates, the nomination contests, independent bids and the closest states.</li>
+        <li><strong>Review.</strong> The recalibrated model and its results are then reviewed against the whole body of evidence: polls and how new ones compared with what the model expected, the state of each nomination contest, the coverage and research, fundamentals, the 2026 midterm results and the recent history of revisions. Any setting may be revised, each revision states its reason, and the storylines the forecast tracks are carried forward, revised, added or retired. Even with no new evidence the model is reassessed twice a day.</li>
         <li><strong>Check.</strong> Every revision passes the guardrails below; anything outside them is limited or rejected.</li>
-        <li><strong>Run and publish.</strong> The revised model runs 20,000 simulations; if its specification changed, it is stored as a new numbered version with a changelog.</li>
+        <li><strong>Run and publish.</strong> The model runs 50,000 simulations. Identical inputs always give identical numbers, so the forecast moves only when the evidence or the model does, never from simulation noise. If the specification changed meaningfully, it is stored as a new numbered version with a changelog.</li>
       </ol>
       <p>So the structure of the forecast tracks the campaign: as candidates enter or rule out runs, as polls of real matchups accumulate and as the economy and approval move, the model's own settings move with them, and you can see exactly how and why in the <a href="model.html">model log</a>.</p>
 
@@ -100,11 +103,12 @@
         <li>Every setting has a fixed allowed range and a largest change one revision may make, so no single update can swing the model wildly.</li>
         <li>Candidate strength is limited to ±5 points; state adjustments to ±4 points, at most 12 at a time, each with a stated reason.</li>
         <li>Nomination odds are re-normalised to 100% per party, with at most 12 named candidates plus a share for someone else.</li>
+        <li>Only meaningful changes create a new version (for example at least half a point in a nomination chance), so the log records real revisions rather than noise.</li>
         <li>If a revision cannot be made or is malformed, the recalibrated model stands.</li>
       </ul>
 
       <h2 id="markets">Markets and news</h2>
-      <p>Prediction-market prices (Polymarket, Kalshi) are shown for comparison and are never used by the forecast or its reviews, so the comparison stays independent. News coverage informs the review of who is running and what is changing, but never enters the simulation directly.</p>
+      <p>Prediction-market prices (Polymarket, Kalshi) are shown for comparison and are never used by the forecast or its reviews, so the comparison stays independent. News coverage and targeted searches inform the review of who is running and what is changing, but never enter the simulation directly: they act only through the model's settings, inside the guardrails.</p>
 
       <h2 id="limits">Known limitations</h2>
       <ul>

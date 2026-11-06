@@ -34,7 +34,12 @@ are the statewide contests (2 electors each). The 2026 midterm archive keeps its
   "counts": {"national_polls": 63, "state_polls": 1, "primary_polls": 250, "ratings": 0, "markets": 106, "news": 57, "candidates": 22, "model_versions": 7}
 }
 ```
-`overview` is null when no summary has been written. `markets` are comparison only.
+Also: `storylines` (`[{title, detail, leans: D|R|neutral, importance: 1-3, since}]`, the developments the
+forecast tracks), `revisions` (the latest six versions: `{version, created_at, origin, title, summary, n_changes}`),
+`recent` (every update's numbers over the last week, thinned: `[{ts, v, p_dem, p_rep, dem_ev, pv}]`) and
+`midterm_2026` (`{as_of, house_vote: {dem, rep, other, margin, dem_pct, rep_pct}, seats: {house|senate|governor: {D, R, counting}}}`).
+`overview` is null when no summary has been written. `markets` are comparison only. `generated_at` changes on
+every run (about every 15 minutes); the pages watch it and offer a refresh.
 
 ## `states.json`
 One row per contest:
@@ -53,7 +58,9 @@ The row above plus: `breakdown` (`historical_lean`, `rel20`, `rel24`, `poll_shif
 `nominee_effects`, `home_effect`, `adjustment`, `adjustment_reason`, `rating_pull`: they add up to `margin`),
 `poll_update` (state-poll posterior), `polls` (each with `weight`), `ratings`, `matchups`
 (`[{dem, rep, p, p_dem}]`, the contest's odds under each likely pairing), `news`, `overview`
-(`{overview, key_factors, watch}` or null) and `history` (`[{date, p_dem, margin}]`).
+(`{overview, key_factors, watch}` or null), `midterm_2026` (the state's 2026 Senate/governor results:
+`{senate|senate_special|governor: {margin, reporting, status, vs_national_house}}`, statewide contests only) and
+`history` (`[{date, p_dem, margin}]`).
 
 ## `scenarios.json`
 The likeliest matchups (top 12) as in `summary.scenarios`, each with `states: {id: p_dem}`.
@@ -67,14 +74,17 @@ receipts, cash, coverage_end, news`.
 ## `polls.json`
 `national` and `state` trial heats (`id, pollster, sponsor, start, end, n, pop, dem, rep, dem_pct, rep_pct,
 other_pct, und_pct, margin, contest, matchup, weight`), `strengths` (candidate polling strength from the
-regression), `environment`, `approval` (latest aggregator rows), `approval_history`, `economy`
+regression), `house_effects` (`{pollster: {effect, sd, n_polls}}`), `midterm_2026` (as in summary, plus
+`statewide`), `environment`, `approval` (latest aggregator rows), `approval_history`, `economy`
 (`indicators`, `index`, `series`), `state_updates`.
 
 ## `model.json`
 `current`: `version`, `origin` (`seed|calibration|revision`), `spec` (the full specification),
 `parameters` (`[{path, value, low, high, max_step, description}]`), `effective` (`national_sd`, `state_sd`,
 `default_poll_weight`, `poll_weight`, `days_to_election`). `versions`: newest first,
-`[{version, created_at, run_date, origin, title, summary, changes: [{path, from, to, reason, label}]}]`.
+`[{version, created_at, run_date, origin, title, summary, model, changes: [{path, from, to, reason, label}]}]`
+(the latest 200; `total_versions` counts all), and `storylines`.
 
 ## `meta.json`
-`{generated_at, version, runs: [{stage, started_at, finished_at, ok, note}]}` (last 40 pipeline stages).
+`{generated_at, version, runs: [{stage, started_at, finished_at, ok, note}], research: [{created_at, query, why, results}]}`
+(last 40 pipeline stages; the latest research searches, shown on the admin page).

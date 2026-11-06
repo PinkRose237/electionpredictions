@@ -47,6 +47,10 @@ BOUNDS: dict[str, tuple[float, float, float]] = {
     "uncertainty.trend_sd": (0.0, 3.0, 0.75),
     "uncertainty.tail_df": (3.0, 30.0, 10.0),
     "candidates.home_state_bonus": (0.0, 4.0, 1.0),
+    "polls.house_effect_sd": (0.0, 4.0, 1.0),
+    "third_party.p_run": (0.0, 0.8, 0.2),
+    "third_party.net_effect": (-4.0, 4.0, 1.5),
+    "third_party.effect_sd": (0.0, 4.0, 1.0),
 }
 INT_PATHS = {"polls.half_life_days", "uncertainty.tail_df"}
 EFFECT_BOUNDS, EFFECT_STEP = (-5.0, 5.0), 2.0
@@ -72,6 +76,10 @@ DESCRIPTIONS = {
     "uncertainty.trend_sd": "Error shared by states along the 2020-to-2024 realignment axis, points",
     "uncertainty.tail_df": "Degrees of freedom of the fat-tailed error (lower = fatter tails)",
     "candidates.home_state_bonus": "Home-state advantage for a nominee, points",
+    "polls.house_effect_sd": "How far a pollster's systematic lean may be estimated from its record (prior s.d., points; 0 = no correction)",
+    "third_party.p_run": "Chance a significant independent or third-party candidate is on the ballot in November",
+    "third_party.net_effect": "If one runs, expected shift in the Democratic-minus-Republican margin, points",
+    "third_party.effect_sd": "Uncertainty about that shift, points",
 }
 
 
@@ -82,14 +90,30 @@ def seed() -> dict:
         lean=dict(weight_2024=0.75, trend=0.0),
         national=dict(poll_trust=1.0, adjustment=0.0),
         fundamentals=dict(intercept=-1.0, approval_coef=0.15, econ_coef=1.0),
-        polls=dict(half_life_days=60, state_weight=1.0, candidate_prior_sd=2.0, third_party_weight=0.5),
+        polls=dict(half_life_days=60, state_weight=1.0, candidate_prior_sd=2.0, third_party_weight=0.5, house_effect_sd=2.0),
         ratings=dict(weight=0.3),
         uncertainty=dict(national_mult=1.0, state_mult=1.0, region_sd=1.5, trend_sd=1.5, tail_df=6),
         candidates=dict(home_state_bonus=2.0),
+        third_party=dict(p_run=0.15, net_effect=0.0, effect_sd=1.5),
         nominees={"D": [dict(name=OTHER, p=1.0, effect=0.0, home_state=None)],
                   "R": [dict(name=OTHER, p=1.0, effect=0.0, home_state=None)]},
         state_adjustments={},
     )
+
+
+def upgrade(spec: dict) -> dict:
+    """Fill settings added after a spec was stored (older versions lack them) with the seed's defaults."""
+    out = copy.deepcopy(spec)
+    base = seed()
+    for path in BOUNDS:
+        try:
+            get(out, path)
+        except (KeyError, TypeError):
+            put(out, path, get(base, path))
+    out.setdefault("nominees", base["nominees"])
+    out.setdefault("state_adjustments", {})
+    out["schema"] = SCHEMA
+    return out
 
 
 def get(spec: dict, path: str) -> Any:
@@ -123,6 +147,7 @@ def validate(candidate: dict, previous: dict, notes: Optional[list[str]] = None)
     """Return a clean spec built from `candidate`, falling back to `previous` for anything missing or invalid,
     with every guardrail applied. `notes` collects what was clamped or rejected."""
     notes = notes if notes is not None else []
+    previous = upgrade(previous)
     out = copy.deepcopy(previous)
     out["schema"] = SCHEMA
     for path, (lo, hi, step) in BOUNDS.items():

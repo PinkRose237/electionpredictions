@@ -14,6 +14,7 @@ tipping-point odds and per-matchup outcomes come from the same simulation, so th
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from datetime import date
@@ -116,6 +117,11 @@ def simulate(spec: dict, E: dict, n_sims: int = 20000, seed: Optional[int] = Non
            + rng.normal(0, float(U["trend_sd"]), (n_sims, 1)) * load
            + state_sd * _t(rng, df, (n_sims, len(st_codes)))[:, st_idx]
            + is_district * rng.normal(0, DISTRICT_SD, (n_sims, n)))
+    # a significant independent / third-party candidate: on the ballot in some simulations, shifting the margin
+    TP = spec.get("third_party") or {}
+    tp_on = rng.random((n_sims, 1)) < float(TP.get("p_run", 0.0))
+    tp_shift = tp_on * rng.normal(float(TP.get("net_effect", 0.0)), max(1e-9, float(TP.get("effect_sd", 0.0))), (n_sims, 1))
+    err = err + tp_shift
     iD = rng.choice(len(pD), size=n_sims, p=pD)
     iR = rng.choice(len(pR), size=n_sims, p=pR)
 
@@ -187,7 +193,8 @@ def simulate(spec: dict, E: dict, n_sims: int = 20000, seed: Optional[int] = Non
         splits=dict(dem_ec_rep_pv=float((dwin & (pv < 0)).mean()), rep_ec_dem_pv=float((rwin & (pv > 0)).mean())),
         conditional=cond, scenarios=scenarios,
         uncertainty=dict(national_sd=nat_sd, state_sd=state_sd, region_sd=float(U["region_sd"]), trend_sd=float(U["trend_sd"]),
-                         tail_df=df, district_sd=DISTRICT_SD),
+                         tail_df=df, district_sd=DISTRICT_SD, third_party_p=float(TP.get("p_run", 0.0)),
+                         third_party_effect=float(TP.get("net_effect", 0.0))),
         n_sims=n_sims,
     )
 
@@ -198,12 +205,25 @@ def _pct(a: np.ndarray) -> dict:
                 p95=float(np.percentile(a, 95)))
 
 
-def run(con, spec: dict, spec_version: Optional[int] = None, today: Optional[date] = None, n_sims: int = 20000,
+def input_seed(spec: dict, E: dict) -> int:
+    """Seed derived from everything the run depends on: identical inputs give identical numbers, so frequent
+    updates move only when the evidence or the model does (not with Monte Carlo noise)."""
+    from .spec import fingerprint
+
+    ev_sum = _evidence_summary(E)
+    payload = dict(spec=fingerprint(spec), nominees=spec.get("nominees"), adj=spec.get("state_adjustments"),
+                   env=ev_sum["environment"], polls=sorted((ev_sum.get("national_polls") or {}).get("weights", {}).items()),
+                   states={k: v.get("posterior_lean") for k, v in ev_sum["state_updates"].items()}, ratings=ev_sum["ratings"],
+                   dte=E["dte"])
+    return int(hashlib.sha1(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()[:12], 16)
+
+
+def run(con, spec: dict, spec_version: Optional[int] = None, today: Optional[date] = None, n_sims: int = 50000,
         seed: Optional[int] = None, persist: bool = True, verbose: bool = True) -> dict:
     started = now_iso()
     today = today or date.today()
     E = gather(con, spec, today)
-    S = simulate(spec, E, n_sims=n_sims, seed=seed)
+    S = simulate(spec, E, n_sims=n_sims, seed=seed if seed is not None else input_seed(spec, E))
     out = dict(run_date=today.isoformat(), days_to_election=E["dte"], spec_version=spec_version, evidence=_evidence_summary(E), **S)
     if persist:
         _persist(con, out)
@@ -222,6 +242,7 @@ def _evidence_summary(E: dict) -> dict:
     return dict(
         national_polls=None if not nat else dict(g=round(nat["g"], 2), g_sd=round(nat["g_sd"], 2), n_polls=nat["n_polls"], n_eff=nat["n_eff"],
                                                  last_poll=nat["last_poll"], simple_average=nat["simple_average"], strengths=nat["strengths"],
+                                                 house_effects=nat.get("house_effects", {}), residuals=nat.get("residuals", {}),
                                                  weights=nat["weights"]),
         approval=E["approval"], economy=E["economy"], fundamentals=E["fundamentals"], environment=E["env"],
         state_updates=E["state_updates"], n_state_polls=E["n_state_polls"], n_national_polls=E["n_national_polls"],
@@ -237,4 +258,7 @@ def _persist(con, out: dict) -> None:
                                             dem_ev_mean=out["ec"]["dem_ev"]["mean"], pv_margin=out["popular"]["margin"],
                                             detail=json.dumps({k: v for k, v in out.items() if k != "contests"}, default=float))],
            keys=["run_date"])
+    con.execute("INSERT OR REPLACE INTO run_log (ts, run_date, spec_version, p_dem, p_rep, dem_ev, pv, env) VALUES (?,?,?,?,?,?,?,?)",
+                (now_iso(), rd, out["spec_version"], out["ec"]["p_dem"], out["ec"]["p_rep"], out["ec"]["dem_ev"]["mean"],
+                 out["popular"]["margin"], out["evidence"]["environment"]["environment"]))
     con.commit()

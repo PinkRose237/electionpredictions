@@ -1,21 +1,20 @@
 name: Update forecast (2028)
 
-# Every run is one full rebuild of the 2028 presidential model: refresh the evidence, recalibrate the model
-# specification, revise it against the evidence (OPENCODE_API_KEY), run the final simulation, write the
-# summaries, export site/data, commit and deploy. Twice a day, at 2:00 AM and 2:00 PM Eastern.
+# The forecast updates continuously: every 15 minutes this rebuilds the 2028 model end to end — refresh the
+# evidence, recalibrate the specification, research and revise it (OPENCODE_API_KEY), run the final simulation,
+# write the summaries, export and deploy. Run it by hand from the Actions tab; tick dry_run to skip saving and
+# deploying (the exported data is attached as an artifact).
 #
-# GitHub schedules in UTC only, so both UTC hours that can be 2 AM / 2 PM in New York are scheduled and the
-# `gate` job lets through only the one matching the current Eastern offset (EDT = UTC-4, EST = UTC-5).
+# State: the model database and the published data live on the `forecast-data` branch as a single commit that
+# every run replaces, so main keeps only code and the repository does not grow with each update. HTTP responses
+# are cached between runs with actions/cache (the per-source lifetimes are in config.py).
 on:
   schedule:
-    - cron: "0 6 * * *"    # 2:00 AM EDT
-    - cron: "0 7 * * *"    # 2:00 AM EST
-    - cron: "0 18 * * *"   # 2:00 PM EDT
-    - cron: "0 19 * * *"   # 2:00 PM EST
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "Run the pipeline but do not commit or deploy (uploads site/data as an artifact)"
+        description: "Run the pipeline but do not save state or deploy (uploads site/data as an artifact)"
         type: boolean
         default: false
 
@@ -29,34 +28,29 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  gate:
-    runs-on: ubuntu-latest
-    outputs:
-      go: ${{ steps.check.outputs.go }}
-    steps:
-      - id: check
-        name: Run only at 2 AM / 2 PM Eastern
-        run: |
-          if [ "${{ github.event_name }}" != "schedule" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; exit 0; fi
-          case "${{ github.event.schedule }}" in
-            "0 6 * * *"|"0 18 * * *") want=EDT ;;
-            *) want=EST ;;
-          esac
-          now=$(TZ=America/New_York date +%Z)
-          echo "Eastern time is on $now; this trigger is for $want"
-          if [ "$now" = "$want" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; else echo "go=false" >> "$GITHUB_OUTPUT"; fi
-
   update:
-    needs: gate
-    if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     outputs:
-      publish: ${{ steps.commit.outputs.publish }}
+      publish: ${{ steps.save.outputs.publish }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - name: Restore database and caches
-        uses: actions/cache@v4
+      - name: Restore the HTTP cache
+        uses: actions/cache/restore@v4
+        with:
+          path: data/cache
+          key: http-cache-${{ github.run_id }}
+          restore-keys: |
+            http-cache-
+      - name: Restore the model state
+        id: state
+        uses: ./.github/actions/forecast-data
+        with:
+          database: "true"
+      - name: First run only - recover the database from the old cache
+        if: steps.state.outputs.has_db != 'true'
+        uses: actions/cache/restore@v4
         with:
           path: data
           key: data-2028-${{ github.run_id }}
@@ -68,26 +62,46 @@ jobs:
           FEC_API_KEY: ${{ secrets.FEC_API_KEY }}
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
           AI_MODEL: ${{ vars.AI_MODEL }}
+          AI_MODELS_REVISION: ${{ vars.AI_MODELS_REVISION }}
+          AI_MODELS_NARRATIVE: ${{ vars.AI_MODELS_NARRATIVE }}
           AI_BASE_URL: ${{ vars.AI_BASE_URL }}
         run: uv run electionpredictions run
-      - name: Show the model log
+      - name: Model status
         run: uv run electionpredictions status
       - if: inputs.dry_run
         uses: actions/upload-artifact@v4
         with:
           name: site-data
           path: site/data
-      - id: commit
+      - id: save
         if: ${{ !inputs.dry_run }}
-        name: Commit published data
+        name: Save the model state to the forecast-data branch
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          git config user.name "forecast-bot"
-          git config user.email "forecast-bot@users.noreply.github.com"
-          git add site/data
-          git commit -m "Update forecast $(date -u +%FT%H:%MZ)" || echo "nothing to commit"
-          git pull --rebase origin main
-          git push
+          out="$RUNNER_TEMP/state-out"
+          rm -rf "$out" && mkdir -p "$out/site-data"
+          uv run python -c "import sqlite3,sys; c=sqlite3.connect('data/president2028.db'); c.execute('VACUUM INTO ?', (sys.argv[1],))" "$out/president2028.db"
+          cp -R site/data/. "$out/site-data/"
+          printf '%s\n' "# forecast-data" "" \
+            "Machine-written state of the 2028 presidential model, replaced on every update by .github/workflows/update.yml:" \
+            "president2028.db (the model database, including every model version) and site-data/ (the published site/data)." \
+            "Local copy: uv run electionpredictions sync-state" > "$out/README.md"
+          cd "$out"
+          git init -q -b forecast-data
+          git add -A
+          git -c user.name="forecast-bot" -c user.email="forecast-bot@users.noreply.github.com" commit -q -m "Forecast state $(date -u +%FT%H:%MZ)"
+          git push -q -f "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" forecast-data
           echo "publish=true" >> "$GITHUB_OUTPUT"
+      - id: hour
+        run: echo "hour=$(date -u +%Y%m%d%H)" >> "$GITHUB_OUTPUT"
+      - name: Save the HTTP cache (once an hour)
+        if: ${{ !inputs.dry_run }}
+        continue-on-error: true
+        uses: actions/cache/save@v4
+        with:
+          path: data/cache
+          key: http-cache-${{ steps.hour.outputs.hour }}
       - if: ${{ !inputs.dry_run }}
         uses: actions/upload-pages-artifact@v3
         with:
@@ -97,6 +111,9 @@ jobs:
     needs: update
     if: needs.update.outputs.publish == 'true'
     runs-on: ubuntu-latest
+    concurrency:
+      group: pages-deploy
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

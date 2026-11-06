@@ -149,12 +149,19 @@ function polls(s) {
   return card;
 }
 
+const MID_LABEL = { senate: '2026 Senate', senate_special: '2026 Senate (special)', governor: '2026 Governor' };
+
 function results(s) {
+  const mid = Object.entries(s.midterm_2026 || {}).map(([k, x]) => h('tr', {}, h('td', {}, MID_LABEL[k] || `2026 ${k}`),
+    h('td', {}, x.margin >= 0 ? 'Democrat' : 'Republican', x.status !== 'called' ? h('span', { class: 'muted small' }, ` (${x.reporting ?? '—'}% counted)`) : null),
+    h('td', { class: 'num' }, fmt.margin(x.margin)), h('td', { class: 'num' }, `${fmt.margin(x.vs_national_house)} vs House vote`)));
   return h('section', { class: 'section card' }, h('h2', {}, 'Past results'),
     h('table', { class: 'races-table compact' }, h('thead', {}, h('tr', {}, h('th', {}, 'Year'), h('th', {}, 'Winner'), h('th', { class: 'num' }, 'Margin'), h('th', { class: 'num' }, 'vs nation'))),
       h('tbody', {},
         h('tr', {}, h('td', {}, '2024'), h('td', {}, s.winner24 === 'D' ? 'Harris (D)' : 'Trump (R)'), h('td', { class: 'num' }, fmt.margin(s.margin24)), h('td', { class: 'num' }, fmt.margin(s.breakdown.rel24))),
-        h('tr', {}, h('td', {}, '2020'), h('td', {}, s.winner20 === 'D' ? 'Biden (D)' : 'Trump (R)'), h('td', { class: 'num' }, fmt.margin(s.margin20)), h('td', { class: 'num' }, fmt.margin(s.breakdown.rel20))))));
+        h('tr', {}, h('td', {}, '2020'), h('td', {}, s.winner20 === 'D' ? 'Biden (D)' : 'Trump (R)'), h('td', { class: 'num' }, fmt.margin(s.margin20)), h('td', { class: 'num' }, fmt.margin(s.breakdown.rel20))),
+        ...mid)),
+    mid.length ? h('p', { class: 'table-note' }, '2026 rows are midterm statewide races (different candidates and electorate); they inform the forecast\'s judgment rather than the lean directly.') : null);
 }
 
 function ratings(s) {

@@ -1,8 +1,8 @@
 name: Deploy site
 
-# Redeploys GitHub Pages whenever files under site/ change on main — e.g. when the admin page
-# publishes site/data/results.json. (Pushes made by the daily workflow's GITHUB_TOKEN do not
-# trigger this workflow; that run deploys itself.)
+# Redeploys GitHub Pages whenever files under site/ change on main — e.g. a code change, or the archived 2026
+# corrections desk publishing site/archive/2026/data/results.json. The 2028 forecast data is not on main: it is
+# copied in from the forecast-data branch. (Pushes made with a workflow's GITHUB_TOKEN do not trigger this.)
 on:
   push:
     branches: [main]
@@ -26,6 +26,8 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - name: Add the latest forecast data (kept on the forecast-data branch, not on main)
+        uses: ./.github/actions/forecast-data
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

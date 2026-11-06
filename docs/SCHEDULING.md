@@ -1,11 +1,12 @@
 # Scheduling updates
 
 ## GitHub Actions (hosted)
-`.github/workflows/update.yml` rebuilds the 2028 model twice a day, at 2:00 AM and 2:00 PM Eastern year-round (both possible UTC hours are scheduled; a gate job keeps the one matching EDT/EST) and on demand
-(Actions → Update forecast (2028) → Run workflow; tick *dry_run* to skip committing and deploying).
-It caches `data/` between runs (the database holds the model's version history), commits `site/data/` and
-deploys `site/` to GitHub Pages. Setup: enable Pages with source "GitHub Actions" and add the
-`OPENCODE_API_KEY` secret (the revision step); `FEC_API_KEY` is optional.
+`.github/workflows/update.yml` rebuilds the 2028 model every 15 minutes (cron `7,22,37,52 * * * *`) and on demand
+(Actions → Update forecast (2028) → Run workflow; tick *dry_run* to skip saving and deploying). Each run restores the
+model state from the `forecast-data` branch (database + published data, one commit replaced every run) and the HTTP
+cache from `actions/cache`, runs the pipeline, pushes the new state and deploys `site/` to GitHub Pages.
+Setup: enable Pages with source "GitHub Actions" and add the `OPENCODE_API_KEY` secret; `FEC_API_KEY` is optional.
+GitHub may start scheduled runs late, or skip some, when it is busy; the next run catches up.
 
 ## cron (Linux/macOS)
 ```

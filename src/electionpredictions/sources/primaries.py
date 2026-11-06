@@ -17,7 +17,7 @@ from typing import Optional
 from dateutil import parser as dtparser
 
 from ..config import STATE_BY_NAME
-from ..db import log_run, now_iso, upsert
+from ..db import log_run, now_iso, rows, upsert
 from ..util import clean, parse_date_range, parse_pct, parse_sample
 from .wikipedia import extract_tables, page_html
 
@@ -165,11 +165,21 @@ def fetch(party: str) -> dict:
 def load(con, verbose: bool = False) -> dict:
     started = now_iso()
     res = {}
+    fetched = {p: fetch(p) for p in ("D", "R")}
+    seen_polls = {r["poll_id"]: r["first_seen"] for r in rows(con, "SELECT poll_id, first_seen FROM primary_polls")}
+    n_new = sum(len(f["polls"]) for f in fetched.values())
+    if seen_polls and n_new < 0.5 * len(seen_polls):
+        msg = f"only {n_new} primary polls parsed (had {len(seen_polls)}); keeping the previous field and polls"
+        log_run(con, "primaries", started, False, msg)
+        return dict(kept=len(seen_polls), parsed=n_new, note=msg)
+    now = now_iso()
     con.execute("DELETE FROM primary_polls")
     con.execute("DELETE FROM primary_averages")
     con.execute("DELETE FROM candidates")
     for party in ("D", "R"):
-        f = fetch(party)
+        f = fetched[party]
+        for pp in f["polls"]:
+            pp["first_seen"] = seen_polls.get(pp["poll_id"]) or now
         seen = {}
         for c in f["candidates"]:
             if c["name"] not in seen or seen[c["name"]]["status"] != "declared":

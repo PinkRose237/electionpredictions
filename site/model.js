@@ -4,7 +4,7 @@
  */
 import { DASH, loadJSON, fmt, isNum, h, contestName, initChrome, renderUpdated, renderFooterMeta, showError, relativeTime, partyClass } from './common.js';
 
-const ORIGIN = { seed: 'Initial', calibration: 'Recalibration', revision: 'Revision' };
+const ORIGIN = { seed: 'Initial', calibration: 'Polling update', revision: 'Revision' };
 
 async function main() {
   initChrome({ current: 'model' });
@@ -14,7 +14,7 @@ async function main() {
     status.hidden = true;
     document.getElementById('app').hidden = false;
     renderUpdated(summary); renderFooterMeta(summary);
-    current(M, summary); nominees(M.current.spec); adjustments(M.current.spec); params(M.current.parameters); log(M.versions);
+    current(M, summary); stories(M.storylines || []); nominees(M.current.spec); adjustments(M.current.spec); params(M.current.parameters); log(M.versions, M.total_versions);
   } catch (err) {
     console.error(err);
     showError(status, err);
@@ -70,11 +70,24 @@ function params(list) {
     h('thead', {}, h('tr', {}, h('th', {}, 'Setting'), h('th', { class: 'num' }, 'Value'), h('th', { class: 'num' }, 'Allowed range'), h('th', { class: 'num' }, 'Max change per revision'))), body));
 }
 
-function log(versions) {
+function stories(list) {
+  if (!list.length) return;
+  document.getElementById('stories-block').hidden = false;
+  const LEAN = { D: ['dem', 'Helps Democrats'], R: ['rep', 'Helps Republicans'], neutral: ['neutral', 'Uncertain impact'] };
+  document.getElementById('stories').replaceChildren(...list.map((st) => {
+    const [cls, label] = LEAN[st.leans] || LEAN.neutral;
+    return h('article', { class: `card story ${cls}` },
+      h('div', { class: 'story-meta' }, h('span', { class: `story-lean ${cls}` }, label), h('span', { class: 'muted small' }, `since ${fmt.dateShort(st.since)}`)),
+      h('h3', {}, st.title), st.detail ? h('p', { class: 'small' }, st.detail) : null);
+  }));
+}
+
+function log(versions, total) {
   const root = document.getElementById('log');
+  if (total && total > versions.length) root.append(h('p', { class: 'muted small' }, `Showing the latest ${versions.length} of ${fmt.num(total)} versions.`));
   for (const v of versions) {
     const changes = v.changes || [];
-    const card = h('article', { class: 'card log-entry' },
+    const card = h('article', { class: 'card log-entry', id: `v${v.version}` },
       h('div', { class: 'card-head' }, h('h3', {}, `v${v.version} · ${v.title || ORIGIN[v.origin] || ''}`), h('span', { class: 'muted small' }, `${ORIGIN[v.origin] || v.origin} · ${fmt.dateTime(v.created_at)}`)),
       v.summary ? h('p', { class: 'prose' }, v.summary) : null);
     if (changes.length) {

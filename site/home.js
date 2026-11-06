@@ -20,7 +20,7 @@ async function main() {
     renderUpdated(S); renderFooterMeta(S);
     const byId = new Map(states.map((s) => [s.id, s]));
     lede(S); hero(S); evBlock(S); trend(S); road(states); map(geo, byId); overview(S);
-    nominees(S, 'D'); nominees(S, 'R'); matchups(S); environment(S); tipping(S, byId); closest(S, byId); revision(S); markets(S);
+    stories(S); nominees(S, 'D'); nominees(S, 'R'); matchups(S); environment(S); tipping(S, byId); closest(S, byId); revision(S); markets(S);
   } catch (err) {
     console.error(err);
     showError(status, err, 'Run `uv run electionpredictions run` to generate site/data.');
@@ -35,9 +35,24 @@ function leader(S) {
 
 function lede(S) {
   const p = Math.max(S.ec.p_dem, S.ec.p_rep);
+  const move = movement(S);
   document.getElementById('lede').textContent =
-    `${leader(S)}, winning ${fmt.pct(p)} of ${fmt.num(S.model.n_sims || 20000)} simulations. `
+    `${leader(S)}, winning ${fmt.pct(p)} of ${fmt.num(S.model.n_sims || 50000)} simulations${move ? ` (${move})` : ''}. `
     + `${fmt.num(S.days_to_election)} days out, with neither nominee chosen, the range of outcomes is still wide.`;
+}
+
+/** "up 1.2 points in the last 24 hours" from the per-update log. */
+function movement(S) {
+  const pts = (S.recent || []).filter((r) => isNum(r.p_dem));
+  if (pts.length < 2) return '';
+  const last = pts[pts.length - 1];
+  const cutoff = Date.parse(last.ts) - 24 * 36e5;
+  const prior = pts.filter((r) => Date.parse(r.ts) <= cutoff).pop() || pts[0];
+  const d = (last.p_dem - prior.p_dem) * 100;
+  const hours = Math.round((Date.parse(last.ts) - Date.parse(prior.ts)) / 36e5);
+  if (hours < 3) return '';
+  if (Math.abs(d) < 0.5) return `the Democratic chance is steady over the last ${hours >= 23 ? 'day' : `${hours} hours`}`;
+  return `the Democratic chance is ${d > 0 ? 'up' : 'down'} ${Math.abs(d).toFixed(1)} points over the last ${hours >= 23 ? 'day' : `${hours} hours`}`;
 }
 
 function hero(S) {
@@ -64,7 +79,7 @@ function hero(S) {
   );
   if (S.model && S.model.version) {
     card.append(h('p', { class: 'model-chip small' },
-      h('a', { href: 'model.html' }, `Model v${S.model.version}`), ` · revised ${relativeTime(S.model.updated)}`,
+      h('a', { href: 'model.html' }, `Model v${S.model.version}`), ' · last revised ', h('span', { 'data-rel': S.model.updated || '' }, relativeTime(S.model.updated)),
       S.model.title ? ` · ${S.model.title}` : ''));
   }
   document.getElementById('hero').replaceChildren(card);
@@ -85,15 +100,20 @@ function evBlock(S) {
 }
 
 function trend(S) {
-  trendChart(document.getElementById('trend'), S.history, {
+  // daily history, with every update of the last week in finer detail
+  const recent = (S.recent || []).map((r) => ({ date: r.ts, p_dem: r.p_dem, p_rep: r.p_rep, version: r.v }));
+  const cutoff = recent.length ? Date.parse(recent[0].date) : Infinity;
+  const daily = (S.history || []).filter((d) => Date.parse(d.date) < cutoff - 864e5);
+  const series = [...daily, ...recent];
+  trendChart(document.getElementById('trend'), series.length ? series : S.history, {
     label: 'Chance of winning over time',
     series: [
       { label: 'Democrat', value: (d) => d.p_dem, color: themeColor('D') },
       { label: 'Republican', value: (d) => d.p_rep, color: themeColor('R') },
     ],
   });
-  if ((S.history || []).length < 3) {
-    document.getElementById('trend').after(h('p', { class: 'chart-note' }, 'The trend builds up with each update of the forecast.'));
+  if (series.length < 3) {
+    document.getElementById('trend').after(h('p', { class: 'chart-note' }, 'The trend builds up with each update of the forecast (every 15 minutes).'));
   }
 }
 
@@ -180,7 +200,9 @@ function environment(S) {
       kv('National polls (average-strength matchup)', isNum(E.polls) ? fmt.margin(E.polls) : 'No polls yet', np.n ? `${np.n} polls, latest ${fmt.dateShort(np.last)}` : ''),
       kv('Approval & economy imply', fmt.margin(E.fundamentals), E.approval ? `net approval ${fmt.signed(E.approval.net)}; economy index ${fmt.signed(E.econ_index)}` : ''),
       kv('Weight on polls', fmt.pct(E.poll_weight), 'rises toward Election Day'),
-      E.adjustment ? kv('Judgment adjustment', fmt.signed(E.adjustment), 'from the latest model revision') : null),
+      E.adjustment ? kv('Judgment adjustment', fmt.signed(E.adjustment), 'from the latest model revision') : null,
+      S.midterm_2026 ? kv('2026 midterm House vote', fmt.margin(S.midterm_2026.house_vote.margin),
+        `raw national count; seats D ${S.midterm_2026.seats.house.D} · R ${S.midterm_2026.seats.house.R}`) : null),
     h('p', { class: 'small' }, h('a', { href: 'polls.html' }, 'Polls and fundamentals →')),
   );
 }
@@ -218,15 +240,32 @@ function closest(S, byId) {
   }
 }
 
+const ORIGIN = { seed: 'Initial', calibration: 'Polling update', revision: 'Revision' };
+
 function revision(S) {
-  const m = S.model || {};
   const root = document.getElementById('revision');
-  root.append(...[
-    h('div', { class: 'card-head' }, h('h2', {}, `Latest model revision · v${m.version || DASH}`), h('a', { href: 'model.html' }, 'Full model log →')),
-    h('p', {}, h('strong', {}, m.title || 'Model revised'), m.updated ? h('span', { class: 'muted' }, ` · ${relativeTime(m.updated)}`) : null),
-    m.summary ? h('p', { class: 'prose' }, m.summary) : null,
-    h('p', { class: 'muted small' }, 'The model re-specifies itself at every update: nomination odds, candidate strength, poll weighting, uncertainty and state adjustments are rebuilt against the latest evidence.'),
-  ].filter(Boolean));
+  const list = S.revisions && S.revisions.length ? S.revisions : [{ version: S.model.version, created_at: S.model.updated, title: S.model.title, summary: S.model.summary }];
+  root.append(
+    h('div', { class: 'card-head' }, h('h2', { id: 'h-rev' }, 'How the model is changing'), h('a', { href: 'model.html' }, 'Full model log →')),
+    h('p', { class: 'card-sub' }, 'The model re-specifies itself as evidence arrives: nomination odds, candidate strength, poll weighting, uncertainty and state adjustments are rebuilt and logged.'),
+    h('ol', { class: 'rev-feed' }, ...list.slice(0, 5).map((v) => h('li', {},
+      h('div', { class: 'rev-head' }, h('a', { href: `model.html#v${v.version}` }, `v${v.version}`), h('strong', {}, v.title || ORIGIN[v.origin] || 'Update'),
+        h('span', { class: 'muted small', 'data-rel': v.created_at || '' }, relativeTime(v.created_at))),
+      v.summary ? h('p', { class: 'small' }, v.summary) : null))),
+  );
+}
+
+function stories(S) {
+  const list = S.storylines || [];
+  if (!list.length) return;
+  document.getElementById('stories-block').hidden = false;
+  const LEAN = { D: ['dem', 'Helps Democrats'], R: ['rep', 'Helps Republicans'], neutral: ['neutral', 'Uncertain impact'] };
+  document.getElementById('stories').replaceChildren(...list.map((st) => {
+    const [cls, label] = LEAN[st.leans] || LEAN.neutral;
+    return h('article', { class: `card story ${cls}` },
+      h('div', { class: 'story-meta' }, h('span', { class: `story-lean ${cls}` }, label), h('span', { class: 'muted small' }, `since ${fmt.dateShort(st.since)}`)),
+      h('h3', {}, st.title), st.detail ? h('p', { class: 'small' }, st.detail) : null);
+  }));
 }
 
 function markets(S) {
