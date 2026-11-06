@@ -1,7 +1,7 @@
 # Scheduling updates
 
 ## GitHub Actions (hosted)
-`.github/workflows/update.yml` rebuilds the 2028 model twice a day (11:17 and 23:17 UTC) and on demand
+`.github/workflows/update.yml` rebuilds the 2028 model twice a day, at 2:00 AM and 2:00 PM Eastern year-round (both possible UTC hours are scheduled; a gate job keeps the one matching EDT/EST) and on demand
 (Actions → Update forecast (2028) → Run workflow; tick *dry_run* to skip committing and deploying).
 It caches `data/` between runs (the database holds the model's version history), commits `site/data/` and
 deploys `site/` to GitHub Pages. Setup: enable Pages with source "GitHub Actions" and add the

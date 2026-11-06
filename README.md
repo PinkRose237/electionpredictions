@@ -108,7 +108,7 @@ The site presents all of this as the forecast's own model log; it never refers t
 
 ## Keeping it updated
 
-`.github/workflows/update.yml` runs the full pipeline twice a day (11:17 and 23:17 UTC), commits `site/data`
+`.github/workflows/update.yml` runs the full pipeline twice a day, at 2:00 AM and 2:00 PM Eastern (daylight saving handled), commits `site/data`
 and deploys `site/` to GitHub Pages. Repository secrets: `OPENCODE_API_KEY` (revision + summaries) and
 optionally `FEC_API_KEY`. Run it by hand from the Actions tab; tick **dry_run** to run without committing
 or deploying (the exported data is attached as an artifact). The exporter merges each run's history into the

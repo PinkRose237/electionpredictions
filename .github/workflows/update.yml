@@ -2,11 +2,16 @@ name: Update forecast (2028)
 
 # Every run is one full rebuild of the 2028 presidential model: refresh the evidence, recalibrate the model
 # specification, revise it against the evidence (OPENCODE_API_KEY), run the final simulation, write the
-# summaries, export site/data, commit and deploy. Twice a day so the model keeps pace with the news.
+# summaries, export site/data, commit and deploy. Twice a day, at 2:00 AM and 2:00 PM Eastern.
+#
+# GitHub schedules in UTC only, so both UTC hours that can be 2 AM / 2 PM in New York are scheduled and the
+# `gate` job lets through only the one matching the current Eastern offset (EDT = UTC-4, EST = UTC-5).
 on:
   schedule:
-    - cron: "17 11 * * *"   # 11:17 UTC
-    - cron: "17 23 * * *"   # 23:17 UTC
+    - cron: "0 6 * * *"    # 2:00 AM EDT
+    - cron: "0 7 * * *"    # 2:00 AM EST
+    - cron: "0 18 * * *"   # 2:00 PM EDT
+    - cron: "0 19 * * *"   # 2:00 PM EST
   workflow_dispatch:
     inputs:
       dry_run:
@@ -24,7 +29,26 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  gate:
+    runs-on: ubuntu-latest
+    outputs:
+      go: ${{ steps.check.outputs.go }}
+    steps:
+      - id: check
+        name: Run only at 2 AM / 2 PM Eastern
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          case "${{ github.event.schedule }}" in
+            "0 6 * * *"|"0 18 * * *") want=EDT ;;
+            *) want=EST ;;
+          esac
+          now=$(TZ=America/New_York date +%Z)
+          echo "Eastern time is on $now; this trigger is for $want"
+          if [ "$now" = "$want" ]; then echo "go=true" >> "$GITHUB_OUTPUT"; else echo "go=false" >> "$GITHUB_OUTPUT"; fi
+
   update:
+    needs: gate
+    if: needs.gate.outputs.go == 'true'
     runs-on: ubuntu-latest
     outputs:
       publish: ${{ steps.commit.outputs.publish }}
