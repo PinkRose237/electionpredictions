@@ -60,12 +60,28 @@ AI_MODELS_NARRATIVE = _chain("AI_MODELS_NARRATIVE", ["claude-haiku-5-5", "gemini
 AI_MODEL = AI_MODELS_REVISION[0]
 
 # Cache TTLs in seconds
-# (tuned for a run every ~15 minutes: polls/primaries/approval pages hourly, markets every 15 min, news hourly)
+# Hourly sources (Wikipedia polls/primaries/approval/ratings pages, news, prediction markets) refresh at the top of
+# every hour, Eastern time: the first update after 2:00 PM ET fetches them again, the rest of the hour reuses them.
+# Other lifetimes (FEC, BLS) are rolling: fresh for that long after the last fetch.
 TTL_WIKI = int(os.environ.get("EP_TTL_WIKI", 1 * 3600))
-TTL_MARKETS = int(os.environ.get("EP_TTL_MARKETS", 15 * 60))
+TTL_MARKETS = int(os.environ.get("EP_TTL_MARKETS", 1 * 3600))
 TTL_FEC = int(os.environ.get("EP_TTL_FEC", 12 * 3600))
 TTL_NEWS = int(os.environ.get("EP_TTL_NEWS", 1 * 3600))
 TTL_ECON = int(os.environ.get("EP_TTL_ECON", 12 * 3600))
+CLOCK_TZ = "America/New_York"
+
+
+def cache_fresh(mtime: float, ttl: int, now: float | None = None) -> bool:
+    """Is a response fetched at `mtime` still usable? Hourly caches expire on the hour (Eastern); others after `ttl` seconds."""
+    import time
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    now = time.time() if now is None else now
+    if ttl == 3600:
+        top_of_hour = datetime.fromtimestamp(now, ZoneInfo(CLOCK_TZ)).replace(minute=0, second=0, microsecond=0)
+        return mtime >= top_of_hour.timestamp()
+    return (now - mtime) < ttl
 
 STATES = {
     "AL": "Alabama", "AK": "Alaska", "AZ": "Arizona", "AR": "Arkansas", "CA": "California",

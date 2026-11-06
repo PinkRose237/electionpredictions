@@ -2,12 +2,14 @@ name: Update forecast (2028)
 
 # The forecast updates continuously: each run rebuilds the 2028 model end to end — refresh the evidence, recalibrate
 # the specification, research and revise it (OPENCODE_API_KEY), run the final simulation, write the summaries,
-# export and deploy — and then, after a pause, starts the next run itself (the `next` job), so a new update lands
-# about every 15 minutes around the clock. GitHub throttles busy cron schedules (runs can be hours apart), so the
-# cron below is only a backstop that restarts the loop if it ever stops; the concurrency group keeps exactly one
-# loop. Pause it by setting the repository variable FORECAST_PAUSED to "true"; set FORECAST_INTERVAL_MIN to change
-# the pause between runs (default 12). Run by hand from the Actions tab; tick dry_run to skip saving and deploying
-# (the exported data is attached as an artifact, and a dry run does not start the loop).
+# export and deploy — and then starts the next run itself (the `next` job) at the next clock slot: :00, :15, :30
+# and :45, around the clock. The :00 run is the first of each hour, so the hourly sources (polls, primaries,
+# approval, ratings, news, prediction markets) refresh on the hour, Eastern time (config.cache_fresh); the other
+# runs reuse them. GitHub throttles busy cron schedules (runs can be hours apart), so the cron below is only a
+# backstop that restarts the loop if it ever stops; the concurrency group keeps exactly one loop. Pause it by setting
+# the repository variable FORECAST_PAUSED to "true"; FORECAST_INTERVAL_MIN sets the slot length in minutes (default
+# 15; use a divisor of 60). Run by hand from the Actions tab; tick dry_run to skip saving and deploying (the exported
+# data is attached as an artifact, and a dry run does not start the loop).
 #
 # State: the model database and the published data live on the `forecast-data` branch as a single commit that
 # every run replaces, so main keeps only code and the repository does not grow with each update. HTTP responses
@@ -128,18 +130,24 @@ jobs:
         uses: actions/deploy-pages@v4
 
   next:
-    # Keep the loop going: wait, then start the next update (it begins as soon as this run finishes).
+    # Keep the loop going: wait for the next clock slot, then start the next update (it begins as soon as this run finishes).
     needs: [update, deploy]
     if: ${{ always() && !inputs.dry_run && vars.FORECAST_PAUSED != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
-      - name: Pause, then start the next update
+      - name: Wait for the next clock slot, then start the next update
         env:
           GH_TOKEN: ${{ github.token }}
-          INTERVAL_MIN: ${{ vars.FORECAST_INTERVAL_MIN || '12' }}
+          INTERVAL_MIN: ${{ vars.FORECAST_INTERVAL_MIN || '15' }}
         run: |
-          sleep $(( INTERVAL_MIN * 60 ))
+          # Runs start on the clock (:00, :15, :30, :45 by default) so the hourly sources refresh on the hour.
+          # Slots are multiples of the interval since midnight UTC, which are also on the hour in Eastern time.
+          slot=$(( INTERVAL_MIN * 60 ))
+          now=$(date +%s)
+          next=$(( (now / slot + 1) * slot + 5 ))
+          echo "next update at $(TZ=America/New_York date -d @$next '+%-I:%M:%S %p %Z')"
+          sleep $(( next - now ))
           for attempt in 1 2 3; do
             gh workflow run update.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" && exit 0
             sleep 30

@@ -43,3 +43,18 @@ def test_midterm_summary(tmp_path, monkeypatch):
     assert s["house_vote"]["margin"] == -10.0 and s["seats"]["house"] == {"D": 1, "R": 1, "counting": 0}
     assert s["statewide"]["PA"]["senate"]["margin"] == 10.0 and s["statewide"]["PA"]["senate"]["vs_national_house"] == 20.0
     assert s["seats"]["governor"]["counting"] == 1
+
+
+def test_hourly_caches_expire_on_the_hour_eastern():
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+
+    from electionpredictions.config import cache_fresh
+
+    et = ZoneInfo("America/New_York")
+    ts = lambda h, m: datetime(2026, 11, 6, h, m, tzinfo=et).timestamp()   # noqa: E731
+    assert cache_fresh(ts(13, 1), 3600, now=ts(13, 59))          # fetched 1:01 PM, still fresh at 1:59 PM
+    assert not cache_fresh(ts(13, 59), 3600, now=ts(14, 0))      # fetched 1:59 PM, stale at 2:00 PM on the dot
+    assert cache_fresh(ts(14, 0), 3600, now=ts(14, 45))
+    # rolling lifetimes are unchanged
+    assert cache_fresh(ts(13, 0), 12 * 3600, now=ts(23, 0)) and not cache_fresh(ts(1, 0), 12 * 3600, now=ts(14, 0))

@@ -18,7 +18,7 @@ import pandas as pd
 import requests
 from lxml import html as lxml_html
 
-from ..config import CACHE_DIR, TTL_WIKI, USER_AGENT
+from ..config import CACHE_DIR, TTL_WIKI, USER_AGENT, cache_fresh
 from ..util import clean
 
 API = "https://en.wikipedia.org/w/api.php"
@@ -37,7 +37,7 @@ def _cache_path(kind: str, key: str) -> Path:
 
 def _get_cached(kind: str, key: str, ttl: int) -> Optional[dict]:
     p = _cache_path(kind, key)
-    if p.exists() and (time.time() - p.stat().st_mtime) < ttl:
+    if p.exists() and cache_fresh(p.stat().st_mtime, ttl):
         try:
             return json.loads(p.read_text())
         except json.JSONDecodeError:

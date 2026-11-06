@@ -48,7 +48,8 @@ uv run electionpredictions set-admin-password                # the admin page / 
 uv run electionpredictions results [--watch 120 --push]      # archived 2026 site: results and race-call snapshots
 ```
 
-All HTTP is cached under `data/cache/` (Wikipedia 1 h, markets 15 min, news 1 h, FEC 12 h, BLS 12 h).
+All HTTP is cached under `data/cache/`. Hourly sources (the Wikipedia poll, primary, approval and ratings pages,
+news, prediction markets) refresh at the top of every hour, Eastern time; FEC and BLS data after 12 hours.
 
 ## What goes in
 
@@ -125,10 +126,11 @@ and never refers to AI.
 ## Keeping it updated
 
 `.github/workflows/update.yml` runs the full pipeline and deploys `site/` to GitHub Pages, then **starts the next
-run itself** after a pause (the `next` job), so an update lands about every 15 minutes around the clock. GitHub
-throttles busy cron schedules (in practice runs were hours apart), so the cron is only a backstop that restarts the
-loop if it stops; the workflow's concurrency group keeps exactly one loop. Set the repository variable
-`FORECAST_PAUSED=true` to pause it, `FORECAST_INTERVAL_MIN` to change the pause (default 12 minutes).
+run itself** at the next clock slot (the `next` job): updates land at :00, :15, :30 and :45 around the clock, and the
+:00 run refreshes the hourly sources on the hour (Eastern). GitHub throttles busy cron schedules (in practice runs
+were hours apart), so the cron is only a backstop that restarts the loop if it stops; the workflow's concurrency
+group keeps exactly one loop. Set the repository variable `FORECAST_PAUSED=true` to pause it, and
+`FORECAST_INTERVAL_MIN` to change the slot length (default 15 minutes; use a divisor of 60).
 The model's state (the database with every model version, and the published `site/data`) lives on the
 **`forecast-data` branch** as a single commit that each run replaces, so `main` holds only code and the
 repository does not grow with every update; `site/data` is git-ignored on main and copied in at deploy time
@@ -165,7 +167,7 @@ Plain HTML/CSS/JS modules, no build step: publish `site/` anywhere static files 
 | `AI_MODEL` | unset | A single model put first in both chains |
 | `AI_BASE_URL` | `https://opencode.ai/zen/go/v1` | Gateway (pay-as-you-go Zen: `/zen/v1`) |
 | `FEC_API_KEY` | `DEMO_KEY` | FEC API (the demo key allows ~10 requests/hour; the stage makes one or two) |
-| `EP_TTL_WIKI`, `EP_TTL_MARKETS`, `EP_TTL_NEWS`, `EP_TTL_FEC`, `EP_TTL_ECON` | 1h / 15m / 1h / 12h / 12h | Cache lifetimes (seconds) |
+| `EP_TTL_WIKI`, `EP_TTL_MARKETS`, `EP_TTL_NEWS`, `EP_TTL_FEC`, `EP_TTL_ECON` | 1h / 1h / 1h / 12h / 12h | Cache lifetimes (seconds); a 1-hour lifetime expires on the hour, Eastern |
 
 ## Project layout
 

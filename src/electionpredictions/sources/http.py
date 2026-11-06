@@ -10,7 +10,7 @@ from urllib.parse import urlsplit
 
 import requests
 
-from ..config import CACHE_DIR, USER_AGENT
+from ..config import CACHE_DIR, USER_AGENT, cache_fresh
 
 _session = requests.Session()
 _session.headers["User-Agent"] = USER_AGENT
@@ -39,7 +39,7 @@ def get(url: str, params: dict | None = None, *, kind: str = "http", ttl: int = 
     params = params or {}
     key = url + "?" + json.dumps(params, sort_keys=True)
     p = _cache_path(kind, key)
-    if p.exists() and (time.time() - p.stat().st_mtime) < ttl:
+    if p.exists() and cache_fresh(p.stat().st_mtime, ttl):
         try:
             payload = json.loads(p.read_text())
             return payload.get("data")

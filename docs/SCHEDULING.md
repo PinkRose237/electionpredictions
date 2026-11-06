@@ -1,8 +1,10 @@
 # Scheduling updates
 
 ## GitHub Actions (hosted)
-`.github/workflows/update.yml` rebuilds the 2028 model in a self-sustaining loop: each run ends by waiting
-(`FORECAST_INTERVAL_MIN`, default 12 minutes) and dispatching the next, about one update every 15 minutes. GitHub
+`.github/workflows/update.yml` rebuilds the 2028 model in a self-sustaining loop: each run ends by waiting for the
+next clock slot and dispatching the next run, so updates land at :00, :15, :30 and :45 (`FORECAST_INTERVAL_MIN`,
+default 15). The :00 run refreshes the hourly sources (polls, primaries, approval, ratings, news, markets) on the
+hour, Eastern time. GitHub
 throttles busy cron schedules, so the cron (`7,37 * * * *`) only restarts the loop if it ever stops; set the
 repository variable `FORECAST_PAUSED=true` to pause. Also on demand
 (Actions → Update forecast (2028) → Run workflow; tick *dry_run* to skip saving and deploying). Each run restores the
