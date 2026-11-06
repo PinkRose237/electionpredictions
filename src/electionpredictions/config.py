@@ -39,17 +39,30 @@ USER_AGENT = os.environ.get(
     "electionpredictions/0.2 (open-source presidential forecast; https://github.com/PinkRose237/electionpredictions)",
 )
 FEC_API_KEY = os.environ.get("FEC_API_KEY", "DEMO_KEY")
-# Model-revision layer via OpenCode (OpenAI-compatible). Default: the OpenCode Go subscription gateway with Z.AI
-# GLM 5.3 Flash. Pay-as-you-go Zen is https://opencode.ai/zen/v1 (needs credit).
+# Model-revision layer via OpenCode (OpenAI-compatible): the OpenCode Go subscription gateway by default;
+# pay-as-you-go Zen is https://opencode.ai/zen/v1 (needs credit). Each step uses a ranked chain of models: the
+# first that answers wins, the rest are fallbacks (refused, rate-limited or down models hand over to the next).
 OPENCODE_API_KEY = os.environ.get("OPENCODE_API_KEY") or os.environ.get("OPENCODE_ZEN_API_KEY", "")
-AI_MODEL = os.environ.get("AI_MODEL") or "glm-5.3-flash"
 AI_BASE_URL = os.environ.get("AI_BASE_URL") or "https://opencode.ai/zen/go/v1"
 
+
+def _chain(env: str, default: list[str]) -> list[str]:
+    raw = [m.strip() for m in (os.environ.get(env) or "").split(",") if m.strip()] or list(default)
+    pinned = (os.environ.get("AI_MODEL") or "").strip()      # legacy single-model override goes first
+    return list(dict.fromkeys(([pinned] if pinned else []) + raw))
+
+
+# Strongest reasoning models first for the revision (research + rebuild); fast strong models for the write-ups.
+AI_MODELS_REVISION = _chain("AI_MODELS_REVISION", ["gpt-6-luna", "gemini-4-argon", "kimi-k3.1-pro", "qwen3.8-max", "glm-5.3", "glm-5.3-flash"])
+AI_MODELS_NARRATIVE = _chain("AI_MODELS_NARRATIVE", ["glm-5.3", "qwen3.8-max", "glm-5.3-flash"])
+AI_MODEL = AI_MODELS_REVISION[0]
+
 # Cache TTLs in seconds
-TTL_WIKI = int(os.environ.get("EP_TTL_WIKI", 6 * 3600))
-TTL_MARKETS = int(os.environ.get("EP_TTL_MARKETS", 1 * 3600))
-TTL_FEC = int(os.environ.get("EP_TTL_FEC", 24 * 3600))
-TTL_NEWS = int(os.environ.get("EP_TTL_NEWS", 3 * 3600))
+# (tuned for a run every ~15 minutes: polls/primaries/approval pages hourly, markets every 15 min, news hourly)
+TTL_WIKI = int(os.environ.get("EP_TTL_WIKI", 1 * 3600))
+TTL_MARKETS = int(os.environ.get("EP_TTL_MARKETS", 15 * 60))
+TTL_FEC = int(os.environ.get("EP_TTL_FEC", 12 * 3600))
+TTL_NEWS = int(os.environ.get("EP_TTL_NEWS", 1 * 3600))
 TTL_ECON = int(os.environ.get("EP_TTL_ECON", 12 * 3600))
 
 STATES = {

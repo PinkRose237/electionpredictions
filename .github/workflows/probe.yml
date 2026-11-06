@@ -1,9 +1,14 @@
 name: AI probe
 
-# Diagnostics: one tiny request to the AI provider with the repository's key; prints statuses and
-# response snippets (the key itself is masked by GitHub). Run it from the Actions tab.
+# Diagnostics: checks the AI gateway with the repository's key (masked by GitHub), lists the models it serves,
+# and benchmarks candidate models on a small spec-revision task. Run it from the Actions tab.
 on:
   workflow_dispatch:
+    inputs:
+      models:
+        description: "Comma-separated model ids to benchmark (blank = default candidates)"
+        required: false
+        default: ""
 
 permissions:
   contents: read
@@ -17,6 +22,7 @@ jobs:
       - run: uv sync
       - env:
           OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          AI_MODEL: ${{ vars.AI_MODEL }}
           AI_BASE_URL: ${{ vars.AI_BASE_URL }}
-        run: uv run electionpredictions ai-probe
+        run: |
+          uv run electionpredictions ai-probe
+          uv run electionpredictions ai-benchmark --models "${{ inputs.models }}"

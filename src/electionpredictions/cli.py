@@ -111,6 +111,8 @@ def main(argv=None):
     s.add_argument("--port", type=int, default=8000)
     sub.add_parser("status", help="show what is in the database")
     sub.add_parser("ai-probe", help="make one tiny request to the AI provider and print what it answers (diagnostics)")
+    bm = sub.add_parser("ai-benchmark", help="time candidate models on a small spec-revision task")
+    bm.add_argument("--models", default="", help="comma-separated model ids (default: the gateway's strong candidates)")
     rs = sub.add_parser("results", help="archived 2026 site: snapshot results feeds and race calls")
     rs.add_argument("--watch", type=int, default=0, metavar="SECONDS")
     rs.add_argument("--push", action="store_true")
@@ -122,6 +124,17 @@ def main(argv=None):
         from .llm import probe
 
         print(json.dumps(probe(), indent=2))
+        return
+    if args.cmd == "ai-benchmark":
+        from .config import AI_MODELS_NARRATIVE, AI_MODELS_REVISION
+        from .llm import benchmark
+
+        extra = ["gpt-6-luna", "gemini-4-argon", "kimi-k3.1-pro", "kimi-k3", "qwen3.8-max", "deepseek-v4-pro", "glm-5.3", "grok-4.7",
+                 "claude-haiku-5-5", "mimo-v2.6-pro", "hy4", "minimax-m3", "gpt-5.6-luna", "glm-5.3-flash", "qwen3.8-flash", "deepseek-v4.1-flash"]
+        models = [m for m in args.models.split(",") if m] or list(dict.fromkeys(AI_MODELS_REVISION + AI_MODELS_NARRATIVE + extra))
+        rows = benchmark(models)
+        good = sorted((r for r in rows if r.get("ok")), key=lambda r: r["seconds"])
+        print("usable, fastest first:", [f"{r['model']} {r['seconds']}s" for r in good])
         return
     if args.cmd == "results":
         results(watch=args.watch, push=args.push)
