@@ -992,8 +992,23 @@ details.admin-state[open] > summary::before { content: '▾'; }
   .method .toc ol { columns: 1; }
 }
 @media (max-width: 1000px) { .two-col { grid-template-columns: minmax(0, 1fr); } }
-.topbar-inner { gap: var(--s4); }
-@media (max-width: 1280px) { .topbar-meta { display: none; } .theme-toggle { margin-left: auto; } }
+/* Top bar: brand · nav · (updated) · theme toggle on one line. The nav shrinks and scrolls sideways instead of
+   wrapping, so the toggle always stays at the right edge; on phones the nav drops to its own full-width row. */
+.topbar-inner { gap: var(--s4); flex-wrap: nowrap; }
+.topbar-inner .brand, .topbar-inner .theme-toggle, .topbar-meta { flex: none; }
+.topbar-inner .nav { flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.topbar-inner .nav::-webkit-scrollbar { display: none; }
+.topbar-inner .nav a { white-space: nowrap; }
+/* The "updated" line lives in the footer and the model chip; the bar keeps brand, nav and toggle only. */
+.topbar-inner .topbar-meta { display: none; }
+.topbar-inner .theme-toggle { margin-left: auto; }
+@media (max-width: 1000px) { .topbar-inner .nav { gap: var(--s3); } }
+@media (max-width: 640px) {
+  .topbar-inner { flex-wrap: wrap; row-gap: 0; }
+  .topbar-inner .brand { order: 1; }
+  .topbar-inner .theme-toggle { order: 2; margin-left: auto; }
+  .topbar-inner .nav { order: 3; flex: 1 1 100%; }
+}
 .races-table td.num, .races-table th.num { white-space: nowrap; padding-left: 14px; }
 .kv > div { display: contents; }
 .field-table .chip { white-space: nowrap; }
