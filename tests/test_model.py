@@ -107,3 +107,44 @@ def test_wider_uncertainty_pulls_toward_even(db):
     b = engine.run(db, wide, today=TODAY, n_sims=3000, seed=3, persist=False, verbose=False)["ec"]["p_dem"]
     assert abs(b - 0.5) < abs(a - 0.5)
     assert EVS_TO_WIN == 270
+
+
+def test_house_effects_absorb_a_leaning_pollster():
+    import copy as _copy
+
+    polls = []
+    for i in range(12):
+        lean = 4.0 if i % 2 else 0.0                       # "Tilted Co." always 4 points more Democratic
+        firm = "Tilted Co." if i % 2 else f"Neutral {i}"
+        polls.append(dict(poll_id=f"h{i}", pollster=firm, sponsor_lean=None, end_date="2026-10-20", sample_size=1000, population="LV",
+                          dem_name="A Dem", rep_name="A Rep", dem_pct=46 + lean / 2, rep_pct=46 - lean / 2, other_pct=None))
+    sp = seed()
+    with_h = ev.national_poll_model(polls, TODAY, sp)
+    no_h = _copy.deepcopy(sp)
+    no_h["polls"]["house_effect_sd"] = 0.0
+    without = ev.national_poll_model(polls, TODAY, no_h)
+    assert with_h["house_effects"]["Tilted Co."]["effect"] > 0.8 and "Neutral 1" not in with_h["house_effects"]
+    assert abs(with_h["g"]) < abs(without["g"])            # the tilt no longer drags the environment
+    assert without["house_effects"] == {}
+
+
+def test_independent_candidate_and_determinism(db):
+    prop, _, _ = calibrate(db, seed(), TODAY)
+    base = engine.run(db, prop, today=TODAY, n_sims=4000, persist=False, verbose=False)
+    again = engine.run(db, prop, today=TODAY, n_sims=4000, persist=False, verbose=False)
+    assert base["ec"]["p_dem"] == again["ec"]["p_dem"]      # inputs fully determine the numbers
+    spoiler = dict(prop, third_party=dict(p_run=0.8, net_effect=-4.0, effect_sd=0.5))   # a bid that costs Democrats
+    hurt = engine.run(db, spoiler, today=TODAY, n_sims=4000, persist=False, verbose=False)
+    assert hurt["ec"]["p_dem"] < base["ec"]["p_dem"] - 0.05
+    assert hurt["uncertainty"]["third_party_p"] == 0.8
+
+
+def test_spec_upgrade_fills_new_settings():
+    from electionpredictions.model.spec import upgrade, validate
+
+    old = seed()
+    del old["third_party"]
+    del old["polls"]["house_effect_sd"]
+    up = upgrade(old)
+    assert up["third_party"]["p_run"] == seed()["third_party"]["p_run"] and up["polls"]["house_effect_sd"] == 2.0
+    assert validate(up, old)["third_party"] == up["third_party"]

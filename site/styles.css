@@ -1014,3 +1014,28 @@ details.admin-state[open] > summary::before { content: '▾'; }
 .field-table .chip { white-space: nowrap; }
 .field-table td:first-child { min-width: 170px; }
 .field-table .bar-cell { width: 14%; }
+
+/* Live status, update prompt, storylines, revision feed (continuous updates) */
+.live-line { margin: 6px 0 0; font-size: 13.5px; color: var(--ink-3); }
+.live-badge { display: inline-flex; align-items: center; gap: 7px; }
+.live-badge .live-dot { width: 8px; height: 8px; border-radius: 50%; background: #1f9d55; box-shadow: 0 0 0 0 rgba(31, 157, 85, 0.5); flex: none; }
+.live-badge.stale .live-dot { background: var(--ink-3); }
+@media (prefers-reduced-motion: no-preference) {
+  .live-badge:not(.stale) .live-dot { animation: live-pulse 2.4s ease-out infinite; }
+}
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(31, 157, 85, 0.45); } 70% { box-shadow: 0 0 0 8px rgba(31, 157, 85, 0); } 100% { box-shadow: 0 0 0 0 rgba(31, 157, 85, 0); } }
+.update-toast { position: fixed; right: 16px; bottom: 16px; z-index: 60; display: flex; align-items: center; gap: 12px;
+  background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--radius); box-shadow: var(--shadow); padding: 10px 12px; font-size: 14px; }
+.story-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--s3); }
+.story { border-left: 4px solid var(--tossup); }
+.story.dem { border-left-color: var(--dem); } .story.rep { border-left-color: var(--rep); }
+.story h3 { margin: 6px 0 4px; font-size: 15.5px; line-height: 1.3; }
+.story p { margin: 0; color: var(--ink-2); }
+.story-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.story-lean { font-size: 11.5px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: var(--ink-3); }
+.story-lean.dem { color: var(--dem); } .story-lean.rep { color: var(--rep); }
+.rev-feed { list-style: none; margin: var(--s3) 0 0; padding: 0; display: grid; gap: 10px; }
+.rev-feed li { border-top: 1px solid var(--border); padding-top: 10px; }
+.rev-feed li:first-child { border-top: 0; padding-top: 0; }
+.rev-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+.rev-feed p { margin: 4px 0 0; color: var(--ink-2); }

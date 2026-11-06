@@ -112,6 +112,13 @@ async function hub() {
         h('thead', {}, h('tr', {}, h('th', {}, 'Stage'), h('th', {}, 'Finished'), h('th', {}, 'OK'), h('th', {}, 'Note'))),
         h('tbody', {}, ...meta.runs.map((r) => h('tr', {}, h('td', {}, r.stage), h('td', {}, fmt.dateTime(r.finished_at)), h('td', {}, r.ok ? '✓' : '✗'),
           h('td', { class: 'small mono' }, String(r.note || '').slice(0, 220))))))));
+    if (meta.research && meta.research.length) {
+      pipe.append(h('h3', {}, 'Latest research searches'),
+        h('div', { class: 'table-wrap' }, h('table', { class: 'races-table compact' },
+          h('thead', {}, h('tr', {}, h('th', {}, 'When'), h('th', {}, 'Search'), h('th', {}, 'Why'), h('th', {}, 'Top result'))),
+          h('tbody', {}, ...meta.research.map((r) => h('tr', {}, h('td', {}, fmt.dateTime(r.created_at)), h('td', {}, r.query), h('td', { class: 'small' }, r.why || ''),
+            h('td', { class: 'small' }, (r.results[0] || {}).t || '—')))))));
+    }
   } catch (err) {
     pipe.append(h('p', { class: 'error-text' }, String(err.message || err)));
   }

@@ -1,0 +1,38 @@
+name: Fetch forecast data
+description: >
+  Copy the latest published forecast data (and optionally the model database) from the forecast-data branch into
+  site/data (and data/). That branch holds the model's state as a single commit, replaced on every update, so main
+  keeps only code. Sets output `found` to true when the branch exists.
+inputs:
+  database:
+    description: "Also restore data/president2028.db"
+    required: false
+    default: "false"
+outputs:
+  found:
+    description: "true when the forecast-data branch exists"
+    value: ${{ steps.fetch.outputs.found }}
+  has_db:
+    description: "true when the model database was restored"
+    value: ${{ steps.fetch.outputs.has_db }}
+runs:
+  using: composite
+  steps:
+    - id: fetch
+      shell: bash
+      run: |
+        mkdir -p site/data data
+        if git fetch --depth=1 origin forecast-data 2>/dev/null; then
+          rm -rf "$RUNNER_TEMP/forecast-data" && mkdir -p "$RUNNER_TEMP/forecast-data"
+          git archive FETCH_HEAD | tar -x -C "$RUNNER_TEMP/forecast-data"
+          if [ -d "$RUNNER_TEMP/forecast-data/site-data" ]; then cp -R "$RUNNER_TEMP/forecast-data/site-data/." site/data/; fi
+          if [ "${{ inputs.database }}" = "true" ] && [ -f "$RUNNER_TEMP/forecast-data/president2028.db" ]; then
+            cp "$RUNNER_TEMP/forecast-data/president2028.db" data/president2028.db
+            echo "has_db=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "found=true" >> "$GITHUB_OUTPUT"
+          echo "forecast-data: $(git log -1 --format='%s' FETCH_HEAD)"
+        else
+          echo "found=false" >> "$GITHUB_OUTPUT"
+          echo "forecast-data branch not found"
+        fi

@@ -110,7 +110,24 @@ CREATE TABLE IF NOT EXISTS runs (
     run_id INTEGER PRIMARY KEY AUTOINCREMENT,
     stage TEXT, started_at TEXT, finished_at TEXT, ok INTEGER, note TEXT
 );
+CREATE TABLE IF NOT EXISTS run_log (           -- one row per final model run (every update), for intraday movement
+    ts TEXT PRIMARY KEY, run_date TEXT, spec_version INTEGER,
+    p_dem REAL, p_rep REAL, dem_ev REAL, pv REAL, env REAL
+);
+CREATE TABLE IF NOT EXISTS storylines (        -- the forecast's running notes on the race, newest row = current
+    id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT NOT NULL, body TEXT NOT NULL, model TEXT
+);
+CREATE TABLE IF NOT EXISTS research (          -- searches run by the revision step and what they returned
+    id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT NOT NULL, query TEXT NOT NULL, why TEXT, results TEXT
+);
 """
+
+# Columns added after the first release; connect() adds whichever are missing (CI restores older databases).
+MIGRATIONS = {
+    "model_specs": {"basis": "TEXT", "model": "TEXT"},
+    "polls": {"first_seen": "TEXT"},
+    "primary_polls": {"first_seen": "TEXT"},
+}
 
 
 def now_iso() -> str:
@@ -123,7 +140,28 @@ def connect(path=DB_PATH) -> sqlite3.Connection:
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA journal_mode=WAL")
     con.executescript(SCHEMA)
+    for table, cols in MIGRATIONS.items():
+        have = {r[1] for r in con.execute(f"PRAGMA table_info({table})")}
+        for col, typ in cols.items():
+            if col not in have:
+                con.execute(f"ALTER TABLE {table} ADD COLUMN {col} {typ}")
+    con.commit()
     return con
+
+
+def prune(con) -> dict:
+    """Keep the database small enough to travel with every update (it is committed to the state branch)."""
+    out = {}
+    out["runs"] = con.execute("DELETE FROM runs WHERE finished_at < datetime('now', '-14 days')").rowcount
+    out["run_log"] = con.execute("DELETE FROM run_log WHERE ts < datetime('now', '-90 days')").rowcount
+    out["news"] = con.execute("DELETE FROM news WHERE fetched_at < datetime('now', '-21 days')").rowcount
+    out["research"] = con.execute("DELETE FROM research WHERE created_at < datetime('now', '-30 days')").rowcount
+    out["storylines"] = con.execute("DELETE FROM storylines WHERE id NOT IN (SELECT id FROM storylines ORDER BY id DESC LIMIT 200)").rowcount
+    # keep every version's changelog, but only the most recent 500 full specifications
+    out["spec_bodies"] = con.execute("UPDATE model_specs SET spec='{}', basis=NULL WHERE version NOT IN "
+                                     "(SELECT version FROM model_specs ORDER BY version DESC LIMIT 500) AND spec <> '{}'").rowcount
+    con.commit()
+    return out
 
 
 @contextmanager

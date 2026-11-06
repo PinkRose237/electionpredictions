@@ -40,6 +40,7 @@
     <div id="app" hidden>
       <div class="page-head"><h1>Model log</h1><p>This forecast does not run on fixed settings. At every update the model is rebuilt against the latest evidence: the candidate field and nomination odds, each candidate's strength, the weight on polls versus fundamentals, the size of the uncertainty and any state-specific adjustments are re-derived, reviewed and, when the evidence calls for it, revised, inside fixed guardrails. Every revision is numbered and recorded here with its reasons.</p></div>
       <section class="section"><div class="card" id="current"></div></section>
+      <section class="section" id="stories-block" hidden><div class="card"><h2>Storylines</h2><p class="card-sub">The developments the forecast is tracking, carried from update to update.</p><div id="stories" class="story-grid"></div></div></section>
       <section class="section two-col"><div class="card" id="nominees"></div><div class="card" id="adjustments"></div></section>
       <section class="section"><div class="card"><h2>Settings</h2><p class="card-sub">Every tunable choice in the model, its current value, its allowed range and the largest change one revision may make.</p><div id="params" class="table-wrap"></div></div></section>
       <section class="section" aria-labelledby="h-log"><div class="section-head"><h2 id="h-log">Revisions</h2><p>Newest first.</p></div><div id="log"></div></section>

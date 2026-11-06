@@ -41,17 +41,22 @@
       <div class="page-head home-head">
         <h1>Who will win the 2028 presidential election?</h1>
         <p id="lede" class="lede"></p>
+        <p class="live-line" data-live></p>
       </div>
       <section class="section" aria-label="Headline forecast"><div id="hero"></div></section>
       <section class="section two-col" aria-label="Electoral votes">
         <div class="card"><h2>Electoral votes</h2><p class="card-sub">Democratic electoral votes across all simulations. Blue wins, red loses, grey is a 269–269 tie.</p><div id="hist" class="chart-box"></div><dl id="ev-stats" class="stats"></dl></div>
-        <div class="card"><h2>Chance of winning over time</h2><p class="card-sub">One point per update.</p><div id="trend" class="chart-box"></div></div>
+        <div class="card"><h2>Chance of winning over time</h2><p class="card-sub">Every update over the last week; one point per day before that.</p><div id="trend" class="chart-box"></div></div>
       </section>
       <section class="section" aria-label="Road to 270">
         <div class="card"><h2>The road to 270</h2><p class="card-sub">Every contest lined up from most to least likely to vote Democratic, sized by electoral votes. The one that crosses 270 is the tipping point.</p><div id="road" class="chart-box"></div></div>
       </section>
       <section class="section" aria-label="Map">
         <div class="card map-card"><div class="card-head"><h2>The map</h2><a class="btn" href="map.html">Open the full map →</a></div><div id="map" class="chart-box map-wrap"></div><div id="legend"></div></div>
+      </section>
+      <section class="section" aria-labelledby="h-stories" id="stories-block" hidden>
+        <div class="section-head"><h2 id="h-stories">Storylines</h2><p>The developments the forecast is tracking most closely right now.</p></div>
+        <div id="stories" class="story-grid"></div>
       </section>
       <section class="section" aria-labelledby="h-overview" id="overview-block" hidden>
         <div class="card overview-card"><h2 id="h-overview">Where the race stands</h2><div id="overview"></div></div>
@@ -72,7 +77,7 @@
         <div class="section-head"><h2 id="h-close">Closest contests</h2><p>The ten contests nearest a coin flip.</p></div>
         <div id="closest" class="closest-grid"></div>
       </section>
-      <section class="section" aria-label="Latest model revision"><div class="card" id="revision"></div></section>
+      <section class="section" aria-labelledby="h-rev"><div class="card" id="revision"></div></section>
       <section class="section" aria-label="Markets"><p id="markets" class="markets-line"></p></section>
     </div>
   </main>

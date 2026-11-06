@@ -13,7 +13,7 @@ import re
 from typing import Optional
 
 from ..config import STATE_BY_NAME
-from ..db import log_run, now_iso, upsert
+from ..db import log_run, now_iso, rows, upsert
 from ..util import clean, parse_date_range, parse_pct, parse_sample, party_code
 from .wikipedia import WikiTable, extract_tables, page_html
 
@@ -126,9 +126,19 @@ def fetch() -> list[dict]:
 def load(con, verbose: bool = False) -> dict:
     started = now_iso()
     polls = fetch()
+    seen = {r["poll_id"]: r["first_seen"] for r in rows(con, "SELECT poll_id, first_seen FROM polls")}
+    if seen and len(polls) < 0.5 * len(seen):
+        # a broken or half-loaded page must not wipe the polling record between frequent updates
+        msg = f"only {len(polls)} polls parsed (had {len(seen)}); keeping the previous set"
+        log_run(con, "polls", started, False, msg)
+        return dict(kept=len(seen), parsed=len(polls), note=msg)
+    now = now_iso()
+    for p in polls:
+        p["first_seen"] = seen.get(p["poll_id"]) or now
     con.execute("DELETE FROM polls")
     upsert(con, "polls", polls, keys=["poll_id"])
     con.commit()
-    res = dict(national=sum(p["scope"] == "national" for p in polls), state=sum(p["scope"] == "state" for p in polls))
+    res = dict(national=sum(p["scope"] == "national" for p in polls), state=sum(p["scope"] == "state" for p in polls),
+               new=sum(1 for p in polls if p["poll_id"] not in seen))
     log_run(con, "polls", started, True, json.dumps(res))
     return res

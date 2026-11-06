@@ -13,6 +13,7 @@ async function main() {
     document.getElementById('app').hidden = false;
     renderUpdated(summary); renderFooterMeta(summary);
     env(P.environment); strength(P.strengths || {}); national(P.national); state(P.state); approval(P.approval); economy(P.economy);
+    midterm(P.midterm_2026); house(P.house_effects || {});
   } catch (err) {
     console.error(err);
     showError(status, err);
@@ -92,6 +93,31 @@ function economy(E) {
       kv('Unemployment', isNum(I.unemployment) ? `${I.unemployment.toFixed(1)}%` : DASH, isNum(I.unemployment_change) ? `${fmt.signed(I.unemployment_change)} over 12 months` : ''),
       kv('Real hourly earnings (12 months)', isNum(I.real_wage_growth) ? `${fmt.signed(I.real_wage_growth)}%` : DASH),
       kv('Latest data', I.as_of || DASH, 'Bureau of Labor Statistics')));
+}
+
+function midterm(M) {
+  const root = document.getElementById('midterm');
+  root.append(h('h2', {}, 'The 2026 midterms'));
+  if (!M) { root.append(h('p', { class: 'muted' }, 'Results not available.')); return; }
+  const hv = M.house_vote, seats = M.seats;
+  root.append(
+    h('div', { class: 'generic-big', style: { color: hv.margin >= 0 ? 'var(--dem)' : 'var(--rep)' } }, fmt.margin(hv.margin)),
+    h('p', { class: 'card-sub' }, `National House popular vote, November 3, 2026 (raw count across all 435 races, so uncontested seats count as cast): Democrats ${hv.dem_pct}%, Republicans ${hv.rep_pct}%. The most recent national test of the parties; the forecast weighs it when judging the national environment.`),
+    h('dl', { class: 'kv' },
+      kv('House seats', `D ${seats.house.D} · R ${seats.house.R}`, seats.house.counting ? `${seats.house.counting} still counting` : ''),
+      kv('Senate seats up', `D ${seats.senate.D} · R ${seats.senate.R}`, seats.senate.counting ? `${seats.senate.counting} still counting` : ''),
+      kv('Governorships up', `D ${seats.governor.D} · R ${seats.governor.R}`, seats.governor.counting ? `${seats.governor.counting} still counting` : ''),
+      kv('Results as of', fmt.dateTime(M.as_of))));
+}
+
+function house(H) {
+  const rows = Object.entries(H).sort((a, b) => Math.abs(b[1].effect) - Math.abs(a[1].effect));
+  const root = document.getElementById('house');
+  root.append(h('h2', {}, 'Pollster house effects'),
+    h('p', { class: 'card-sub' }, 'How far each firm\'s national trial heats run from the consensus once candidates and timing are accounted for (D+ = more Democratic). Estimated for firms with two or more polls and removed before averaging.'));
+  if (!rows.length) { root.append(h('p', { class: 'muted' }, 'Not enough repeat pollsters yet.')); return; }
+  root.append(h('table', { class: 'races-table compact' }, h('thead', {}, h('tr', {}, h('th', {}, 'Pollster'), h('th', { class: 'num' }, 'House effect'), h('th', { class: 'num' }, 'Polls'))),
+    h('tbody', {}, ...rows.map(([name, x]) => h('tr', {}, h('td', {}, name), h('td', { class: 'num' }, fmt.margin(x.effect)), h('td', { class: 'num' }, String(x.n_polls)))))));
 }
 
 main();

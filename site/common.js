@@ -716,20 +716,13 @@ export function initChrome({ current } = {}) {
 
 /** "Updated 3 hours ago · 42 days to Nov 3, 2026" in the top bar. */
 export function renderUpdated(summary) {
+  if (!summary) return;
+  watchForUpdates(summary.generated_at);
+  for (const el of document.querySelectorAll('[data-live]')) el.replaceChildren(liveBadge(summary));
   const el = document.querySelector('[data-updated]');
-  if (!el || !summary) return;
+  if (!el) return;
   const electionDate = summary.election_date || ELECTION_DATE;
-  const live = daysUntil(electionDate);
-  if (isNum(live) && live < 0) {
-    // After the election: the forecast is frozen, so say when it was made and when the election was.
-    el.replaceChildren(
-      h('span', { title: fmt.dateTime(summary.generated_at) }, `Final forecast ${fmt.dateShort(summary.generated_at)}`),
-      h('span', { class: 'sep', 'aria-hidden': 'true' }, '·'),
-      h('span', {}, `Election held ${fmt.date(electionDate)}`),
-    );
-    return;
-  }
-  const days = isNum(summary.days_to_election) ? summary.days_to_election : live;
+  const days = isNum(summary.days_to_election) ? summary.days_to_election : daysUntil(electionDate);
   const dayText = !isNum(days) ? `Election ${fmt.date(electionDate)}`
     : days === 0 ? `Election Day is today`
     : days < 0 ? `${-days} days since ${fmt.date(electionDate)}`
@@ -739,6 +732,45 @@ export function renderUpdated(summary) {
     h('span', { class: 'sep', 'aria-hidden': 'true' }, '·'),
     h('span', {}, dayText),
   );
+}
+
+/** "● Live · updated 6 minutes ago" — the forecast reruns every 15 minutes. */
+export function liveBadge(summary) {
+  const t = summary && summary.generated_at;
+  const stale = !t || (Date.now() - (parseDate(t) || new Date(0)).getTime()) > 3 * 3600e3;
+  const badge = h('span', { class: `live-badge${stale ? ' stale' : ''}`, title: t ? `Generated ${fmt.dateTime(t)}` : '' },
+    h('span', { class: 'live-dot', 'aria-hidden': 'true' }), stale ? 'Updated ' : 'Live · updated ', h('span', { 'data-rel': t || '' }, relativeTime(t)));
+  return badge;
+}
+
+let watching = null;
+/**
+ * The forecast reruns every 15 minutes: check for a newer summary every two minutes and offer a refresh (or reload
+ * by itself when the tab was in the background). Relative times on the page tick along meanwhile.
+ */
+export function watchForUpdates(generatedAt, { base } = {}) {
+  if (watching || !generatedAt) return;
+  watching = generatedAt;
+  const tick = () => document.querySelectorAll('[data-rel]').forEach((el) => { if (el.dataset.rel) el.textContent = relativeTime(el.dataset.rel); });
+  let notified = false;
+  const check = async () => {
+    tick();
+    if (notified) return;
+    try {
+      const res = await fetch(`${base || DATA_BASE}/summary.json`, { cache: 'no-store' });
+      if (!res.ok) return;
+      const s = await res.json();
+      if (s.generated_at && s.generated_at !== watching) {
+        notified = true;
+        if (document.visibilityState === 'hidden') { window.addEventListener('visibilitychange', () => location.reload(), { once: true }); return; }
+        const btn = h('button', { type: 'button', class: 'btn' }, 'Refresh');
+        btn.addEventListener('click', () => location.reload());
+        document.body.append(h('div', { class: 'update-toast', role: 'status' }, h('span', {}, 'The forecast has been updated.'), btn));
+      }
+    } catch (e) { /* offline: try again later */ }
+  };
+  setInterval(check, 120000);
+  setInterval(tick, 30000);
 }
 
 export function renderFooterMeta(summary) {

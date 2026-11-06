@@ -18,6 +18,8 @@ NATIONAL_QUERIES = {
     "D": "2028 Democratic presidential primary",
     "R": "2028 Republican presidential primary",
     "POLLS": "2028 presidential poll",
+    "IND": "2028 independent presidential candidate third party",
+    "CAL": "2028 presidential primary calendar",
 }
 
 
@@ -43,7 +45,7 @@ def fetch(query: str, limit: int = 12) -> list[dict]:
     return out
 
 
-def topics(con, n_candidates: int = 10, n_states: int = 8) -> dict[str, str]:
+def topics(con, n_candidates: int = 14, n_states: int = 10) -> dict[str, str]:
     """Search topics: national ones, the top candidates by current nomination odds (or polling), the closest states."""
     out = dict(NATIONAL_QUERIES)
     try:
