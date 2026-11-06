@@ -99,9 +99,15 @@ def contest_payload(con, c: dict, final: dict, spec: dict) -> dict:
                 polls=polls, headlines=news[:6])
 
 
-def write(con, final: dict, spec: dict, verbose: bool = True, workers: int = 4) -> dict:
+def write(con, final: dict, spec: dict, verbose: bool = True, workers: int = 10, budget_s: float = 360.0) -> dict:
+    """(Re)write the summaries whose inputs changed: the national overview first, then contests by importance.
+    Stops starting new ones after `budget_s` seconds so the summaries never hold up an update; the rest are
+    written on the next run (their inputs still differ from what is stored)."""
+    import time
+
     started = now_iso()
-    stats = dict(written=0, cached=0, errors=0)
+    t0 = time.time()
+    stats = dict(written=0, cached=0, errors=0, deferred=0)
     if not llm.available():
         if verbose:
             print("  narrative: skipped (no OPENCODE_API_KEY)")
@@ -110,7 +116,8 @@ def write(con, final: dict, spec: dict, verbose: bool = True, workers: int = 4) 
     jobs = []
     p = national_payload(con, final, spec)
     jobs.append(("NATIONAL", NATIONAL_SYSTEM, p, _h(p)))
-    for c in final["contests"]:
+    ranked = sorted(final["contests"], key=lambda c: (-c["tip"], abs(c["p_dem"] - 0.5)))
+    for c in ranked:
         if 0.02 <= c["p_dem"] <= 0.98 or c["tip"] >= 0.01:
             p = contest_payload(con, c, final, spec)
             jobs.append((c["contest_id"], CONTEST_SYSTEM, p, _h(p)))
@@ -118,9 +125,11 @@ def write(con, final: dict, spec: dict, verbose: bool = True, workers: int = 4) 
     stats["cached"] = len(jobs) - len(todo)
 
     def one(job):
+        if time.time() - t0 > budget_s:
+            return job[0], None, None, None
         key, system, payload, h = job
         body, model = llm.ask_json_with(system, "Information (JSON):\n" + json.dumps(payload, default=str), config.AI_MODELS_NARRATIVE,
-                                        max_tokens=4000)
+                                        max_tokens=3000, timeout=120)
         return key, h, body, model
 
     with ThreadPoolExecutor(max_workers=workers) as ex:
@@ -135,11 +144,15 @@ def write(con, final: dict, spec: dict, verbose: bool = True, workers: int = 4) 
             except Exception as e:  # noqa: BLE001
                 stats["errors"] += 1
                 if verbose:
-                    print(f"  narrative failed: {e!r}")
+                    print(f"  narrative failed: {str(e)[:200]}")
+                continue
+            if body is None:
+                stats["deferred"] += 1
                 continue
             upsert(con, "narratives", [dict(key=key, input_hash=h, body=json.dumps(clean(body)), model=model, generated_at=now_iso())], keys=["key"])
             con.commit()
             stats["written"] += 1
+    stats["seconds"] = round(time.time() - t0)
     if verbose:
         print(f"  narrative: {stats}")
     log_run(con, "narrative", started, stats["errors"] == 0, json.dumps(stats))

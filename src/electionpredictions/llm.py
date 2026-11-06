@@ -115,6 +115,10 @@ def complete(system: str, user: str, model: str, retries: int = 3, max_tokens: i
                 raise AuthError(f"OpenCode rejected the API key (HTTP 401): {r.text[:200]}")
             if r.status_code == 402:
                 raise AuthError(f"OpenCode account has no credit (HTTP 402): {r.text[:200]}")
+            if r.status_code == 400 and "temperature" in r.text.lower() and "temperature" in body:
+                body = {k: v for k, v in body.items() if k != "temperature"}   # some models accept only their default
+                problems.append(f"{path}: retrying without temperature")
+                continue
             if r.status_code in (403, 404, 405) or (r.status_code == 400 and ("endpoint" in r.text.lower() or "model" in r.text.lower())):
                 problems.append(f"{path}: HTTP {r.status_code}: {r.text[:160]}")
                 break  # per-model or per-endpoint refusal: try the other shape, then the next model

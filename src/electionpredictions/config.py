@@ -52,9 +52,11 @@ def _chain(env: str, default: list[str]) -> list[str]:
     return list(dict.fromkeys(([pinned] if pinned else []) + raw))
 
 
-# Strongest reasoning models first for the revision (research + rebuild); fast strong models for the write-ups.
-AI_MODELS_REVISION = _chain("AI_MODELS_REVISION", ["gpt-6-luna", "gemini-4-argon", "kimi-k3.1-pro", "qwen3.8-max", "glm-5.3", "glm-5.3-flash"])
-AI_MODELS_NARRATIVE = _chain("AI_MODELS_NARRATIVE", ["glm-5.3", "qwen3.8-max", "glm-5.3-flash"])
+# Chosen with `ai-benchmark` (Nov 2026, OpenCode Go): every model below returned a valid spec revision in 10-40 s;
+# glm-5.3, kimi-k3, hy4 answered empty and qwen3.8-max timed out, so they are left out.
+# The strongest model first for the research + revision; fast, strong writers for the summaries.
+AI_MODELS_REVISION = _chain("AI_MODELS_REVISION", ["gpt-6-luna", "gemini-4-argon", "claude-haiku-5-5", "gpt-5.6-luna", "deepseek-v4.1-flash", "glm-5.3-flash"])
+AI_MODELS_NARRATIVE = _chain("AI_MODELS_NARRATIVE", ["claude-haiku-5-5", "gemini-4-argon", "glm-5.3-flash", "gpt-5.6-luna"])
 AI_MODEL = AI_MODELS_REVISION[0]
 
 # Cache TTLs in seconds
