@@ -37,7 +37,9 @@ def status(con):
 
 def sync_state():
     """Replace the local database and site/data with the live model state from the forecast-data branch."""
+    import os
     import shutil
+    import sqlite3
     import subprocess
     import tarfile
     import tempfile
@@ -56,15 +58,20 @@ def sync_state():
         with tarfile.open(tar_path) as tf:
             tf.extractall(tmp, filter="data")
         db = f"{tmp}/president2028.db"
-        if not __import__("os").path.exists(db):
+        if not os.path.exists(db):
             raise SystemExit("The forecast-data branch has no database yet.")
         if DB_PATH.exists():
-            shutil.copy2(DB_PATH, DB_PATH.with_suffix(".db.bak"))
+            bak = sqlite3.connect(str(DB_PATH.with_suffix(".db.bak")))
+            with sqlite3.connect(str(DB_PATH)) as cur:
+                cur.backup(bak)                       # consistent copy even if the database is in WAL mode
+            bak.close()
+        staged = DB_PATH.with_suffix(".db.new")
+        shutil.copy2(db, staged)
         for suffix in ("-wal", "-shm"):
             p = DB_PATH.with_name(DB_PATH.name + suffix)
             if p.exists():
                 p.unlink()
-        shutil.copy2(db, DB_PATH)
+        os.replace(staged, DB_PATH)                   # atomic swap: open readers keep the old file
         if SITE_DATA_DIR.exists():
             shutil.rmtree(SITE_DATA_DIR)
         shutil.copytree(f"{tmp}/site-data", SITE_DATA_DIR)
@@ -190,6 +197,9 @@ def main(argv=None):
         write_config(pw, repo=args.repo)
         print("Wrote " + ", ".join(str(p) for p in CONFIG_PATHS))
         return
+    if args.cmd == "serve":   # static files only: never hold the database open
+        serve(args.port)
+        return
     con = connect()
     print(f"2028 presidential model · {days_to_election()} days to the election")
     if args.cmd == "ingest":
@@ -203,8 +213,6 @@ def main(argv=None):
         ingest(con, skip=skip)
         rebuild(con, n_sims=args.sims, revise="revision" not in skip, narrate="narrative" not in skip)
         export(con)
-    elif args.cmd == "serve":
-        serve(args.port)
     elif args.cmd == "status":
         status(con)
 
