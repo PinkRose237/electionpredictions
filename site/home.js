@@ -103,7 +103,9 @@ function trend(S) {
   // daily history, with every update of the last week in finer detail
   const recent = (S.recent || []).map((r) => ({ date: r.ts, p_dem: r.p_dem, p_rep: r.p_rep, version: r.v }));
   const cutoff = recent.length ? Date.parse(recent[0].date) : Infinity;
-  const daily = (S.history || []).filter((d) => Date.parse(d.date) < cutoff - 864e5);
+  // a daily point is that day's last update, so it sits at the end of its (UTC) day
+  const daily = (S.history || []).map((d) => ({ ...d, date: `${d.date}T23:59:00Z`, when: `${fmt.date(d.date)} (end of day)` }))
+    .filter((d) => Date.parse(d.date) < cutoff);
   const series = [...daily, ...recent];
   trendChart(document.getElementById('trend'), series.length ? series : S.history, {
     label: 'Chance of winning over time',

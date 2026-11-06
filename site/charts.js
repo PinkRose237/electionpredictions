@@ -73,8 +73,34 @@ export function evHistogram(container, histogram, { height = 150 } = {}) {
 // Trend
 // ---------------------------------------------------------------------------
 /**
+ * Time ticks fitted to the span: hours (with the date at midnight) for spans up to ~2.5 days, otherwise days.
+ * Returns [{ t, label }].
+ */
+export function timeTicks(t0, t1, count = 5, { daily = false } = {}) {
+  const H = 36e5, span = Math.max(1, t1 - t0);
+  if (!daily && span <= 2.5 * 864e5) {
+    const stepH = [1, 2, 3, 6, 12, 24].find((hrs) => span / (hrs * H) <= count) || 24;
+    const d = new Date(t0);
+    d.setMinutes(0, 0, 0);
+    if (d.getTime() < t0) d.setHours(d.getHours() + 1);
+    const out = [];
+    for (let t = d.getTime(); t <= t1; t += H) {
+      const dt = new Date(t);
+      if (dt.getHours() % stepH) continue;
+      out.push({ t, label: dt.getHours() === 0 ? dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+        : dt.toLocaleTimeString('en-US', { hour: 'numeric' }) });
+    }
+    return out;
+  }
+  return dateTicks(t0, t1, count).map((t) => ({ t, label: new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) }));
+}
+
+/**
  * series: [{ label, value: (d) => number, color, format }] on a shared y domain.
  * band: optional { lo: (d)=>n, hi: (d)=>n, color } shaded range.
+ * Each datum has `date` (YYYY-MM-DD or a full ISO time) and optionally `when` (tooltip label) and `version`.
+ * The time axis spans exactly the data (at least 6 hours, ending at the latest point); dots are drawn only where
+ * points are spread out, plus the latest, so frequent updates read as one continuous line.
  */
 export function trendChart(container, history, { series, domain = [0, 1], tickFmt = (v) => `${Math.round(v * 100)}%`, ref = 0.5, band, height = 230, label } = {}) {
   const hist = (history || []).filter((d) => d && parseDate(d.date)).sort((a, b) => parseDate(a.date) - parseDate(b.date));
@@ -82,8 +108,11 @@ export function trendChart(container, history, { series, domain = [0, 1], tickFm
   responsiveChart(container, (w) => {
     const H = height, m = { t: 14, r: 64, b: 28, l: 42 };
     const times = hist.map((d) => parseDate(d.date).getTime());
-    let t0 = Math.min(...times), t1 = Math.max(...times);
-    if (t1 - t0 < 14 * 864e5) { const mid = (t0 + t1) / 2; t0 = mid - 7 * 864e5; t1 = mid + 7 * 864e5; }
+    let t0 = Math.min(...times);
+    const t1 = Math.max(...times);
+    const minSpan = hist.every((d) => !String(d.date).includes('T')) ? 864e5 : 6 * 36e5;
+    if (t1 - t0 < minSpan) t0 = t1 - minSpan;              // a short history still gets a readable window, never a future one
+    else t0 -= (t1 - t0) * 0.02;
     const x = scaleLinear([t0, t1], [m.l, w - m.r]);
     const y = scaleLinear(domain, [H - m.b, m.t]);
     const svg = svgEl('svg', { class: 'chart trend', viewBox: `0 0 ${w} ${H}`, width: w, height: H, role: 'img', 'aria-label': label || 'Trend over time' });
@@ -92,9 +121,12 @@ export function trendChart(container, history, { series, domain = [0, 1], tickFm
       svg.append(svgEl('line', { class: v === ref ? 'axis' : 'grid', x1: m.l, x2: w - m.r, y1: y(v), y2: y(v) }));
       svg.append(svgEl('text', { class: 'tick', x: m.l - 6, y: y(v) + 4, 'text-anchor': 'end' }, tickFmt(v)));
     }
-    for (const t of dateTicks(t0, t1, Math.max(2, Math.floor((w - m.l - m.r) / 90)))) {
-      svg.append(svgEl('text', { class: 'tick', x: x(t), y: H - m.b + 18, 'text-anchor': 'middle' },
-        new Date(t).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })));
+    const daily = hist.every((d) => !String(d.date).includes('T'));   // once-a-day points get date labels
+    for (const tk of timeTicks(t0, t1, Math.max(2, Math.floor((w - m.l - m.r) / 80)), { daily })) {
+      const xx = x(tk.t);
+      if (xx < m.l - 1 || xx > w - m.r + 1) continue;
+      const anchor = xx < m.l + 20 ? 'start' : 'middle';     // keep a label at the left edge inside the plot
+      svg.append(svgEl('text', { class: 'tick', x: xx, y: H - m.b + 18, 'text-anchor': anchor }, tk.label));
     }
     if (band) {
       const pts = hist.map((d, i) => [times[i], band.lo(d), band.hi(d)]).filter((p) => isNum(p[1]) && isNum(p[2]));
@@ -106,12 +138,15 @@ export function trendChart(container, history, { series, domain = [0, 1], tickFm
     }
     for (const s of series) {
       const pts = hist.map((d, i) => ({ t: times[i], v: s.value(d) })).filter((p) => isNum(p.v));
-      if (pts.length > 1) svg.append(svgEl('path', { class: 'series', d: pts.map((p, i) => `${i ? 'L' : 'M'}${x(p.t).toFixed(1)} ${y(p.v).toFixed(1)}`).join(' '), stroke: s.color }));
-      for (const p of pts.length <= 60 ? pts : pts.slice(-1)) svg.append(svgEl('circle', { class: 'marker', cx: x(p.t), cy: y(p.v), r: 3.5, fill: s.color }));
-      if (pts.length) {
-        const last = pts[pts.length - 1];
-        svg.append(svgEl('text', { class: 'label', x: x(last.t) + 8, y: y(last.v) + 4, fill: s.color }, (s.format || tickFmt)(last.v)));
-      }
+      if (!pts.length) continue;
+      const px = pts.map((p) => x(p.t));
+      if (pts.length > 1) svg.append(svgEl('path', { class: 'series', d: pts.map((p, i) => `${i ? 'L' : 'M'}${px[i].toFixed(1)} ${y(p.v).toFixed(1)}`).join(' '), stroke: s.color }));
+      const last = pts.length - 1;
+      const apart = (i) => (i === 0 || px[i] - px[i - 1] >= 10) && (i === last || px[i + 1] - px[i] >= 10);
+      pts.forEach((p, i) => {
+        if (i === last || apart(i)) svg.append(svgEl('circle', { class: 'marker', cx: px[i], cy: y(p.v), r: 3.5, fill: s.color }));
+      });
+      svg.append(svgEl('text', { class: 'label', x: px[last] + 8, y: y(pts[last].v) + 4, fill: s.color }, (s.format || tickFmt)(pts[last].v)));
     }
     const cross = svgEl('line', { class: 'crosshair', y1: m.t, y2: H - m.b, x1: 0, x2: 0, visibility: 'hidden' });
     const overlay = svgEl('rect', { class: 'hit', x: m.l, y: m.t, width: Math.max(1, w - m.l - m.r), height: H - m.t - m.b });
@@ -122,7 +157,8 @@ export function trendChart(container, history, { series, domain = [0, 1], tickFm
       for (let i = 1; i < times.length; i++) if (Math.abs(times[i] - t) < Math.abs(times[best] - t)) best = i;
       cross.setAttribute('x1', x(times[best])); cross.setAttribute('x2', x(times[best])); cross.setAttribute('visibility', 'visible');
       const d = hist[best];
-      tooltip.show(tipContent(fmt.date(d.date) + (d.version ? ` · model v${d.version}` : ''),
+      const when = d.when || (String(d.date).includes('T') ? fmt.dateTime(d.date) : fmt.date(d.date));
+      tooltip.show(tipContent(when + (d.version ? ` · model v${d.version}` : ''),
         series.map((s) => [s.label, (s.format || tickFmt)(s.value(d)), s.color])), e.clientX, e.clientY);
     });
     overlay.addEventListener('pointerleave', () => { cross.setAttribute('visibility', 'hidden'); tooltip.hide(); });
