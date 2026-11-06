@@ -124,7 +124,11 @@ and never refers to AI.
 
 ## Keeping it updated
 
-`.github/workflows/update.yml` runs the full pipeline **every 15 minutes** and deploys `site/` to GitHub Pages.
+`.github/workflows/update.yml` runs the full pipeline and deploys `site/` to GitHub Pages, then **starts the next
+run itself** after a pause (the `next` job), so an update lands about every 15 minutes around the clock. GitHub
+throttles busy cron schedules (in practice runs were hours apart), so the cron is only a backstop that restarts the
+loop if it stops; the workflow's concurrency group keeps exactly one loop. Set the repository variable
+`FORECAST_PAUSED=true` to pause it, `FORECAST_INTERVAL_MIN` to change the pause (default 12 minutes).
 The model's state (the database with every model version, and the published `site/data`) lives on the
 **`forecast-data` branch** as a single commit that each run replaces, so `main` holds only code and the
 repository does not grow with every update; `site/data` is git-ignored on main and copied in at deploy time

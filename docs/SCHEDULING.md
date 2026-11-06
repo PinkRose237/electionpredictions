@@ -1,12 +1,15 @@
 # Scheduling updates
 
 ## GitHub Actions (hosted)
-`.github/workflows/update.yml` rebuilds the 2028 model every 15 minutes (cron `7,22,37,52 * * * *`) and on demand
+`.github/workflows/update.yml` rebuilds the 2028 model in a self-sustaining loop: each run ends by waiting
+(`FORECAST_INTERVAL_MIN`, default 12 minutes) and dispatching the next, about one update every 15 minutes. GitHub
+throttles busy cron schedules, so the cron (`7,37 * * * *`) only restarts the loop if it ever stops; set the
+repository variable `FORECAST_PAUSED=true` to pause. Also on demand
 (Actions → Update forecast (2028) → Run workflow; tick *dry_run* to skip saving and deploying). Each run restores the
 model state from the `forecast-data` branch (database + published data, one commit replaced every run) and the HTTP
 cache from `actions/cache`, runs the pipeline, pushes the new state and deploys `site/` to GitHub Pages.
 Setup: enable Pages with source "GitHub Actions" and add the `OPENCODE_API_KEY` secret; `FEC_API_KEY` is optional.
-GitHub may start scheduled runs late, or skip some, when it is busy; the next run catches up.
+GitHub may start the backstop cron late, or skip it, when it is busy; the loop itself does not depend on it.
 
 ## cron (Linux/macOS)
 ```

@@ -1,16 +1,20 @@
 name: Update forecast (2028)
 
-# The forecast updates continuously: every 15 minutes this rebuilds the 2028 model end to end — refresh the
-# evidence, recalibrate the specification, research and revise it (OPENCODE_API_KEY), run the final simulation,
-# write the summaries, export and deploy. Run it by hand from the Actions tab; tick dry_run to skip saving and
-# deploying (the exported data is attached as an artifact).
+# The forecast updates continuously: each run rebuilds the 2028 model end to end — refresh the evidence, recalibrate
+# the specification, research and revise it (OPENCODE_API_KEY), run the final simulation, write the summaries,
+# export and deploy — and then, after a pause, starts the next run itself (the `next` job), so a new update lands
+# about every 15 minutes around the clock. GitHub throttles busy cron schedules (runs can be hours apart), so the
+# cron below is only a backstop that restarts the loop if it ever stops; the concurrency group keeps exactly one
+# loop. Pause it by setting the repository variable FORECAST_PAUSED to "true"; set FORECAST_INTERVAL_MIN to change
+# the pause between runs (default 12). Run by hand from the Actions tab; tick dry_run to skip saving and deploying
+# (the exported data is attached as an artifact, and a dry run does not start the loop).
 #
 # State: the model database and the published data live on the `forecast-data` branch as a single commit that
 # every run replaces, so main keeps only code and the repository does not grow with each update. HTTP responses
 # are cached between runs with actions/cache (the per-source lifetimes are in config.py).
 on:
   schedule:
-    - cron: "7,22,37,52 * * * *"
+    - cron: "7,37 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -22,6 +26,7 @@ permissions:
   contents: write
   pages: write
   id-token: write
+  actions: write      # lets a run start the next one
 
 concurrency:
   group: update-forecast
@@ -29,6 +34,7 @@ concurrency:
 
 jobs:
   update:
+    if: ${{ vars.FORECAST_PAUSED != 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     outputs:
@@ -120,3 +126,22 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  next:
+    # Keep the loop going: wait, then start the next update (it begins as soon as this run finishes).
+    needs: [update, deploy]
+    if: ${{ always() && !inputs.dry_run && vars.FORECAST_PAUSED != 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Pause, then start the next update
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INTERVAL_MIN: ${{ vars.FORECAST_INTERVAL_MIN || '12' }}
+        run: |
+          sleep $(( INTERVAL_MIN * 60 ))
+          for attempt in 1 2 3; do
+            gh workflow run update.yml --repo "${{ github.repository }}" --ref "${{ github.ref_name }}" && exit 0
+            sleep 30
+          done
+          echo "could not start the next run; the cron backstop will restart the loop" && exit 1
