@@ -1,0 +1,32 @@
+.tracker-label { color: var(--ink-3); text-transform: uppercase; font-size: 12px; font-weight: 600; letter-spacing: .09em; margin-bottom: 8px; }
+.tracker-head { max-width: 850px; }
+.tracker-assessment { border-left: 3px solid var(--ind); background: var(--surface-2); padding: 16px 20px; margin-bottom: 24px; }
+.tracker-assessment p { margin: 0 0 8px; }
+.tracker-assessment p:last-child { margin-bottom: 0; }
+.tracker-stale { color: var(--ind); }
+.tracker-controls { display: flex; flex-wrap: wrap; gap: 8px; margin: 24px 0 12px; }
+.tracker-controls button { padding: 9px 18px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--surface); color: var(--ink-2); cursor: pointer; font: inherit; font-size: 14px; }
+.tracker-controls button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.tracker-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.tracker-odds { border-top: 3px solid var(--tracker-color); }
+.tracker-odds h2 { font-size: 15px; font-weight: 600; min-height: 38px; margin-bottom: 12px; }
+.tracker-number { font-size: clamp(36px, 4vw, 56px); font-weight: 700; line-height: 1; letter-spacing: -.04em; }
+.tracker-meter { height: 5px; border-radius: 3px; background: var(--surface-3); overflow: hidden; margin: 16px 0 12px; }
+.tracker-meter span { display: block; height: 100%; background: var(--tracker-color); }
+.tracker-odds p { margin: 8px 0 0; }
+.tracker-primary { background: var(--surface-2); }
+.tracker-context { display: flex; flex-wrap: wrap; gap: 8px 28px; font-size: 14px; padding: 18px 0 4px; }
+.tracker-empty { padding: 32px 0; max-width: 650px; }
+.tracker-legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 12px; color: var(--ink-2); }
+.tracker-legend i { display: inline-block; width: 14px; height: 3px; margin-right: 6px; vertical-align: middle; }
+.tracker-evidence h3 { font-size: 15px; margin: 4px 0 6px; }
+.tracker-evidence p { margin: 0 0 8px; }
+.tracker-review { padding: 16px 0; border-top: 1px solid var(--border); }
+.tracker-review h3 { font-size: 15px; margin-bottom: 8px; }
+.tracker-method p { max-width: 850px; }
+.tracker-method summary { font-weight: 600; cursor: pointer; }
+.tracker-method details { margin-top: 16px; }
+.tracker-method .data th { white-space: normal; }
+.tracker-method caption { text-align: left; padding: 16px 0 8px; color: var(--ink-2); font-size: 13px; }
+@media (max-width: 1000px) { .tracker-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .tracker-grid { grid-template-columns: minmax(0, 1fr); } .tracker-odds h2 { min-height: 0; } .tracker-controls button { flex: 1; padding: 9px; } }

@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hegseth tracker — Presidential Model 2028</title>
+  <meta name="description" content="Pete Hegseth firing, impeachment and Senate removal probabilities, with 30-day, 90-day and end-of-term horizons, evidence and methodology.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Hegseth tracker — Presidential Model 2028">
+  <meta property="og:description" content="Pete Hegseth firing, impeachment and Senate removal probabilities, with 30-day, 90-day and end-of-term horizons, evidence and methodology.">
+  <meta property="og:url" content="https://pinkrose237.github.io/electionpredictions/hegseth.html">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231b1b1a'/%3E%3Crect x='5' y='9' width='10' height='14' rx='2' fill='%232166ac'/%3E%3Crect x='17' y='9' width='10' height='14' rx='2' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./hegseth.css">
+</head>
+<body>
+  <a class="visually-hidden" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html" data-nav="brand"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Presidential Model 2028</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" data-nav="home">Forecast</a>
+        <a href="map.html" data-nav="map">Map</a>
+        <a href="states.html" data-nav="states">States</a>
+        <a href="field.html" data-nav="field">The field</a>
+        <a href="polls.html" data-nav="polls">Polls</a>
+        <a href="model.html" data-nav="model">Model log</a>
+        <a href="hegseth.html" data-nav="hegseth">Hegseth</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
+      </nav>
+      <div class="topbar-meta" data-updated></div>
+    </div>
+  </header>
+
+  <main id="main" class="container">
+    <div id="status" class="status" role="status">Loading the Hegseth tracker…</div>
+    <div id="app" hidden>
+      <div class="page-head tracker-head">
+        <div class="tracker-label">Cabinet watch · independent event model</div>
+        <h1>Pete Hegseth: exit &amp; impeachment tracker</h1>
+        <p>The likelihood of a presidential firing, a House impeachment, or Senate conviction and removal during his current tenure as Secretary of Defense.</p>
+        <p id="office-status" class="small muted"></p>
+      </div>
+      <div class="tracker-assessment">
+        <p><strong>Experimental · judgment-based forecast.</strong> These estimates use explicit assumptions, not a statistically calibrated cabinet-departure model. Sensitivity ranges show how the result changes under different rates; they are not confidence intervals.</p>
+        <p id="assessment"></p>
+        <p id="review-status" class="small muted"></p>
+      </div>
+      <div id="horizon-controls" class="tracker-controls" role="group" aria-label="Forecast horizon">
+        <button type="button" data-horizon="30d" aria-pressed="false">30 days</button>
+        <button type="button" data-horizon="90d" aria-pressed="true">90 days</button>
+        <button type="button" data-horizon="term" aria-pressed="false">End of term</button>
+      </div>
+      <div id="forecast-content">
+        <p id="horizon-description" class="small muted" aria-live="polite"></p>
+        <section id="odds" class="tracker-grid" aria-label="Outcome probabilities"></section>
+        <div id="departure-context" class="tracker-context"></div>
+        <p id="overlap-note" class="small muted"></p>
+        <section class="section card" aria-labelledby="h-trend">
+          <h2 id="h-trend">How the outlook is moving</h2>
+          <p id="trend-note" class="card-sub"></p>
+          <div id="trend"></div>
+          <div class="tracker-legend"><span><i style="background:#92712b"></i>Fired or removed</span><span><i style="background:#6b64b0"></i>House impeachment</span><span><i style="background:#37857e"></i>Senate removal</span></div>
+        </section>
+      </div>
+      <section class="section two-col">
+        <div class="card"><h2>Evidence behind the assessment</h2><p class="card-sub">Dated sources and the procedural facts that frame the model.</p><ul id="evidence" class="news-list tracker-evidence"></ul></div>
+        <div class="card"><h2>Latest coverage</h2><p id="news-status" class="card-sub"></p><p id="collection-warning" class="small tracker-stale" hidden></p><ul id="coverage" class="news-list"></ul></div>
+      </section>
+      <section class="section card tracker-method" aria-labelledby="h-method">
+        <h2 id="h-method">How this tracker works</h2>
+        <p>A competing-risk model follows service in office, House impeachment, and departure. Firing and resignation can happen before or after impeachment; Senate removal can happen only after impeachment while still serving. The model keeps those paths separate so departure probabilities cannot be double counted.</p>
+        <p>Headlines are collected with the regular forecast pipeline. Evidence reviews can revise the four daily transition rates, with a source and reason for each change, within hard bounds and by at most a factor of two per review. Unchanged evidence does not trigger another review; reviews are spaced at least six hours apart. If a collection or review fails, the last assumptions remain in force and their original review date stays visible.</p>
+        <p>Actual impeachment and departure require a separately verified status update; headlines never automatically mark an event as completed. This tracker covers the current tenure before January 20, 2029, excludes impeachment after departure, and treats requested resignations as resignations. Other causes of departure and a return to office are outside the model.</p>
+        <p>Long-range estimates depend heavily on the background assumptions. Sensitivity ranges vary each reviewed rate independently between half and twice its value, and vary background rates together by the same factors. They measure assumption sensitivity and have no claimed statistical coverage. The model has not been backtested.</p>
+        <details><summary>Inspect the rates and calculation</summary>
+          <p id="rate-window" class="small muted"></p>
+          <div id="rate-table" class="table-wrap"></div>
+          <p class="small muted">For each period, state probabilities are propagated by the matrix exponential exp(Q × days), where Q holds the daily transition rates. The starting rates and background rates are modeling judgments, not measured frequencies. Prediction-market prices and the presidential election model are not inputs.</p>
+        </details>
+      </section>
+      <section class="section card"><h2>Evidence review log</h2><p class="card-sub">Saved reviews, including the source and before/after rate for every change. Daily observations begin when this tracker first runs.</p><div id="reviews"></div></section>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <h4>Tracker sources</h4>
+        <ul>
+          <li>Procedural rules: U.S. Senate and House of Representatives</li>
+          <li>Introduced resolution: U.S. Government Publishing Office</li>
+          <li>Initial reporting: ABC News, November 5, 2026</li>
+          <li>Current coverage: Google News RSS; sources attributed above</li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li><a href="methodology.html">How the model works</a> · <a href="model.html">Model log</a></li>
+          <li data-generated></li>
+          <li><a href="admin.html">Admin</a></li>
+          <li><span data-site-name>Presidential Model 2028</span> · independent, not affiliated with any campaign or party</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="./hegseth.js"></script>
+</body>
+</html>

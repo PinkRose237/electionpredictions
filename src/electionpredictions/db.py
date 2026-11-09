@@ -120,6 +120,17 @@ CREATE TABLE IF NOT EXISTS storylines (        -- the forecast's running notes o
 CREATE TABLE IF NOT EXISTS research (          -- searches run by the revision step and what they returned
     id INTEGER PRIMARY KEY AUTOINCREMENT, created_at TEXT NOT NULL, query TEXT NOT NULL, why TEXT, results TEXT
 );
+CREATE TABLE IF NOT EXISTS hegseth_reviews (
+    id INTEGER PRIMARY KEY AUTOINCREMENT, reviewed_at TEXT NOT NULL,
+    rates TEXT NOT NULL, summary TEXT NOT NULL, reasons TEXT NOT NULL,
+    input_hash TEXT, model TEXT
+);
+CREATE TABLE IF NOT EXISTS hegseth_history (
+    date TEXT PRIMARY KEY, detail TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS hegseth_news (
+    url TEXT PRIMARY KEY, title TEXT, source TEXT, published TEXT, fetched_at TEXT NOT NULL
+);
 """
 
 # Columns added after the first release; connect() adds whichever are missing (CI restores older databases).
@@ -155,6 +166,7 @@ def prune(con) -> dict:
     out["runs"] = con.execute("DELETE FROM runs WHERE finished_at < datetime('now', '-14 days')").rowcount
     out["run_log"] = con.execute("DELETE FROM run_log WHERE ts < datetime('now', '-90 days')").rowcount
     out["news"] = con.execute("DELETE FROM news WHERE fetched_at < datetime('now', '-21 days')").rowcount
+    out["hegseth_news"] = con.execute("DELETE FROM hegseth_news WHERE fetched_at < datetime('now', '-30 days')").rowcount
     out["research"] = con.execute("DELETE FROM research WHERE created_at < datetime('now', '-30 days')").rowcount
     out["storylines"] = con.execute("DELETE FROM storylines WHERE id NOT IN (SELECT id FROM storylines ORDER BY id DESC LIMIT 200)").rowcount
     # keep every version's changelog, but only the most recent 500 full specifications

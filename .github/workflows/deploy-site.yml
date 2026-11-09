@@ -26,8 +26,13 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
       - name: Add the latest forecast data (kept on the forecast-data branch, not on main)
         uses: ./.github/actions/forecast-data
+        with:
+          database: "true"
+      - name: Export the Hegseth tracker from the restored state (no network or model revision)
+        run: uv run electionpredictions hegseth --offline
       - uses: actions/upload-pages-artifact@v3
         with:
           path: site

@@ -100,7 +100,7 @@ def test_rebuild_with_revision_applies_guardrails_and_logs(db, monkeypatch, tmp_
 
     # export writes every file the site reads
     s = export(db, out_dir=tmp_path / "site", verbose=False)
-    for f in ("summary.json", "states.json", "scenarios.json", "field.json", "polls.json", "model.json", "meta.json"):
+    for f in ("summary.json", "states.json", "scenarios.json", "field.json", "polls.json", "model.json", "meta.json", "hegseth.json"):
         assert (tmp_path / "site" / f).exists(), f
     assert len(list((tmp_path / "site" / "states").glob("*.json"))) == 56
     assert s["model"]["origin"] == "revision" and s["overview"]["summary"].startswith("Para one")

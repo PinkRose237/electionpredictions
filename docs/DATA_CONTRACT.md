@@ -88,3 +88,33 @@ regression), `house_effects` (`{pollster: {effect, sd, n_polls}}`), `midterm_202
 ## `meta.json`
 `{generated_at, version, runs: [{stage, started_at, finished_at, ok, note}], research: [{created_at, query, why, results}]}`
 (last 40 pipeline stages; the latest research searches, shown on the admin page).
+
+## `hegseth.json`
+
+Independent event forecast; all probabilities are 0–1. No election or market inputs.
+`available` is false before tracking begins (November 9, 2026), with a `message` for the page.
+Otherwise:
+
+- `generated_at`, `as_of`, `term_end` (exclusive January 20, 2029 deadline).
+- `status`: `{state, was_impeached, verified_on, url}`. A manually verified state, separate from forecasts.
+- `reviewed_at`, `initial_assumptions`, `review_stale` (review older than two days), `model_version`, `summary`.
+- `rates`, `background`: `{firing, resignation, impeachment, conviction}` conditional daily hazards,
+  not horizon probabilities. `bounds` has `[low, high]` for each reviewed rate. `elevated_until` is the
+  original review date plus 90 days; afterward background rates apply.
+- `horizons`: `[{id: "30d"|"90d"|"term", label, deadline, days, probabilities, sensitivity}]`.
+  Deadlines are capped at the term end. Each `probabilities` object has `forced_exit`, `fired`,
+  `impeached`, `removed`, `resigned`, `any_exit`, `still_serving`.
+  `forced_exit = fired + removed`; `any_exit = forced_exit + resigned = 1 - still_serving`;
+  `removed <= impeached`. Impeachment overlaps departure outcomes and must not be added to them.
+  `sensitivity` maps each metric to `[low, high]` across assumption scenarios, **not a confidence interval**.
+- `sources`: `[{date|null, source, title, detail, url}]` supporting the initial assessment and process.
+- `news`: `[{title, source, published, url}]` (last 30 days, maximum 24); `news_fetched_at` is the last
+  successful collection time, not the assumption review time. `last_update` is `{finished_at, ok, note}`
+  or null; `note` is JSON with collection/review status and warnings.
+- `reviews`: latest 40, newest first: `[{id, date, initial, summary, reasons}]`.
+  `reasons` maps a changed rate to `{before, after, reason, urls}`.
+- `history`: `[{date, horizons}]`, one actual saved observation per day, same horizon schema.
+  No backfill. The 30/90-day histories have rolling deadlines; the end-of-term deadline is fixed.
+
+The tracker reads only this file and works without `summary.json`. The page polls its own
+`generated_at` for updates. Its SQLite tables are `hegseth_news`, `hegseth_reviews`, `hegseth_history`.

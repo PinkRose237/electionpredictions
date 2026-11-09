@@ -748,7 +748,7 @@ let watching = null;
  * The forecast reruns every 15 minutes: check for a newer summary every two minutes and offer a refresh (or reload
  * by itself when the tab was in the background). Relative times on the page tick along meanwhile.
  */
-export function watchForUpdates(generatedAt, { base } = {}) {
+export function watchForUpdates(generatedAt, { base, file = 'summary.json', message = 'The forecast has been updated.' } = {}) {
   if (watching || !generatedAt) return;
   watching = generatedAt;
   const tick = () => document.querySelectorAll('[data-rel]').forEach((el) => { if (el.dataset.rel) el.textContent = relativeTime(el.dataset.rel); });
@@ -757,7 +757,7 @@ export function watchForUpdates(generatedAt, { base } = {}) {
     tick();
     if (notified) return;
     try {
-      const res = await fetch(`${base || DATA_BASE}/summary.json`, { cache: 'no-store' });
+      const res = await fetch(`${base || DATA_BASE}/${file}`, { cache: 'no-store' });
       if (!res.ok) return;
       const s = await res.json();
       if (s.generated_at && s.generated_at !== watching) {
@@ -765,7 +765,7 @@ export function watchForUpdates(generatedAt, { base } = {}) {
         if (document.visibilityState === 'hidden') { window.addEventListener('visibilitychange', () => location.reload(), { once: true }); return; }
         const btn = h('button', { type: 'button', class: 'btn' }, 'Refresh');
         btn.addEventListener('click', () => location.reload());
-        document.body.append(h('div', { class: 'update-toast', role: 'status' }, h('span', {}, 'The forecast has been updated.'), btn));
+        document.body.append(h('div', { class: 'update-toast', role: 'status' }, h('span', {}, message), btn));
       }
     } catch (e) { /* offline: try again later */ }
   };

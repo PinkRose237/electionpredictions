@@ -265,6 +265,9 @@ def export(con, out_dir: Path = SITE_DATA_DIR, verbose: bool = True) -> dict:
     research = [dict(r, results=json.loads(r["results"] or "[]")) for r in rows(con, "SELECT created_at, query, why, results FROM research ORDER BY id DESC LIMIT 24")]
     _write(out_dir / "meta.json", dict(generated_at=summary["generated_at"], version=VERSION, runs=[dict(r, ok=bool(r["ok"])) for r in runs],
                                        research=research))
+    from . import hegseth
+
+    hegseth.export(con, out_dir)
     if verbose:
         ec = summary["ec"]
         print(f"  exported {len(table)} contests to {out_dir} (spec v{N.get('spec_version')}; P(D)={ec['p_dem']:.3f})")

@@ -147,6 +147,8 @@ def main(argv=None):
     m.add_argument("--no-revision", action="store_true", help="calibrate only; do not call the revision step")
     m.add_argument("--no-narrative", action="store_true", help="skip the written summaries")
     sub.add_parser("export", help="write site/data JSON")
+    h = sub.add_parser("hegseth", help="update and export the independent Hegseth tracker")
+    h.add_argument("--offline", action="store_true", help="use stored evidence and rates; no network/revision")
     r = sub.add_parser("run", help="ingest + model + export (one full update)")
     r.add_argument("--skip", default="", help="comma-separated stages to skip (ingest stages, or 'revision', 'narrative')")
     r.add_argument("--sims", type=int, default=50000)
@@ -208,10 +210,19 @@ def main(argv=None):
         rebuild(con, n_sims=args.sims, seed=args.seed, revise=not args.no_revision, narrate=not args.no_narrative)
     elif args.cmd == "export":
         export(con)
+    elif args.cmd == "hegseth":
+        from . import hegseth
+
+        print(hegseth.update(con, fetch_news=not args.offline, revise=not args.offline))
+        hegseth.export(con)
     elif args.cmd == "run":
         skip = tuple(filter(None, args.skip.split(",")))
         ingest(con, skip=skip)
         rebuild(con, n_sims=args.sims, revise="revision" not in skip, narrate="narrative" not in skip)
+        if "hegseth" not in skip:
+            from . import hegseth
+
+            print("[hegseth]", hegseth.update(con, revise="revision" not in skip))
         export(con)
     elif args.cmd == "status":
         status(con)

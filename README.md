@@ -39,6 +39,7 @@ Commands:
 uv run electionpredictions ingest [--only polls,primaries]   # stages: polls, primaries, approval, economy, ratings, money, markets, news
 uv run electionpredictions model [--no-revision] [--no-narrative] [--sims 50000]   # calibrate, revise, run, store a new spec version
 uv run electionpredictions export                            # write site/data
+uv run electionpredictions hegseth [--offline]                # update/export the independent cabinet tracker
 uv run electionpredictions run [--skip news,revision]        # all of the above
 uv run electionpredictions status                            # database contents and the latest model versions
 uv run electionpredictions sync-state                        # replace local database + site/data with the live state
@@ -153,10 +154,44 @@ an artifact).
 | `field.html` | Both nomination contests: candidates, primary polling, nomination odds, strength, fundraising, markets |
 | `polls.html` | Trial heats with their weights, candidate polling strength, pollster house effects, approval, the economy, the 2026 midterms |
 | `model.html` | The current specification, storylines, every setting with its bounds, and every revision with its reasons |
+| `hegseth.html` | Hegseth firing, House impeachment and Senate removal odds over 30 days, 90 days and the remainder of the term; sources, sensitivity, history and review log |
 | `methodology.html` | How it works |
 | `admin.html` | Sign-in; links to the 2026 archive; pipeline log, the latest research searches, raw model data |
 
 Plain HTML/CSS/JS modules, no build step: publish `site/` anywhere static files are served.
+
+The Hegseth page uses a **separate experimental, judgment-based event model**, not the presidential
+simulation or market prices. Its four conditional daily hazards (firing, resignation, House impeachment,
+Senate conviction) propagate through a competing-risk process. House impeachment can precede firing or
+resignation; Senate removal requires impeachment while still serving. Requested resignations count as
+resignations. The headline `forced_exit` is firing plus Senate removal, without double counting. The
+forecast covers his current tenure, excludes post-departure impeachment and other causes of departure,
+and ends before January 20, 2029.
+
+`model/hegseth.py` holds the explicit initial rates, bounds and background assumptions. **The rates are
+modeling judgments, not measured historical frequencies; the model has not been backtested.** Reviewed
+rates apply for 90 days from their actual review date and then revert to background rates. Sensitivity
+ranges enumerate independent half/double reviewed-rate scenarios and half/double background rates;
+they are not confidence intervals. The dated seed assessment is November 9, 2026, using the linked
+ABC reporting, introduced resolution and Senate process reference in `hegseth.py`.
+
+The normal `run` command collects two cached news feeds and attempts a bounded evidence review using
+the existing revision model chain/key, then exports `site/data/hegseth.json`. Tracker evidence and
+reviews use their own SQLite tables and do not enter the presidential model. Each rate change needs
+a supplied source URL and reason, is limited to half/double its previous value and absolute bounds,
+and is logged. Identical evidence is not reviewed again; changed evidence is reviewed at most every
+six hours. Missing keys, empty feeds and failed reviews retain the prior assumptions and review date.
+The page shows review age, news collection time, and failed-update status separately. Completed events
+are **not resolved from headlines**: update `hegseth.STATUS` against an authoritative announcement or
+roll-call result, including `verified_on`, `url`, and `was_impeached` for a departure after impeachment.
+States are `serving`, `impeached`, `fired`, `resigned`, or `removed`.
+
+`uv run electionpredictions hegseth --offline` seeds/exports the tracker without network calls or
+revisions; `run --skip hegseth` skips its update, and `run --skip revision` also disables its reviews.
+The main exporter always includes its JSON. Daily observations are stored only when the tracker runs,
+with no invented historical series. The existing `forecast-data` database backup preserves both its
+reviews and observations. The site-only deployment restores the database and exports the tracker
+offline so a new page never depends on waiting for the next scheduled model update.
 
 ## Configuration
 
