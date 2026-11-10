@@ -1,0 +1,57 @@
+.representatives-page { padding-bottom: var(--s6); }
+.representatives-page .page-head { max-width: 760px; }
+.reps-eyebrow { color: var(--link); text-transform: uppercase; letter-spacing: .1em; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+.reps-search { border-top: 3px solid var(--link); }
+.reps-search h2 { margin-bottom: 20px; }
+.reps-precision { border: 0; padding: 0; margin: 0 0 20px; display: flex; flex-wrap: wrap; gap: 12px 28px; }
+.reps-precision legend { font-size: 13px; color: var(--ink-2); margin-bottom: 8px; }
+.reps-precision label, .reps-email-filter { display: flex; align-items: center; gap: 7px; }
+.reps-precision label { flex-wrap: wrap; }
+.reps-search input[type=radio], .reps-email-filter input { accent-color: var(--link); width: 17px; height: 17px; }
+#address-label { display: block; font-weight: 600; margin-bottom: 8px; }
+.reps-search-row { display: flex; gap: 10px; margin-bottom: 10px; }
+#address { min-width: 0; flex: 1; font: inherit; color: var(--ink); background: var(--surface); padding: 13px 14px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); }
+.reps-primary { background: var(--link); border-color: var(--link); color: var(--surface); font-weight: 600; }
+.reps-primary:disabled { opacity: .7; cursor: wait; }
+.reps-search .btn { padding: 12px 18px; font-size: 14px; }
+.reps-status:empty { display: none; }
+.reps-status { margin: 16px 0 0; color: var(--ink-2); }
+.reps-notice { background: var(--surface-2); padding: 14px 18px; border-left: 3px solid var(--border-strong); margin: 16px 0; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; color: var(--ink-2); }
+#lookup-error { border-left-color: var(--rep); }
+.reps-notice p:last-child { margin-bottom: 0; }
+.reps-result-tools { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; margin: 24px 0 12px; }
+.reps-filters { display: flex; flex-wrap: wrap; gap: 6px; }
+.reps-filters button { cursor: pointer; font: inherit; font-size: 13px; padding: 7px 12px; border-radius: 30px; color: var(--ink-2); background: var(--surface); border: 1px solid var(--border); }
+.reps-filters button[aria-pressed=true] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.reps-email-filter { font-size: 13px; }
+.reps-group { margin: 28px 0 36px; }
+.reps-group h3 { font-size: 19px; margin-bottom: 14px; }
+.reps-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.rep-card { padding: 22px; display: flex; flex-direction: column; min-width: 0; }
+.rep-office { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--link); font-weight: 600; margin-bottom: 8px; }
+.rep-card h4 { font-size: 20px; margin-bottom: 8px; }
+.rep-area { font-size: 13px; color: var(--ink-2); margin-bottom: 20px; }
+.rep-contacts { margin: auto 0 16px; }
+.rep-contacts > div { padding: 9px 0; border-top: 1px solid var(--border); }
+.rep-contacts dt { font-size: 12px; font-weight: 600; color: var(--ink-2); margin-bottom: 3px; }
+.rep-contacts dd { margin: 0; overflow-wrap: anywhere; font-size: 14px; }
+.rep-contacts dd > a { display: block; }
+.rep-email { background: var(--surface-2); padding: 10px !important; border-radius: var(--radius-sm); }
+.rep-email .btn { font-size: 11px; margin-top: 7px; }
+.rep-source { font-size: 11px; color: var(--ink-3); margin: 0; }
+.rep-source a + a { margin-left: 10px; }
+.reps-coverage { margin-top: 32px; }
+.reps-coverage h2, .reps-explainer h2, .reps-directories h2 { margin-bottom: 12px; }
+.reps-coverage ul { columns: 2; margin-top: 16px; }
+.reps-coverage li { break-inside: avoid; margin-bottom: 10px; font-size: 13px; }
+.reps-directories li { margin: 8px 0; }
+.reps-explainer p { color: var(--ink-2); }
+[hidden] { display: none !important; }
+@media (max-width: 1000px) { .reps-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 650px) {
+  .reps-search-row { flex-direction: column; }
+  .reps-grid { grid-template-columns: minmax(0, 1fr); }
+  .reps-coverage ul { columns: 1; }
+  .reps-precision { flex-direction: column; }
+  .rep-card { padding: 20px; }
+}

@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contact your representatives — Presidential Model 2028</title>
+  <meta name="description" content="Find public contact information for your local, county, school board, state, and federal officials using a U.S. address or general area.">
+  <meta name="referrer" content="no-referrer">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231b1b1a'/%3E%3Crect x='5' y='9' width='10' height='14' rx='2' fill='%232166ac'/%3E%3Crect x='17' y='9' width='10' height='14' rx='2' fill='%23b2182b'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>(function(){try{var t=localStorage.getItem('theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./representatives.css">
+</head>
+<body>
+  <a class="visually-hidden" href="#main">Skip to content</a>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <a class="brand" href="index.html" data-nav="brand"><span class="brand-mark" aria-hidden="true"></span><span data-site-name>Presidential Model 2028</span></a>
+      <nav class="nav" aria-label="Primary">
+        <a href="index.html" data-nav="home">Forecast</a>
+        <a href="map.html" data-nav="map">Map</a>
+        <a href="states.html" data-nav="states">States</a>
+        <a href="field.html" data-nav="field">The field</a>
+        <a href="polls.html" data-nav="polls">Polls</a>
+        <a href="model.html" data-nav="model">Model log</a>
+        <a href="hegseth.html" data-nav="hegseth">Hegseth</a>
+        <a href="representatives.html" data-nav="representatives">Contact your reps</a>
+        <a href="methodology.html" data-nav="methodology">Methodology</a>
+      </nav>
+      <div class="topbar-meta" data-updated></div>
+    </div>
+  </header>
+
+  <main id="main" class="container representatives-page">
+    <div class="page-head">
+      <p class="reps-eyebrow">Your community. Your government.</p>
+      <h1>Contact your representatives</h1>
+      <p class="lede">Find the people who serve your area, from local boards to Washington, and how to reach their offices.</p>
+    </div>
+
+    <section class="card reps-search" aria-labelledby="search-heading">
+      <h2 id="search-heading">Start with where you live</h2>
+      <form id="representatives-form">
+        <fieldset class="reps-precision">
+          <legend>Search using</legend>
+          <label><input type="radio" name="precision" value="address" checked> Full address <span class="small muted">Most accurate</span></label>
+          <label><input type="radio" name="precision" value="area"> City or ZIP code <span class="small muted">Approximate</span></label>
+        </fieldset>
+        <label for="address" id="address-label">U.S. street address, city and state or ZIP code</label>
+        <div class="reps-search-row">
+          <input id="address" name="address" type="text" required minlength="3" maxlength="300" autocomplete="street-address" placeholder="123 Main Street, Springfield, IL 62701" aria-describedby="address-help privacy-note" enterkeyhint="search">
+          <button class="btn reps-primary" type="submit" id="find-representatives">Find my representatives →</button>
+          <button class="btn" type="button" id="cancel-lookup" hidden>Cancel</button>
+        </div>
+        <p id="address-help" class="small">District boundaries can cross cities and ZIP codes. Use your home address for the closest match.</p>
+        <p id="privacy-note" class="small muted">Your search is sent to <a href="https://jurisdictional.org/about" target="_blank" rel="noopener noreferrer">Jurisdictional</a> to find your districts. This page does not save your address or put it in the page URL.</p>
+      </form>
+      <p id="lookup-status" class="reps-status" role="status" aria-live="polite" aria-atomic="true"></p>
+      <div id="lookup-error" class="reps-notice" role="alert" hidden></div>
+      <noscript><p>JavaScript is needed for address lookup. You can also use the official directories below.</p></noscript>
+    </section>
+
+    <section id="representatives-results" class="section" aria-labelledby="results-heading" hidden>
+      <div class="section-head">
+        <h2 id="results-heading" tabindex="-1">Your representatives</h2>
+        <p id="matched-address"></p>
+        <p id="matched-location" class="small"></p>
+      </div>
+      <div id="accuracy-note" class="reps-notice"></div>
+      <div id="contact-warning" class="reps-notice" hidden>Some contact directories could not be loaded. The list below may be missing officials or contact details. Please try your search again.</div>
+      <div class="reps-result-tools">
+        <div id="level-filters" class="reps-filters" role="group" aria-label="Filter by level of government"></div>
+        <label class="reps-email-filter"><input id="email-only" type="checkbox"> With a listed email</label>
+      </div>
+      <p id="result-count" class="small muted" role="status"></p>
+      <div id="representatives-list"></div>
+      <section class="card reps-coverage" aria-labelledby="coverage-heading">
+        <h2 id="coverage-heading">Check coverage in your area</h2>
+        <p>This is the list available from our sources, and may be incomplete even with a full address. A district with no recorded officials does not mean no one represents you. School boards, judges, sheriffs, election officials, tribal governments and special districts may need a separate directory check.</p>
+        <ul id="coverage-list"></ul>
+      </section>
+    </section>
+
+    <section class="section two-col reps-explainer" aria-label="About this directory">
+      <div class="card">
+        <h2>Every level matters</h2>
+        <p>We look for municipal and county officials, school boards and other districts, state legislators and statewide officers, your members of Congress, and the president and vice president.</p>
+        <p>Coverage varies by location. We show all matching records available, including offices with missing contact details, so gaps stay visible.</p>
+      </div>
+      <div class="card">
+        <h2>Email is the first place to look</h2>
+        <p>We show public office email addresses when our sources list them. Some offices use a contact form instead of publishing an email; those forms are labeled separately.</p>
+        <p>We never guess an email address. “Not listed in sources” means you should check the official website for another way to write.</p>
+      </div>
+    </section>
+    <section class="section card reps-directories" aria-labelledby="directories-heading">
+      <h2 id="directories-heading">Official directories</h2>
+      <p>Use these to verify an officeholder or fill a gap in the results.</p>
+      <ul>
+        <li><a href="https://www.usa.gov/elected-officials" target="_blank" rel="noopener noreferrer">USA.gov: find elected officials at every level</a></li>
+        <li><a href="https://www.house.gov/representatives/find-your-representative" target="_blank" rel="noopener noreferrer">U.S. House: find your representative</a></li>
+        <li><a href="https://www.senate.gov/senators/senators-contact.htm" target="_blank" rel="noopener noreferrer">U.S. Senate: contact your senators</a></li>
+        <li><a href="https://www.usa.gov/state-local-governments" target="_blank" rel="noopener noreferrer">State and local government websites</a></li>
+      </ul>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <div>
+        <h4>Directory sources</h4>
+        <ul>
+          <li><a href="https://jurisdictional.org/developers">Jurisdictional</a>: district boundaries and officeholder records · <a href="https://opendatacommons.org/licenses/odbl/1-0/">ODbL</a></li>
+          <li><a href="https://github.com/unitedstates/congress-legislators">United States Congress</a>, <a href="https://github.com/openstates/people">Open States</a>, <a href="https://github.com/CivicPatch/open-data">CivicPatch</a>: public office contact records · CC0 / public domain</li>
+          <li id="directory-updated">Contact records are refreshed separately from the forecast.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>About</h4>
+        <ul>
+          <li>Current officeholders, not forecast winners or candidates</li>
+          <li><span data-site-name>Presidential Model 2028</span> · independent, not affiliated with any campaign or party</li>
+        </ul>
+      </div>
+    </div>
+  </footer>
+  <script type="module" src="./representatives.js"></script>
+</body>
+</html>

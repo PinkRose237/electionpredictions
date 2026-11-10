@@ -160,6 +160,28 @@ an artifact).
 
 Plain HTML/CSS/JS modules, no build step: publish `site/` anywhere static files are served.
 
+The **Contact your reps** page (`representatives.html`) accepts a U.S. street address,
+city/state or ZIP code. It resolves a location through the key-free
+[Jurisdictional API](https://jurisdictional.org/developers), then matches the returned
+districts and officeholders against a static contact directory from
+[Congress](https://github.com/unitedstates/congress-legislators),
+[Open States](https://github.com/openstates/people), and
+[CivicPatch](https://github.com/CivicPatch/open-data). It includes matching local,
+county, school board, state and federal records, with published websites, phones,
+emails and separately labeled contact forms. No addresses are stored by the page;
+the submitted location is sent directly to Jurisdictional. Its anonymous API has a
+100-request daily limit per visitor IP. Broad-area searches represent a point near
+the area center, not every district overlapping the city/ZIP. Full-address matches
+also depend on the geocoder and boundary accuracy. No source guarantees a complete
+roster of local offices or public emails; gaps and verification links remain visible.
+
+`site/representatives-data/` is generated contact data, separate from forecast data.
+Refresh it with `uv run python scripts/refresh_representatives.py`; do not edit its
+JSON by hand. `.github/workflows/representatives.yml` refreshes it daily and
+dispatches the normal site deployment. A failed source download leaves the previous
+directory intact. Record refresh dates are not claims of manual verification.
+Run the matching/error-handling tests with `node --test tests/representatives.test.mjs`.
+
 The Hegseth page uses a **separate experimental, judgment-based event model**, not the presidential
 simulation or market prices. Its four conditional daily hazards (firing, resignation, House impeachment,
 Senate conviction) propagate through a competing-risk process. House impeachment can precede firing or

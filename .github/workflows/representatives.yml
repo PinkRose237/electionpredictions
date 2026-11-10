@@ -1,0 +1,39 @@
+name: Refresh representative contacts
+
+on:
+  schedule:
+    - cron: '23 9 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: representative-contacts
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - name: Refresh public office contact records
+        run: uv run python scripts/refresh_representatives.py
+      - name: Save refreshed directory
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add site/representatives-data
+          if ! git diff --cached --quiet; then
+            git commit -m 'Refresh public representative contact records'
+            git pull --rebase origin main
+            git push origin HEAD:main
+          fi
+      # GITHUB_TOKEN pushes do not trigger push workflows; explicitly request
+      # the normal deployment so forecast-data restoration remains unchanged.
+      - name: Deploy the updated directory
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run deploy-site.yml --ref main
