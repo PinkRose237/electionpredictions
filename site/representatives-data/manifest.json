@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-11",
+  "updated": "2026-11-12",
   "sources": {
     "congress": "https://github.com/unitedstates/congress-legislators",
     "openstates": "https://github.com/openstates/people",
@@ -41,7 +41,7 @@
     "ne": 58,
     "nh": 1258,
     "nj": 3090,
-    "nm": 618,
+    "nm": 623,
     "nv": 73,
     "ny": 243,
     "oh": 150,
@@ -58,7 +58,7 @@
     "ut": 112,
     "va": 155,
     "vi": 1,
-    "vt": 1430,
+    "vt": 1435,
     "wa": 1950,
     "wi": 145,
     "wv": 140,
