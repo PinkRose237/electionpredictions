@@ -1,5 +1,5 @@
 {
-  "updated": "2026-11-16",
+  "updated": "2026-11-17",
   "sources": {
     "congress": "https://github.com/unitedstates/congress-legislators",
     "openstates": "https://github.com/openstates/people",
@@ -46,7 +46,7 @@
     "ny": 243,
     "oh": 151,
     "ok": 156,
-    "or": 1241,
+    "or": 1407,
     "pa": 276,
     "pr": 84,
     "ri": 120,
